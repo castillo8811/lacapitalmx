@@ -42,7 +42,7 @@ function ampproject_menu() {
   ];
 
   // Main AMP router.
-  if (!empty(AMPPROJECT_URL_SEGMENT)) {
+  if (AMPPROJECT_URL_SEGMENT) {
     $items[AMPPROJECT_URL_SEGMENT . '/%'] = [
       'delivery callback' => '_ampproject_get_page',
       'type' => MENU_CALLBACK,
