@@ -575,19 +575,6 @@ function imx_gcms_form_alter(&$form, &$form_state, $form_id)
             $form['author']['name']['#default_value'] = !empty($user->name) ? $user->name : '';
             $form['author']['name']['#default_value'] = !empty($user->name) ? $user->name : '';
         }
-    } else {
-        if ($form_id == variable_get("imx_gcms_content_article", "article") . "_node_form" || $form_id == variable_get("imx_gcms_content_gallerie", "gallerie") . "_node_form" || $form_id == variable_get("imx_gcms_content_video", "video") . "_node_form") {
-            $form['imx_gcms_send_to'] = array(
-                '#type' => 'select',
-                '#multiple' => 'true',
-                '#required' => FALSE,
-                '#options' => getAPISites(TRUE),
-                '#title' => t("Recomendar a:"),
-                '#weight' => count($form) - 10,
-                '#size' => 10,
-                '#description' => t('Remember that you can select more than one site for recommendations, you just use control+click to do that.'),
-            );
-        }
     }
 
     drupal_add_css(drupal_get_path('module', 'imx_gcms') . '/imx_gcms_node_form.css');
