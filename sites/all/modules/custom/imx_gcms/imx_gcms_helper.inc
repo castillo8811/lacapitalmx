@@ -224,11 +224,7 @@ function getFeedContent($site, $id)
 }
 
 function getSite($ciudad){
-    $sites=array(
-        'ElQueretanoMx'=>'local.elqueretano.mx',
-        'LaCapitalMx'=>'local.lacapitalmx.com',
-        'ElMexiquense'=>'local.elmexiquense.com'
-    );
+    $sites=getSites();
 
     return $sites[$ciudad];
 }
@@ -238,11 +234,11 @@ function getSiteByDns($dns){
     return $sites[$dns];
 }
 
-function getSites($ciudad){
+function getSites(){
     $sites=array(
-        'ElQueretanoMx'=>'local.elqueretano.mx',
-        'LaCapitalMx'=>'local.lacapitalmx.com',
-        'ElMexiquense'=>'local.elmexiquense.com'
+        'ElQueretanoMx'=>'www.elqueretano.mx',
+        'LaCapitalMx'=>'www.lacapitalmx.com',
+        'ElMexiquense'=>'www.elmexiquense.com.mx'
     );
 
     return $sites;
