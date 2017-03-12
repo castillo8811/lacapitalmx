@@ -220,8 +220,7 @@ function nodequeue_node_tab($node) {
 
   }
 
-  $output .= theme('table', array('header' => $header, 'rows' => $rows,'caption'=>'<h2><strong>Secciones LaCapitalMx</strong></h2>', 'attributes' => array('class' => array('nodequeue-table'))));
-  $output .= theme('table', array('header' => $header, 'rows' => $rows_queretaro,'caption'=>'<h2><strong>Secciones ElQueretano</strong></h2>', 'attributes' => array('class' => array('nodequeue-table'))));
+  $output .= theme('table', array('header' => $header, 'rows' => $rows,'caption'=>'<h2><strong>Secciones Home</strong></h2>', 'attributes' => array('class' => array('nodequeue-table'))));
   drupal_add_js(drupal_get_path('module', 'nodequeue') . '/nodequeue.js');
   drupal_add_css(drupal_get_path('module', 'nodequeue') . '/nodequeue.css');
   return $output;
@@ -352,10 +351,8 @@ function nodequeue_view_queues() {
     }
   }
 
-  $output .= theme('table', array('header' => $header, 'rows' => $rows,'caption'=>'<h2><strong>Secciones LaCapitalMx</strong></h2>')).'<br/>';
-  $output .= theme('table', array('header' => $header, 'rows' => $rows_queretaro,'caption'=>'<h2><strong>Secciones ElQueretano</strong></h2>'));
-
-    $output .= theme('pager', array('tags' => NULL));
+  $output .= theme('table', array('header' => $header, 'rows' => $rows,'caption'=>'<h2><strong>Secciones Home</strong></h2>')).'<br/>';
+  $output .= theme('pager', array('tags' => NULL));
 
   return $output;
 }
