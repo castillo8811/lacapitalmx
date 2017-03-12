@@ -1,0 +1,7 @@
+; $Id$
+name = "30 Relacionados Nodo"
+description = "Muestra 30 notas relacionadas a un nodo por canal"
+package = "FEM"
+version = 7.x
+core = 7.x
+files[]="imx_related_nodes.module"

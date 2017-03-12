@@ -1,0 +1,16 @@
+#block-imx-sidebar-node-imx-sidebar-node-block {position: static !important;overflow: hidden;float: left;}
+#relacionados-container .relacionados-content {width: 300px;}
+.lomasvisto-item {width: 100%;border-bottom: 1px dotted #DDD;padding: 13px 0;}
+.title_visited {color: #333;font: 16px tinosregular;text-align: left;line-height: 20px;}
+.title_taxonomy {color: #798f39;font: 14px TinosItalic,Verdana,Geneva, sans-serif;text-align: left;text-transform: capitalize;margin-bottom: 5px;margin-top: 11px;}
+#top-sidebar-editor-vistas {width: 100%;background: #dfdfdf;/*box-shadow: 0 0 3px #ccc;*/}
+#top-sidebar-editor-vistas .relacionados-title-sidebar-node {font: 12px Tinos,Verdana,Geneva, sans-serif;text-align: center;cursor: pointer;padding: 2px 0;height: 19px;}
+#relacionados-container {background-color: white;}
+.relacionados-title_uno {width: 182px;color: #333;}
+.relacionados-title_dos {width: 116px;}
+a.show-more-link:hover{color:#333;}
+a.show-more-link:visited{color:#333;    }
+.itemActive {background: #f7f7f7;border: 1px solid #f7f7f7;border-bottom: none;color: #999;}
+.lomasvisto-title {font: 16px Tinos,Verdana,Geneva, sans-serif;color: #333;}
+.lomasvisto-item-text {float: right;width: 164px;}
+.lomasvisto-item img {width: 126px;height: 94px;}

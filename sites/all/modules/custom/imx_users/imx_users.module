@@ -1,0 +1,1756 @@
+<?php
+
+define('IMX_USERS_CX_URL', 'https://api.cxense.com/traffic');
+define('IMX_USERS_CX_AUTH_USERNAME','david.gil@gimm.com.mx');
+define('IMX_USERS_CX_AUTH_SECRET','api&user&In/f/tfvy2qAPdQgCB2WBQ==');
+define('IMX_USERS_CX_SITE_ID',variable_get('imx_users_cxense_id', '9222311772423575875'));
+
+/**
+ * Implements hook_permisson().
+ */
+function imx_users_permission() {
+  $permissions['administer imx_users'] = array(
+    'title' => t('Administer imx_users.'),
+    'restrict access' => TRUE,
+  );
+  return $permissions;
+}
+
+function imx_users_help($path, $arg) {
+  if ($path == 'admin/help#imx_users') {
+    return t('Configuración de parámetros imx_users');
+  }
+}
+
+/**
+ * Implements hook_menu().
+ */
+function imx_users_menu() {
+    $items = array();
+    $items['admin/config/imx_users'] = array(
+        'title' => t('Configuracion de bloques de usuario'),
+        'description' => t('Parámetros de configuracion de bloques de usuario'),
+        'position' => 'left',
+        'page callback' => 'system_admin_menu_block_page',
+        'access arguments' => array('administer'),
+        'file' => 'system.admin.inc',
+        'file path' => drupal_get_path('module', 'system'),
+    );
+
+    $items['admin/config/imx_users/settings'] = array(
+        'title' => 'Configurar paŕametros de listado.',
+        'description' => 'Configuracion de parámetros de listado de resultados notas de usuario.',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('imx_users_list_frm'),
+        'access arguments' => array('administer imx_users'),
+        'type' => MENU_NORMAL_ITEM,
+    );
+
+    return $items;
+}
+
+/**
+* Implementation of hook_menu_alter().
+*/
+function imx_users_menu_alter(&$items) {
+    $items['user/%user/edit']['type'] = MENU_CALLBACK;
+    $items['user/%user/scheduler']['type'] = MENU_CALLBACK;
+    $items['user/%user/devel']['type'] = MENU_CALLBACK;
+    $items['user/%user/view']['type'] = MENU_CALLBACK;
+    $items['user/%/favorites']['type'] = MENU_CALLBACK;
+    $items['user/%/site-favorites']['type'] = MENU_CALLBACK;
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function imx_users_block_info() {
+    $blocks = array();
+    $blocks["imx_users_list"] = array(
+        'info'=> t('Muestra Bloque listado de notas por usuario.'),
+        'cache'=>DRUPAL_CACHE_GLOBAL,
+    );
+    $blocks["imx_users_profile"] = array(
+        'info'=> t('Muestra Bloque perfil de usuario.'),
+        'cache'=>DRUPAL_CACHE_GLOBAL,
+    );
+    $blocks["imx_users_profile_node"] = array(
+        'info'=> t('Muestra Bloque perfil de usuario en notas'),
+        'cache'=>DRUPAL_CACHE_GLOBAL,
+    );
+    return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+
+function imx_users_block_view($delta = '') {
+    $block = array();
+
+    switch ($delta) {
+        case 'imx_users_list' :
+            $content = '';
+            drupal_add_css(drupal_get_path('module','imx_users').'/css/imx_users_garuyo.css');
+            $user = menu_get_object('user');
+            if ($user && is_object($user)) {
+                $theme = 'imx_users_list';
+                $image_style = 'medium';
+                $content_types = variable_get('imx_users_content_types', array('article'));
+                $options = array(
+                    'title' => $user->name,
+                    'uid' => $user->uid,
+                    'theme' => $theme,
+                    'content_types' => $content_types,
+                );
+
+                //configuración para paginador inicio
+                $pager_options = array(
+                    'pager' => TRUE,
+                    'up' => FALSE,
+                    'down' => TRUE,
+                );
+                //configuración para paginador fin
+
+                $content = imx_users_get_nodes_list($options, $offset = 0, $limit = 10, $pager_options);
+            }
+            $block['subject'] = t('Muestra Bloque listado de notas por usuario.');
+            $block['content'] = $content;
+            break;
+
+        case 'imx_users_profile' :
+            $content = '';
+            $background = NULL;
+            drupal_add_css(drupal_get_path('module','imx_users').'/css/imx_users_profile_garuyo.css');
+            $user_view = menu_get_object('user');
+            if (sizeof($user_view->roles) > 1) {
+                if ($user_view && is_object($user_view)) {
+                    $variable_facebook = variable_get('imx_users_profile_facebook', FALSE);
+                    $where_facebook = variable_get('imx_users_profile_facebook_where');
+                    $variable_twitter = variable_get('imx_users_profile_twitter', FALSE);
+                    $where_twitter = variable_get('imx_users_profile_twitter_where');
+                    $variable_signature = variable_get('imx_users_profile_signature', FALSE);
+                    $where_signature = variable_get('imx_users_profile_signature_where');
+                    $variable_google = variable_get('imx_users_profile_google', FALSE);
+                    $where_google = variable_get('imx_users_profile_google_where');
+                    $variable_linkedin = variable_get('imx_users_profile_linkedin', FALSE);
+                    $where_linkedin = variable_get('imx_users_profile_linkedin_where');
+                    $variable_url = variable_get('imx_users_profile_url', FALSE);
+                    $where_url = variable_get('imx_users_profile_url_where');
+                    if ($variable_facebook && $variable_twitter && $variable_signature) {
+                        if ($where_facebook == 'user') {
+                          if (isset($user_view->{$variable_facebook}['und'][0]['value'])) {
+                            $facebook_name = strip_tags($user_view->{$variable_facebook}['und'][0]['value']);
+                          }
+                        }
+                        if ($where_twitter == 'user') {
+                          if (isset($user_view->{$variable_twitter}['und'][0]['value'])) {
+                            $twitter_name = strip_tags($user_view->{$variable_twitter}['und'][0]['value']);
+                          }
+                        }
+                        if ($where_signature == 'user') {
+                          if (isset($user_view->{$variable_signature}['und'][0]['value'])) {
+                            $signature = strip_tags($user_view->{$variable_signature}['und'][0]['value']);
+                          }
+                        }
+                        if (isset($user_view->picture->{'uri'})) {
+                          if (isset($user_view->picture->{'uri'})) {
+                            $image = file_create_url($user_view->picture->{'uri'});
+                          }
+                        }
+
+                        if (function_exists('profile2_load_by_user')) {
+                          $profile = profile2_load_by_user($user_view->uid, variable_get('imx_users_profile_name'));
+                          if ($profile) {
+                            if ($profile->{$variable_facebook}) {
+                              if ($where_facebook == 'profile2') {
+                                if (isset($profile->{$variable_facebook}['und'][0]['value'])) {
+                                  $facebook_name = strip_tags($profile->{$variable_facebook}['und'][0]['value']);
+                                }
+                              }
+                            }
+                            if ($profile->{$variable_twitter}) {
+                              if ($where_twitter == 'profile2') {
+                                if (isset($profile->{$variable_twitter}['und'][0]['value'])) {
+                                  $twitter_name = strip_tags($profile->{$variable_twitter}['und'][0]['value']);
+                                }
+                              }
+                            }
+                            if ($profile->{$variable_signature}) {
+                              if ($where_signature == 'profile2') {
+                                if (isset($profile->{$variable_signature}['und'][0]['value'])) {
+                                  $signature = strip_tags($profile->{$variable_signature}['und'][0]['value']);
+                                }
+                              }
+                            }
+                            if (isset($profile->field_profile_background['und'][0]['uri'])) {
+                              $background = file_create_url($profile->field_profile_background['und'][0]['uri']);
+                            }
+                          }
+                        }
+                    }
+                    //update
+                    $google = NULL;
+                    $linkedin = NULL;
+                    $personal_url = NULL;
+                    if ($variable_google && $variable_linkedin && $variable_url) {
+                      if ($where_google == 'user')
+                        if (isset($user_view->{$variable_google}['und'][0]['value'])) {
+                          $google = strip_tags($user_view->{$variable_google}['und'][0]['value']);
+                        }
+                      if ($where_linkedin == 'user') {
+                        if (isset($user_view->{$variable_linkedin}['und'][0]['value'])) {
+                          $linkedin = strip_tags($user_view->{$variable_linkedin}['und'][0]['value']);
+                        }
+                      }
+                      if ($where_url == 'user') {
+                        if (isset($user_view->{$variable_url}['und'][0]['value'])) {
+                          $personal_url = strip_tags($user_view->{$variable_url}['und'][0]['value']);
+                        }
+                      }
+
+                      if ($profile) {
+                        if ($profile->{$variable_google}) {
+                          if ($where_google == 'profile2') {
+                            if (isset($profile->{$variable_google}['und'][0]['value'])) {
+                              $google = strip_tags($profile->{$variable_google}['und'][0]['value']);
+                            }
+                          }
+                        }
+                        if ($profile->{$variable_linkedin}) {
+                          if ($where_linkedin == 'profile2') {
+                            if (isset($profile->{$variable_linkedin}['und'][0]['value'])) {
+                              $linkedin = strip_tags($profile->{$variable_linkedin}['und'][0]['value']);
+                            }
+                          }
+                        }
+                        if ($profile->{$variable_url}) {
+                          if ($where_url == 'profile2') {
+                            if (isset($profile->{$variable_url}['und'][0]['value'])) {
+                              $personal_url = strip_tags($profile->{$variable_url}['und'][0]['value']);
+                            }
+                          }
+                        }
+                      }
+                    }
+                    $full_name = NULL;
+                    $variable_fullname = variable_get('imx_users_profile_fullname', FALSE);
+                    $where_fullname = variable_get('imx_users_profile_fullname_where');
+                    if ($variable_fullname) {
+                      if ($where_fullname == 'user') {
+                        if (isset($user_view->{$variable_fullname}['und'][0]['value'])) {
+                          $full_name = strip_tags($user_view->{$variable_fullname}['und'][0]['value']);
+                        }
+                      }
+                      if ($profile) {
+                        if ($profile->{$variable_fullname}) {
+                          if ($where_fullname == 'profile2') {
+                            if (isset($profile->{$variable_google}['und'][0]['value'])) {
+                              $full_name = strip_tags($profile->{$variable_google}['und'][0]['value']);
+                            }
+                          }
+                        }
+                      }
+                    }
+                    else{
+                      $full_name = $user_view->name;
+                    }
+                    $full_name=($full_name)? $full_name :$user_view->name;
+
+                    if (!isset($background)) {
+                      $variable_background = variable_get('imx_users_profile_background', FALSE);
+                      if ($variable_background) {
+                        $where_background = variable_get('imx_users_profile_background_where');
+                        if ($where_background == 'user') {
+                          if (isset($user_view->{$variable_background}['und'][0]['uri'])) {
+                            $background = file_create_url($user_view->{$variable_background}['und'][0]['uri']);
+                          }
+                        }
+                        if ($profile) {
+                          if ($profile->{$variable_fullname}) {
+                            if ($where_fullname == 'profile2') {
+                              if (isset($profile->$variable_background['und'][0]['uri'])) {
+                                $background = file_create_url($profile->$variable_background['und'][0]['uri']);
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                    if (!isset($image))
+                      $image = variable_get('imx_users_profile_path_image_default', '');
+
+                    //update end
+                    global $user;
+                    $login = FALSE;
+                    if (user_is_logged_in() && $user->uid == $user_view->uid)
+                        $login = TRUE;
+                    if (isset($personal_url)) {
+                      if(!preg_match('/(http|https)\:\/\//i', $personal_url)) {
+                        $personal_url = 'http://' . $personal_url;
+                      }
+                    }
+                    else {
+                      $personal_url = NULL;
+                    }
+
+                    if (isset($user_view->field_blog_name['und'][0]['value'])) {
+                        $blog= strip_tags($user_view->field_blog_name['und'][0]['value']);
+                    }
+
+                    $data = array(
+                        'name' => isset($full_name)? $full_name: NULL,
+                        'facebook' => isset($facebook_name)? $facebook_name: NULL,
+                        'blog' => isset($blog)? $blog: NULL,
+                        'twitter' => isset($twitter_name)? $twitter_name: NULL,
+                        'signature' => isset($signature)? $signature: NULL,
+                        'image' => isset($image)? $image: NULL,
+                        'background' => isset($background)? $background: NULL,
+                        'login' => $login,
+                        'google' => isset($google)? $google: NULL,
+                        'linkedin' => isset($linkedin)? $linkedin: NULL,
+                        'personal_url' => $personal_url,
+                    );
+                    #echo "<pre>";var_dump($data);echo "</pre>";
+                    $content = array(
+                        '#data' => $data,
+                        '#theme' => 'imx_users_profile',
+                    );
+                }
+            }
+            // SEO
+            $tags = array();
+            $seo_tags = variable_get('imx_users_seo', array());
+            if (isset($image) && in_array('og:image', $seo_tags, TRUE)) {
+                $tag_image = array(
+                    'meta' => array(
+                        'property' => 'og:image',
+                        'content' => $image,
+                    )
+                );
+                array_push($tags, $tag_image);
+            }
+            if (isset($signature) && in_array('og:description', $seo_tags, TRUE)) {
+                $tag_ogdescription = array(
+                    'meta' => array(
+                        'property' => 'og:description',
+                        'content' => htmlspecialchars($signature, ENT_QUOTES, 'UTF-8'),
+                    )
+                );
+                array_push($tags, $tag_ogdescription);
+            }
+            if (isset($signature) && in_array('description', $seo_tags, TRUE)) {
+                $tag_description = array(
+                    'meta' => array(
+                        'name' => 'description',
+                        'content' => htmlspecialchars($signature, ENT_QUOTES, 'UTF-8'),
+                    )
+                );
+                array_push($tags, $tag_description);
+            }
+            imx_users_create_html_tag($tags, 'imx_users');
+            // SEO
+            $block['subject'] = t('Muestra Bloque perfil de usuario.');
+            $block['content'] = $content;
+            break;
+        case 'imx_users_profile_node' :
+            $content = '';
+            $background = NULL;
+//            drupal_add_css(drupal_get_path('module','imx_users').'/css/imx_users_profile_garuyo.css');
+            $node_data=  node_load(arg(1));
+            
+            if(count($node_data->field_colaborador)){
+                $data_user=$node_data->field_colaborador;
+                $data_user=$data_user["und"][0]["uid"];
+            }else{
+                $data_user=$node_data->uid;
+            }
+//            print_r(user_load($data_user));exit;
+            $user_view = user_load($data_user);
+
+                if (!($user_view->uid && in_array("colaborador",$user_view->roles))) {
+                    $user_view = user_load(7589);
+                }
+
+                if ($user_view->uid && in_array("colaborador",$user_view->roles)) {
+                if ($user_view && is_object($user_view)) {
+                    $variable_facebook = variable_get('imx_users_profile_facebook', FALSE);
+                    $where_facebook = variable_get('imx_users_profile_facebook_where');
+                    $variable_twitter = variable_get('imx_users_profile_twitter', FALSE);
+                    $where_twitter = variable_get('imx_users_profile_twitter_where');
+                    $variable_signature = variable_get('imx_users_profile_signature', FALSE);
+                    $where_signature = variable_get('imx_users_profile_signature_where');
+                    $variable_google = variable_get('imx_users_profile_google', FALSE);
+                    $where_google = variable_get('imx_users_profile_google_where');
+                    $variable_linkedin = variable_get('imx_users_profile_linkedin', FALSE);
+                    $where_linkedin = variable_get('imx_users_profile_linkedin_where');
+                    $variable_url = variable_get('imx_users_profile_url', FALSE);
+                    $where_url = variable_get('imx_users_profile_url_where');
+                    if ($variable_facebook && $variable_twitter && $variable_signature) {
+                        if ($where_facebook == 'user') {
+                          if (isset($user_view->{$variable_facebook}['und'][0]['value'])) {
+                            $facebook_name = strip_tags($user_view->{$variable_facebook}['und'][0]['value']);
+                          }
+                        }
+                        if ($where_twitter == 'user') {
+                          if (isset($user_view->{$variable_twitter}['und'][0]['value'])) {
+                            $twitter_name = strip_tags($user_view->{$variable_twitter}['und'][0]['value']);
+                          }
+                        }
+                        if ($where_signature == 'user') {
+                          if (isset($user_view->{$variable_signature}['und'][0]['value'])) {
+                            $signature = strip_tags($user_view->{$variable_signature}['und'][0]['value']);
+                          }
+                        }
+                        if (isset($user_view->picture->{'uri'})) {
+                          if (isset($user_view->picture->{'uri'})) {
+                            $image = file_create_url($user_view->picture->{'uri'});
+                          }
+                        }
+
+                        if (function_exists('profile2_load_by_user')) {
+                          $profile = profile2_load_by_user($user_view->uid, variable_get('imx_users_profile_name'));
+                          if ($profile) {
+                            if ($profile->{$variable_facebook}) {
+                              if ($where_facebook == 'profile2') {
+                                if (isset($profile->{$variable_facebook}['und'][0]['value'])) {
+                                  $facebook_name = strip_tags($profile->{$variable_facebook}['und'][0]['value']);
+                                }
+                              }
+                            }
+                            if ($profile->{$variable_twitter}) {
+                              if ($where_twitter == 'profile2') {
+                                if (isset($profile->{$variable_twitter}['und'][0]['value'])) {
+                                  $twitter_name = strip_tags($profile->{$variable_twitter}['und'][0]['value']);
+                                }
+                              }
+                            }
+                            if ($profile->{$variable_signature}) {
+                              if ($where_signature == 'profile2') {
+                                if (isset($profile->{$variable_signature}['und'][0]['value'])) {
+                                  $signature = strip_tags($profile->{$variable_signature}['und'][0]['value']);
+                                }
+                              }
+                            }
+                            if (isset($profile->field_profile_background['und'][0]['uri'])) {
+                              $background = file_create_url($profile->field_profile_background['und'][0]['uri']);
+                            }
+                          }
+                        }
+                    }
+                    //update
+                    $google = NULL;
+                    $linkedin = NULL;
+                    $personal_url = NULL;
+                    if ($variable_google && $variable_linkedin && $variable_url) {
+                      if ($where_google == 'user')
+                        if (isset($user_view->{$variable_google}['und'][0]['value'])) {
+                          $google = strip_tags($user_view->{$variable_google}['und'][0]['value']);
+                        }
+                      if ($where_linkedin == 'user') {
+                        if (isset($user_view->{$variable_linkedin}['und'][0]['value'])) {
+                          $linkedin = strip_tags($user_view->{$variable_linkedin}['und'][0]['value']);
+                        }
+                      }
+                      if ($where_url == 'user') {
+                        if (isset($user_view->{$variable_url}['und'][0]['value'])) {
+                          $personal_url = strip_tags($user_view->{$variable_url}['und'][0]['value']);
+                        }
+                      }
+
+                      if ($profile) {
+                        if ($profile->{$variable_google}) {
+                          if ($where_google == 'profile2') {
+                            if (isset($profile->{$variable_google}['und'][0]['value'])) {
+                              $google = strip_tags($profile->{$variable_google}['und'][0]['value']);
+                            }
+                          }
+                        }
+                        if ($profile->{$variable_linkedin}) {
+                          if ($where_linkedin == 'profile2') {
+                            if (isset($profile->{$variable_linkedin}['und'][0]['value'])) {
+                              $linkedin = strip_tags($profile->{$variable_linkedin}['und'][0]['value']);
+                            }
+                          }
+                        }
+                        if ($profile->{$variable_url}) {
+                          if ($where_url == 'profile2') {
+                            if (isset($profile->{$variable_url}['und'][0]['value'])) {
+                              $personal_url = strip_tags($profile->{$variable_url}['und'][0]['value']);
+                            }
+                          }
+                        }
+                      }
+                    }
+                    $full_name = NULL;
+                    $variable_fullname = variable_get('imx_users_profile_fullname', FALSE);
+                    $where_fullname = variable_get('imx_users_profile_fullname_where');
+                    if ($variable_fullname) {
+                      if ($where_fullname == 'user') {
+                        if (isset($user_view->{$variable_fullname}['und'][0]['value'])) {
+                          $full_name = strip_tags($user_view->{$variable_fullname}['und'][0]['value']);
+                        }
+                      }
+                      if ($profile) {
+                        if ($profile->{$variable_fullname}) {
+                          if ($where_fullname == 'profile2') {
+                            if (isset($profile->{$variable_google}['und'][0]['value'])) {
+                              $full_name = strip_tags($profile->{$variable_google}['und'][0]['value']);
+                            }
+                          }
+                        }
+                      }
+                    }
+                    else{
+                      $full_name = $user_view->name;
+                    }
+                    $full_name=($full_name)? $full_name :$user_view->name;
+
+                    if (!isset($background)) {
+                      $variable_background = variable_get('imx_users_profile_background', FALSE);
+                      if ($variable_background) {
+                        $where_background = variable_get('imx_users_profile_background_where');
+                        if ($where_background == 'user') {
+                          if (isset($user_view->{$variable_background}['und'][0]['uri'])) {
+                            $background = file_create_url($user_view->{$variable_background}['und'][0]['uri']);
+                          }
+                        }
+                        if ($profile) {
+                          if ($profile->{$variable_fullname}) {
+                            if ($where_fullname == 'profile2') {
+                              if (isset($profile->$variable_background['und'][0]['uri'])) {
+                                $background = file_create_url($profile->$variable_background['und'][0]['uri']);
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                    if (!isset($image))
+                      $image = variable_get('imx_users_profile_path_image_default', '');
+
+                    //update end
+                    global $user;
+                    $login = FALSE;
+                    if (user_is_logged_in() && $user->uid == $user_view->uid)
+                        $login = TRUE;
+                    if (isset($personal_url)) {
+                      if(!preg_match('/(http|https)\:\/\//i', $personal_url)) {
+                        $personal_url = 'http://' . $personal_url;
+                      }
+                    }
+                    else {
+                      $personal_url = NULL;
+                    }
+
+                    if(isset($node_data->field_autor_intelectual['und'][0]['value'])){
+                        $full_name=$node_data->field_autor_intelectual['und'][0]['value'];
+                    }
+
+                    $data_blog=$user_view->field_blog_name['und'][0]['value'];
+                    $data = array(
+                        'uid' => isset($user_view->uid)? $user_view->uid: NULL,
+                        'name' => isset($full_name)? $full_name: NULL,
+                        'blog'=>isset($data_blog)? $data_blog: NULL,
+                        'facebook' => isset($facebook_name)? $facebook_name: NULL,
+                        'twitter' => isset($twitter_name)? $twitter_name: NULL,
+                        'signature' => isset($signature)? $signature: NULL,
+                        'image' => isset($image)? $image: NULL,
+                        'background' => isset($background)? $background: NULL,
+                        'login' => $login,
+                        'google' => isset($google)? $google: NULL,
+                        'linkedin' => isset($linkedin)? $linkedin: NULL,
+                        'personal_url' => $personal_url,
+                    );
+                    #echo "<pre>";var_dump($data);echo "</pre>";
+                    $content = array(
+                        '#data' => $data,
+                        '#theme' => 'imx_users_profile_garuyo',
+                    );
+                }
+            }
+            // SEO
+            $tags = array();
+            $seo_tags = variable_get('imx_users_seo', array());
+            if (isset($image) && in_array('og:image', $seo_tags, TRUE)) {
+                $tag_image = array(
+                    'meta' => array(
+                        'property' => 'og:image',
+                        'content' => $image,
+                    )
+                );
+                array_push($tags, $tag_image);
+            }
+            if (isset($signature) && in_array('og:description', $seo_tags, TRUE)) {
+                $tag_ogdescription = array(
+                    'meta' => array(
+                        'property' => 'og:description',
+                        'content' => htmlspecialchars($signature, ENT_QUOTES, 'UTF-8'),
+                    )
+                );
+                array_push($tags, $tag_ogdescription);
+            }
+            if (isset($signature) && in_array('description', $seo_tags, TRUE)) {
+                $tag_description = array(
+                    'meta' => array(
+                        'name' => 'description',
+                        'content' => htmlspecialchars($signature, ENT_QUOTES, 'UTF-8'),
+                    )
+                );
+                array_push($tags, $tag_description);
+            }
+            imx_users_create_html_tag($tags, 'imx_users');
+            // SEO
+            $block['subject'] = t('Muestra Bloque perfil de usuario en notas.');
+            $block['content'] = $content;
+            break;
+    }
+
+    return $block;
+}
+
+/**
+ * Implements hook_theme
+ */
+
+function imx_users_theme() {
+    return array(
+        'imx_users_list' => array(
+            'variables' => array(
+                'data' => NULL,
+                'title' => NULL,
+                'total_traffic' => NULL,
+              ),
+            'template' => 'imx_users_list',
+        ),
+        'imx_users_profile' => array(
+            'variables' => array(
+                'data' => NULL,
+              ),
+            'template' => 'imx_users_profile',
+        ),
+        'imx_users_profile_garuyo' => array(
+            'variables' => array(
+                'data' => NULL,
+              ),
+            'template' => 'imx_users_profile_garuyo',
+        ),
+    );
+}
+
+/**
+ * Implements hook_template_preprocess_theme
+ */
+function template_preprocess_imx_users(&$variables) {
+    $variables['data'] = $variables['data'];
+}
+
+/**
+ * Regresa n nodos más recientes por termino de taxonomia de x vocabulario
+ * @param int or array $tid id de termino(s) de taxonomia
+ * @param int $vid id de vocabulario
+ * @param int $uid id de usuario conductor
+ * @param int $offset a partir de que indice
+ * @param int $limit cantidad de nodos
+ * @return array
+ */
+function imx_users_get_nodes_list($options, $offset = 0, $limit = 1, $pager = null) {
+    $data = array();
+    $output = '';
+
+    if (!isset($options['uid']))
+        return $output;
+
+    if (!isset($options['content_types']))
+        $options['content_types'] = array('article','video','gallerie');
+
+    $query = db_select('node','n');
+    $query->fields('n', array('nid'));
+    $query->condition('n.status', 1, '=');
+    $query->condition('n.type', $options['content_types'], 'IN');
+
+    if (variable_get('imx_users_relateds', FALSE)) {
+        $table = 'field_data_' . variable_get('imx_users_relateds');
+        if (variable_get('imx_users_relateds_field_custom', FALSE))
+            $field = variable_get('imx_users_relateds_field_custom');
+        else
+            $field = variable_get('imx_users_relateds').'_uid';
+
+        if (db_field_exists($table, $field)) {
+            $query = db_select('node','n');
+            $query->leftjoin($table, 'fdfr', 'n.nid = fdfr.entity_id');
+            $query->fields('n', array('nid'));
+            $query->condition('n.status', 1, '=');
+            $query->condition('n.type', $options['content_types'], 'IN');
+
+            $and = db_and();
+            $and->condition('n.uid', $options['uid'], '=');
+            $and->isNull('fdfr.'.$field);
+
+            $or = db_or();
+            $or->condition($and);
+            $or->condition('fdfr.'.$field, $options['uid'], '=');
+
+            $query->condition($or);
+        }
+        else {
+            $log = array(
+              'query' => 'El campo: ' . $field . ' no existe en la tabla: ' . $table,
+            );
+            imx_users_log(json_encode($log));
+            $query->condition('n.uid', $options['uid'], '=');
+        }
+    }
+    else
+    {
+        $query->condition('n.uid', $options['uid'], '=');
+    }
+
+    if (isset($options['orderByChanged']) && $options['orderByChanged'])
+        $query->orderby('n.changed', 'DESC');
+    else
+        $query->orderby('n.created', 'DESC');
+
+    if (!($pager['pager'])) {
+        $query->range($offset, $limit);
+        //dvm('sin pager');
+        #dpq($query);
+        $result = $query->execute();
+
+        $num_of_results = $result->rowCount();
+
+        if ($result && $num_of_results > 0 ){
+            foreach ($result as $key => $value) {
+                $data[] = array($value->nid);
+            }
+        }
+
+        return $data;
+    }
+    else {
+        $title = isset($options['title'])?$options['title']:NULL; // titulo leyenda
+        $theme = isset($options['theme'])?$options['theme']:'imx_rn_flujo_btn'; //tema de tpl
+        $pager_default = isset($options['pager_default'])?$options['pager_default']:'PagerDefault'; //clase de paginador
+#dpq($query);
+        $query->extend($pager_default)->limit($limit)->execute();
+
+        $result = $query->execute();
+        $num_of_results = $result->rowCount();
+        $nids = array();
+        if ($result && $num_of_results > 0 ){
+            foreach ($result as $key => $value) {
+                $node = node_load($value->nid);
+                $data[] = imx_users_get_node_data_formated($node);
+                #array_push($nids, $value->nid);
+                unset($node);
+            }
+        }
+
+        //get traffic
+        $traffic = array();
+        $total_traffic = array();
+        global $user;
+        $isAdmin = FALSE;
+        $valid_rol = FALSE;
+        $visit_roles = $user->{'roles'};
+        if (in_array('administrator', $visit_roles)) {
+            $isAdmin = TRUE;
+        }
+        $valid_roles = variable_get('imx_users_permissions_roles',array());
+        foreach ($visit_roles as $rol) {
+            if (in_array($rol, $valid_roles, TRUE)) {
+                $valid_rol = TRUE;
+                break;
+            }
+        }
+        if (($user->uid == $options['uid'] && sizeof($data) > 0) || $isAdmin || $valid_rol) { //only if owner user, admin, or valid rol
+            foreach ($data as $key_data => $value_data) {
+                $traffic[$value_data['nid']] = imx_users_get_ga_traffic($value_data['nid']);
+                $data[$key_data]['traffic'] = $traffic[$value_data['nid']];
+            }
+            #$total_traffic = imx_users_get_total_traffic($traffic);
+            $total_traffic = imx_users_get_total_analitics($options['uid'], $options['content_types']);
+        }
+
+        $args = array('tags' => array(t(''), variable_get('imx_users_pager_prev',' '), '',variable_get('imx_users_pager_next',' '),t('')));
+        $output .= ($pager['up'])? theme('pager', $args):'';
+        $output .= theme( $theme, array('data' => $data, 'title' => $title, 'total_traffic' => $total_traffic) );
+        $output .= ($pager['down'])? theme('pager', $args):'';
+
+        return $output;
+    }
+}
+
+/**
+ * Formatea los datos de nodo para el pintado
+ * @param array $node
+ * @param string $image_style
+ * @param boolean $uid
+ * @param array $options
+ * @return array
+ */
+function imx_users_get_node_data_formated($node, $options = NULL) {
+    global $base_url;
+    $data = array();
+    $summary = NULL;
+    $summary_count = variable_get('imx_users_summary_max_length',300);
+
+    /** summary count inicio */
+    if (isset($options['summary_count'])) {
+        $summary_count = $options['summary_count'];
+    }
+    /** summary count fin */
+
+    /** sumario inicio */
+    if (isset($node->body['und'][0]['safe_summary'])) {
+        if (strlen(trim($node->body['und'][0]['safe_summary'])) > 0) {
+            $summary = truncate_utf8(strip_tags($node->body['und'][0]['safe_summary']), $summary_count, FALSE, TRUE, 5);
+        }
+        else {
+            $summary = truncate_utf8(strip_tags($node->body['und'][0]['safe_value']), $summary_count, FALSE, TRUE, 5);
+        }
+    }
+    else {
+        if (strlen(trim($node->body['und'][0]['summary'])) > 0) {
+            $summary = truncate_utf8(strip_tags($node->body['und'][0]['summary']), $summary_count, FALSE, TRUE, 5);
+        }
+        else {
+            $summary = truncate_utf8(strip_tags($node->body['und'][0]['value']), $summary_count, FALSE, TRUE, 5);
+        }
+    }
+    /** sumario fin */
+
+    $data = array(
+        'nid' => $node->nid,
+        'tid' => isset($category_id)? $category_id: NULL,
+        'title' => $node->title,
+        'date' => date('d/m/Y',$node->created),
+        'url' => drupal_get_path_alias('node/' . $node->nid),
+        'full_url' => $base_url . '/' . drupal_get_path_alias('node/' . $node->nid),
+        'social_url' => $base_url . '/' . drupal_get_path_alias('node/' . $node->nid),
+        'twitter_text' => truncate_utf8($node->title, 100, FALSE, TRUE, 5),
+        'twitter_via' => 'DineroEnImagen',
+        'summary' => $summary,
+        #'node_reference_nid' => $node_references_nids,
+        'created' => date('H:i',$node->created),
+        'created_timestamp' => $node->created,
+        'changed_timestamp' => $node->changed,
+        'image' => $node->field_image['und'][0]['uri'],
+    );
+
+    return $data;
+}
+
+function imx_users_list_frm($form, &$form_state) {
+    $roles = user_roles();
+    unset($roles[1],$roles[2]);
+    #array_push($roles, '--Ninguno--');
+    natcasesort($roles);
+
+    $seo = array('og:image', 'og:description', 'description');
+    $form['content'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Parámetros listado'),
+    );
+
+    $form['content']['imx_users_content_types'] = array(
+        '#type' => 'select',
+        '#title' => t('Tipos de contenido a mostrar'),
+        '#description' => t("Puedes seleccionar más de un valor."),
+        '#multiple' => TRUE,
+        '#required' => TRUE,
+        '#options' => drupal_map_assoc(array_keys(node_type_get_types())),
+        '#default_value' => variable_get('imx_users_content_types'),
+    );
+
+    $form['content']['imx_users_relateds'] = array(
+        '#type' => 'textfield',
+        '#title' => t("Machine name del campo del usuario referenciado (si es que aplica)."),
+        '#description' => t("Ej. 'field_user'. Los tipos de contenido seleccionados deben tener este campo."),
+        '#size' =>40,
+        '#default_value' => variable_get("imx_users_relateds",FALSE),
+    );
+    $form['content']['field_not_standard'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Solo para campos no estandarizados como Salud180'),
+    );
+    $form['content']['field_not_standard']['imx_users_relateds_field_custom'] = array(
+        '#type' => 'textfield',
+        '#title' => t("Nombre del campo en la tabla"),
+        '#description' => t("Solo en el caso de Salud180. Ej. 'field_autor_colaborador_target_id'."),
+        '#size' =>40,
+        '#default_value' => variable_get("imx_users_relateds_field_custom",FALSE),
+    );
+
+    $form['profile'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Parámetros perfil de usuario'),
+    );
+    $form['profile']["imx_users_profile_name"] = array(
+        '#type' => 'textfield',
+        '#title' => t("Machine name del nombre de perfil (solo si utilizan perfiles de usuario)"),
+        '#description' => t("Ej. 'main'. Dejar en blanco si los datos de los campos de abajo se extraen de Usuario."),
+        '#size' =>40,
+        '#default_value' => variable_get("imx_users_profile_name",FALSE),
+        #'#required' => TRUE,
+    );
+    $user_entity = array('user'=>'Usuario', 'profile2'=>'Perfil');
+    $form['profile']['name'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Campo Nombre de usuario'),
+    );
+    $form['profile']['name']["imx_users_profile_fullname_where"] = array(
+        '#type' => 'select',
+        '#title' => t("Extraer de:"),
+        '#options' => $user_entity,
+        '#default_value' => variable_get("imx_users_profile_fullname_where")
+    );
+    $form['profile']['name']["imx_users_profile_fullname"] = array(
+        '#type' => 'textfield',
+        '#title' => t("Machine name del campo nombre."),
+        '#description' => t("Deje en blanco para utilizar el default del sistema. Ej. 'field_username'."),
+        '#size' =>40,
+        '#default_value' => variable_get("imx_users_profile_fullname",FALSE),
+        '#required' => FALSE,
+    );
+    $form['profile']['background'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Campo imagen de fondo'),
+    );
+    $form['profile']['background']["imx_users_profile_background_where"] = array(
+        '#type' => 'select',
+        '#title' => t("Extraer de:"),
+        '#options' => $user_entity,
+        '#default_value' => variable_get("imx_users_profile_background_where")
+    );
+    $form['profile']['background']["imx_users_profile_background"] = array(
+        '#type' => 'textfield',
+        '#title' => t("Machine name del campo background."),
+        '#description' => t("Deje en blanco para utilizar el default del perfil. Ej. 'field_profile_background'."),
+        '#size' =>40,
+        '#default_value' => variable_get("imx_users_profile_background",FALSE),
+        '#required' => FALSE,
+    );
+    $form['profile']['facebook'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Campo Facebook'),
+    );
+    $form['profile']['facebook']["imx_users_profile_facebook_where"] = array(
+        '#type' => 'select',
+        '#title' => t("Extraer de:"),
+        '#options' => $user_entity,
+        '#default_value' => variable_get("imx_users_profile_facebook_where")
+    );
+    $form['profile']['facebook']["imx_users_profile_facebook"] = array(
+        '#type' => 'textfield',
+        '#title' => t("Machine name del campo facebook."),
+        '#description' => t("Ej. 'field_facebook_username'."),
+        '#size' =>40,
+        '#default_value' => variable_get("imx_users_profile_facebook",FALSE),
+        '#required' => TRUE,
+    );
+
+    $form['profile']['twitter'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Campo Twitter'),
+    );
+    $form['profile']['twitter']["imx_users_profile_twitter_where"] = array(
+        '#type' => 'select',
+        '#title' => t("Extraer de:"),
+        '#options' => $user_entity,
+        '#default_value' => variable_get("imx_users_profile_twitter_where")
+    );
+    $form['profile']['twitter']["imx_users_profile_twitter"] = array(
+        '#type' => 'textfield',
+        '#title' => t("Machine name del campo twitter."),
+        '#description' => t("Ej. 'field_twitter_username'."),
+        '#size' =>40,
+        '#default_value' => variable_get("imx_users_profile_twitter",FALSE),
+        '#required' => TRUE,
+    );
+
+    $form['profile']['signature'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Campo Biografía'),
+    );
+    $form['profile']['signature']["imx_users_profile_signature_where"] = array(
+        '#type' => 'select',
+        '#title' => t("Extraer de:"),
+        '#options' => $user_entity,
+        '#default_value' => variable_get("imx_users_profile_signature_where")
+    );
+    $form['profile']['signature']["imx_users_profile_signature"] = array(
+        '#type' => 'textfield',
+        '#title' => t("Machine name del campo firma."),
+        '#description' => t("Ej. 'field_resumenprof'."),
+        '#size' =>40,
+        '#default_value' => variable_get("imx_users_profile_signature",FALSE),
+        '#required' => TRUE,
+    );
+
+    $form['profile']['google'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Campo Google+'),
+    );
+    $form['profile']['google']["imx_users_profile_google_where"] = array(
+        '#type' => 'select',
+        '#title' => t("Extraer de:"),
+        '#options' => $user_entity,
+        '#default_value' => variable_get("imx_users_profile_google_where")
+    );
+    $form['profile']['google']["imx_users_profile_google"] = array(
+        '#type' => 'textfield',
+        '#title' => t("Machine name del campo google+."),
+        '#description' => t("Ej. field_googleplus"),
+        '#size' =>40,
+        '#default_value' => variable_get("imx_users_profile_google",FALSE),
+        '#required' => TRUE,
+    );
+
+    $form['profile']['linkedin'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Campo Linkedin'),
+    );
+    $form['profile']['linkedin']["imx_users_profile_linkedin_where"] = array(
+        '#type' => 'select',
+        '#title' => t("Extraer de:"),
+        '#options' => $user_entity,
+        '#default_value' => variable_get("imx_users_profile_linkedin_where")
+    );
+    $form['profile']['linkedin']["imx_users_profile_linkedin"] = array(
+        '#type' => 'textfield',
+        '#title' => t("Machine name del campo linkedin."),
+        '#description' => t("Ej. field_lnk"),
+        '#size' =>40,
+        '#default_value' => variable_get("imx_users_profile_linkedin",FALSE),
+        '#required' => TRUE,
+    );
+
+    $form['profile']['url'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Campo URL de página personal de usuario'),
+    );
+    $form['profile']['url']["imx_users_profile_url_where"] = array(
+        '#type' => 'select',
+        '#title' => t("Extraer de:"),
+        '#options' => $user_entity,
+        '#default_value' => variable_get("imx_users_profile_url_where")
+    );
+    $form['profile']['url']["imx_users_profile_url"] = array(
+        '#type' => 'textfield',
+        '#title' => t("Machine name del campo URL de página personal de usuario."),
+        '#description' => t("Ej. field_url"),
+        '#size' =>40,
+        '#default_value' => variable_get("imx_users_profile_url",FALSE),
+        '#required' => TRUE,
+    );
+
+    $form['profile']['image_default'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('imagen default'),
+    );
+    $form['profile']['image_default']["imx_users_profile_path_image_default"] = array(
+        '#type' => 'textfield',
+        '#title' => t("Ruta"),
+        '#description' => t("Ingrese la url o ruta de la imagen de default para el perfil."),
+        '#size' =>70,
+        '#default_value' => variable_get("imx_users_profile_path_image_default", FALSE),
+        '#required' => FALSE,
+    );
+
+    /*
+    $form['cXense'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('cXense'),
+    );
+    $form['cXense']['imx_users_cxense_id'] = array(
+        '#type' => 'textfield',
+        '#title' => t("cXense ID"),
+        '#description' => t("cxense ID"),
+        '#size' =>40,
+        '#default_value' => variable_get("imx_users_cxense_id",FALSE),
+        '#required' => FALSE,
+    );
+    */
+    $form['other'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Otros'),
+    );
+    $form['other']['imx_users_summary_max_length'] = array(
+        '#type' => 'textfield',
+        '#title' => t("Longitud Sumario"),
+        '#description' => t("Lóngitud máxima de caracteres."),
+        '#size' =>40,
+        '#default_value' => variable_get("imx_users_summary_max_length", 300),
+        '#required' => FALSE,
+    );
+    $form['other']['imx_users_pager_prev'] = array(
+        '#type' => 'textfield',
+        '#title' => t("Leyenda Paginador para Anterior"),
+        '#description' => t("Dejar en blanco si no se utiliza."),
+        '#size' =>40,
+        '#default_value' => variable_get("imx_users_pager_prev",FALSE),
+        '#required' => FALSE,
+    );
+    $form['other']['imx_users_pager_next'] = array(
+        '#type' => 'textfield',
+        '#title' => t("Leyenda Paginador para Siguiente"),
+        '#description' => t("Dejar en blanco si no se utiliza."),
+        '#size' =>40,
+        '#default_value' => variable_get("imx_users_pager_next",FALSE),
+        '#required' => FALSE,
+    );
+
+    $form['permissions'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Permisos para ver analíticas'),
+    );
+    $form['permissions']['imx_users_permissions_roles'] = array(
+        '#type' => 'checkboxes',
+        '#title' => t('Roles'),
+        '#description' => t("Seleccione los roles que pueden ver estadísticas."),
+        '#multiple' => TRUE,
+        '#options' => drupal_map_assoc(array_values($roles)),
+        '#default_value' => variable_get('imx_users_permissions_roles', array()),
+    );
+
+    $form['seo'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Tags SEO'),
+    );
+    $form['seo']['imx_users_seo'] = array(
+        '#type' => 'checkboxes',
+        '#title' => t("Meta tags"),
+        '#description' => t("Seleccione los tags a incluir"),
+        '#options' => drupal_map_assoc(array_values($seo)),
+        '#default_value' => variable_get('imx_users_seo', array()),
+    );
+
+    $form['debug'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Solo para depurar en sitios locales o prep'),
+    );
+    /*
+    $form['debug']['imx_users_debug_http'] = array(
+        '#type' => 'textfield',
+        '#title' => t("URL de sitio de producción."),
+        '#description' => t("Escriba el nombre de dominio para depurar en su local o prep. Ej. http://www.dineroenimagen.com/"),
+        '#size' =>40,
+        '#default_value' => variable_get("imx_users_debug_http",FALSE),
+        '#required' => FALSE,
+    );
+    */
+    $form['debug']['imx_users_debug_path'] = array(
+        '#type' => 'textfield',
+        '#title' => t("Ruta log"),
+        '#description' => t("Escriba la ruta donde almacenar el log."),
+        '#size' =>40,
+        '#default_value' => variable_get("imx_users_debug_path",FALSE),
+        '#required' => FALSE,
+    );
+
+    $form['imx_users_submit'] = array(
+        '#type' => 'submit',
+        '#value' => 'Guardar',
+    );
+
+    return $form;
+}
+
+function imx_users_list_frm_validate($form, &$form_state) {
+    $error  = FALSE;
+    $content_types = $form_state['values']['imx_users_content_types'];
+    if (!is_array($content_types) || empty($content_types)) {
+        form_set_error('imx_users_content_types', t('Es necesario seleccionar tipos de contenido.'));
+    }
+    $table = trim($form_state['values']['imx_users_relateds']);
+    if (strlen($table) > 0) {
+        $table_drupal = 'field_data_' . $table;
+        if(!db_table_exists($table_drupal))
+            form_set_error('imx_users_relateds', t('La tabla de usuarios referenciados no existe.'));
+
+        $field_drupal = $table . '_uid';
+
+        if (!db_field_exists($table_drupal, $field_drupal)) {
+            form_set_error('imx_users_relateds', t('El campo: ' . $field_drupal . ' no existe en la tabla: ' . $table_drupal));
+        }
+        /*
+        foreach ($content_types as $key_type => $value_type) {
+            if (!field_info_instance('node', $table, $value_type))
+                $error = TRUE;
+        }
+        if ($error) {
+            form_set_error('imx_users_relateds', 'El campo ' . $table . ' no esta presente en algún tipo de contenido seleccionado.');
+        }
+        */
+        $field_custom = trim($form_state['values']['imx_users_relateds_field_custom']);
+        if (strlen($field_custom) > 0 ) {
+            #$table_drupal = 'field_data_' . $table;
+            if (!db_field_exists($table_drupal, $field_custom))
+                form_set_error('imx_users_relateds_field_custom', t('El campo: ' . $field_custom . ' no existe en la tabla: ' . $table_drupal));
+        }
+    }
+    $profile_name = trim($form_state['values']['imx_users_profile_name']);
+    if (strlen($profile_name) > 0) {
+        if (function_exists('profile2_type_load')) {
+            $profile = profile2_type_load($profile_name);
+            if (!$profile || !is_object($profile))
+            form_set_error('imx_users_profile_name', t('El perfil "'.$profile_name. '" no existe.'));
+        }
+        else {
+            form_set_error('imx_users_profile_name', t('Módulo Profile2 ausente.'));
+        }
+    }
+
+    $field_fullname = $form_state['values']['imx_users_profile_fullname'];
+    if (strlen($field_fullname) > 0) {
+      $where_fullname = $form_state['values']['imx_users_profile_fullname_where'];
+      $bundle_fullname = $where_fullname == 'user'? 'user': $profile_name;
+
+      if ($bundle_fullname <> 'user') {
+          if (!(strlen($profile_name) > 0))
+              form_set_error('imx_users_profile_name', t('Indique nombre de perfil para extraer el campo nombre'));
+      }
+      if(!field_info_instance($where_fullname, $field_fullname, $bundle_fullname))
+          form_set_error('imx_users_profile_fullname', 'El campo ' . $field_fullname . ' no existe en "'.$bundle_fullname.'"');
+    }
+
+    $field_background = $form_state['values']['imx_users_profile_background'];
+    if (strlen($field_background) > 0) {
+      $where_background = $form_state['values']['imx_users_profile_background_where'];
+      $bundle_background = $where_background == 'user'? 'user': $profile_name;
+
+      if ($bundle_background <> 'user') {
+          if (!(strlen($profile_name) > 0))
+              form_set_error('imx_users_profile_name', t('Indique nombre de perfil para extraer el campo imagen de fondo'));
+      }
+      if(!field_info_instance($where_background, $field_background, $bundle_background))
+          form_set_error('imx_users_profile_background', 'El campo ' . $field_background . ' no existe en "'.$bundle_background.'"');
+    }
+
+    $field_facebook = $form_state['values']['imx_users_profile_facebook'];
+    $where_facebook = $form_state['values']['imx_users_profile_facebook_where'];
+    $bundle_facebook = $where_facebook == 'user'? 'user': $profile_name;
+
+    if ($bundle_facebook <> 'user') {
+        if (!(strlen($profile_name) > 0))
+            form_set_error('imx_users_profile_name', t('Indique nombre de perfil para extraer el campo facebook'));
+    }
+
+    if(!field_info_instance($where_facebook, $field_facebook, $bundle_facebook))
+        form_set_error('imx_users_profile_facebook', 'El campo ' . $field_facebook . ' no existe en "'.$bundle_facebook.'"');
+
+    $field_twitter = $form_state['values']['imx_users_profile_twitter'];
+    $where_twitter = $form_state['values']['imx_users_profile_twitter_where'];
+    $bundle_twitter = $where_twitter == 'user'? 'user': $profile_name;
+
+    if ($bundle_twitter <> 'user') {
+        if (!(strlen($profile_name) > 0))
+            form_set_error('imx_users_profile_name', t('Indique nombre de perfil para extraer el campo twitter'));
+    }
+
+    if(!field_info_instance($where_twitter, $field_twitter, $bundle_twitter))
+        form_set_error('imx_users_profile_twitter', 'El campo ' . $field_twitter . ' no existe en "'.$bundle_twitter.'"');
+
+    $field_signature = $form_state['values']['imx_users_profile_signature'];
+    $where_signature = $form_state['values']['imx_users_profile_signature_where'];
+    $bundle_signature = $where_signature == 'user'? 'user': $profile_name;
+
+    if ($bundle_signature <> 'user') {
+        if (!(strlen($profile_name) > 0))
+            form_set_error('imx_users_profile_name', t('Indique nombre de perfil para extraer el campo firma'));
+    }
+
+    if(!field_info_instance($where_signature, $field_signature, $bundle_signature))
+        form_set_error('imx_users_profile_signature', 'El campo ' . $field_signature . ' no existe en "'.$bundle_signature.'"');
+
+    $summary_max_length = $form_state['values']['imx_users_summary_max_length'];
+    if (strlen(trim($summary_max_length)) > 0) {
+        if (!is_numeric($summary_max_length))
+            form_set_error('imx_users_summary_max_length', t('El valor de longitud debe ser numérico'));
+    }
+
+    $field_google = $form_state['values']['imx_users_profile_google'];
+    $where_google = $form_state['values']['imx_users_profile_google_where'];
+    $bundle_google = $where_google == 'user'? 'user': $profile_name;
+
+    if ($bundle_google <> 'user') {
+        if (!(strlen($profile_name) > 0))
+            form_set_error('imx_users_profile_google', t('Indique nombre de perfil para extraer el campo google'));
+    }
+
+    if(!field_info_instance($where_google, $field_google, $bundle_google))
+        form_set_error('imx_users_profile_google', 'El campo ' . $field_google . ' no existe en "'.$bundle_google.'"');
+
+    $field_linkedin = $form_state['values']['imx_users_profile_linkedin'];
+    $where_linkedin = $form_state['values']['imx_users_profile_linkedin_where'];
+    $bundle_linkedin = $where_linkedin == 'user'? 'user': $profile_name;
+
+    if ($bundle_linkedin <> 'user') {
+        if (!(strlen($profile_name) > 0))
+            form_set_error('imx_users_profile_linkedin', t('Indique nombre de perfil para extraer el campo linkedin'));
+    }
+
+    if(!field_info_instance($where_linkedin, $field_linkedin, $bundle_linkedin))
+        form_set_error('imx_users_profile_linkedin', 'El campo ' . $field_linkedin . ' no existe en "'.$bundle_linkedin.'"');
+
+    $field_url = $form_state['values']['imx_users_profile_url'];
+    $where_url = $form_state['values']['imx_users_profile_url_where'];
+    $bundle_url = $where_url == 'user'? 'user': $profile_name;
+
+    if ($bundle_url <> 'user') {
+        if (!(strlen($profile_name) > 0))
+            form_set_error('imx_users_profile_url', t('Indique nombre de perfil para extraer el campo url'));
+    }
+
+    if(!field_info_instance($where_url, $field_url, $bundle_url))
+        form_set_error('imx_users_profile_url', 'El campo ' . $field_url . ' no existe en "'.$bundle_url.'"');
+}
+
+function imx_users_list_frm_submit($form, &$form_state) {
+    variable_set('imx_users_content_types', $form_state['values']['imx_users_content_types']);
+    variable_set('imx_users_relateds', $form_state['values']['imx_users_relateds']);
+    variable_set('imx_users_profile_name', $form_state['values']['imx_users_profile_name']);
+    variable_set('imx_users_profile_fullname', $form_state['values']['imx_users_profile_fullname']);
+    variable_set('imx_users_profile_fullname_where', $form_state['values']['imx_users_profile_fullname_where']);
+    variable_set('imx_users_profile_background', $form_state['values']['imx_users_profile_background']);
+    variable_set('imx_users_profile_background_where', $form_state['values']['imx_users_profile_background_where']);
+    variable_set('imx_users_profile_facebook', $form_state['values']['imx_users_profile_facebook']);
+    variable_set('imx_users_profile_facebook_where', $form_state['values']['imx_users_profile_facebook_where']);
+    variable_set('imx_users_profile_twitter', $form_state['values']['imx_users_profile_twitter']);
+    variable_set('imx_users_profile_twitter_where', $form_state['values']['imx_users_profile_twitter_where']);
+    variable_set('imx_users_profile_signature', $form_state['values']['imx_users_profile_signature']);
+    variable_set('imx_users_profile_signature_where', $form_state['values']['imx_users_profile_signature_where']);
+    variable_set('imx_users_profile_google', $form_state['values']['imx_users_profile_google']);
+    variable_set('imx_users_profile_google_where', $form_state['values']['imx_users_profile_google_where']);
+    variable_set('imx_users_profile_linkedin', $form_state['values']['imx_users_profile_linkedin']);
+    variable_set('imx_users_profile_linkedin_where', $form_state['values']['imx_users_profile_linkedin_where']);
+    variable_set('imx_users_profile_url', $form_state['values']['imx_users_profile_url']);
+    variable_set('imx_users_profile_url_where', $form_state['values']['imx_users_profile_url_where']);
+    #variable_set('imx_users_debug_http', $form_state['values']['imx_users_debug_http']);
+    #variable_set('imx_users_cxense_id', $form_state['values']['imx_users_cxense_id']);
+    variable_set('imx_users_debug_path', $form_state['values']['imx_users_debug_path']);
+    variable_set('imx_users_pager_prev', $form_state['values']['imx_users_pager_prev']);
+    variable_set('imx_users_pager_next', $form_state['values']['imx_users_pager_next']);
+    variable_set('imx_users_permissions_roles', $form_state['values']['imx_users_permissions_roles']);
+    variable_set('imx_users_seo', $form_state['values']['imx_users_seo']);
+    $summary_max_length = trim($form_state['values']['imx_users_summary_max_length']);
+    if (strlen($summary_max_length) > 0) {
+        variable_set('imx_users_summary_max_length', $summary_max_length);
+    }
+    $field_custom = trim($form_state['values']['imx_users_relateds_field_custom']);
+    if (strlen($field_custom) > 0) {
+        variable_set('imx_users_relateds_field_custom', $field_custom);
+    }
+    else {
+        variable_del('imx_users_relateds_field_custom');
+    }
+    #if (strlen($form_state['values']['imx_users_profile_path_image_default']) > 0) {
+      variable_set('imx_users_profile_path_image_default', $form_state['values']['imx_users_profile_path_image_default']);
+    #}
+    drupal_set_message('Parámetros salvados.');
+}
+
+/**
+ * Recupera perfil de usuario
+ * @param int $uid id de usuario
+ * @param string $type tipo de perfil
+ * @return array usuario y perfil
+ */
+function imx_users_get_user_and_profile($uid = NULL, $type = 'main') {
+    if ($uid)
+        return FALSE;
+    $edit_user = user_load((int)$uid, TRUE);
+    $edit_profile = profile2_load_by_user($edit_user, $type);
+    return array(
+        'user' => $edit_user,
+        'profile2' => $edit_profile,
+    );
+}
+
+function imx_users_get_cxense_traffic($url_traffic = NULL, $siteID = null) {
+    if (is_null($siteID))
+        $siteID = "9222311772423575875";
+
+    $username = "david.gil@gimm.com.mx";
+    $apikey = "api&user&In/f/tfvy2qAPdQgCB2WBQ==";
+
+    // ISO-8601 with milliseconds.
+    $date = date("o-m-d\TH:i:s.000O");
+
+    // need PHP >5.1.2
+    $signature=hash_hmac("sha256", $date, $apikey);
+
+    $url = 'https://api.cxense.com/traffic';
+    $plainjson_payload = array(
+        #"start" => 1412762900,
+        #"start" => "2014-10-09T05:00:00.0Z",
+        "start" => "-1M",
+        #"stop" => "2014-10-10T05:00:00.0Z",
+        "fields" => array(
+            "events",
+            "uniqueUsers",
+            "activeTime",
+            "urls",
+            "sessionStarts",
+            "sessionStops",
+            "sessionBounces"
+        ),
+        "filters" => array(
+            array(
+                "type" => "event",
+                "group" => "url",
+                "items" => array(
+                    $url_traffic,
+                ),
+            )
+        ),
+        "siteId" => $siteID,
+    );
+
+    // use key 'http' even if you send the request to https://...
+    $options = array(
+        'http' => array(
+            'header'  => "X-cXense-Authentication: username=$username date=$date hmac-sha256-hex=$signature\r\n",
+            'method'  => 'POST',
+            'content' => json_encode($plainjson_payload),
+        ),
+    );
+    $context  = stream_context_create($options);
+    $result = @file_get_contents($url, FALSE, $context);
+
+    return json_decode($result,TRUE);
+}
+
+function imx_users_get_traffic($traffic = array(), $nid = NULL) {
+    if (is_null($nid))
+        return NULL;
+
+    if (array_key_exists($nid, $traffic)) {
+        return $traffic[$nid];
+    }
+
+    return NULL;
+}
+
+function conversorSegundosHoras($tiempo_en_segundos) {
+    if ($tiempo_en_segundos == 0)
+        return '0s';
+    $tiempo_en_segundos = intval($tiempo_en_segundos);
+    $horas = floor($tiempo_en_segundos / 3600);
+    $minutos = floor(($tiempo_en_segundos - ($horas * 3600)) / 60);
+    $segundos = $tiempo_en_segundos - ($horas * 3600) - ($minutos * 60);
+
+    $hora_texto = "";
+    if ($horas > 0 ) {
+        $hora_texto .= $horas . "h ";
+        #$hora_texto .= $horas . ":";
+    }
+
+    if ($minutos > 0 ) {
+        $hora_texto .= $minutos . "m ";
+        #$hora_texto .= $minutos . ":";
+    }
+
+    if ($segundos > 0 ) {
+        $hora_texto .= $segundos . "s";
+        #$hora_texto .= $segundos . "";
+    }
+    /*if ($tiempo_en_segundos <= 60) {
+        $hora_texto .= "s";
+    }*/
+
+    return $hora_texto;
+}
+
+function imx_users_get_total_traffic($traffic) {
+    $totalUniqueUsers = 0;
+    $totalActiveTime = 0;
+    $totalEvents = 0;
+    $averageActiveTime = NULL;
+    $peso_x_datos = 0;
+    $datos = 0;
+    $media_ponderada = NULL;
+    foreach ($traffic as $key => $value) {
+        if (isset($value['data']['uniqueUsers'])) {
+            $totalUniqueUsers += $value['data']['uniqueUsers'];
+        }
+        if (isset($value['data']['events'])) {
+            $totalEvents += $value['data']['events'];
+        }
+        if (isset($value['data']['activeTime'])) {
+            $totalActiveTime += $value['data']['activeTime'];
+        }
+        if (isset($value['data']['uniqueUsers']) && isset($value['data']['uniqueUsers']) > 0) {
+                $peso_x_datos += $value['data']['activeTime'] * $value['data']['uniqueUsers'];
+                $datos += $value['data']['uniqueUsers'];
+        }
+
+    }
+
+    //media ponderada
+    if ($datos > 0)
+        $media_ponderada = $peso_x_datos / $datos;
+    /*if (sizeof($traffic) > 0)
+    $averageActiveTime = $totalActiveTime / sizeof($traffic);*/
+
+    return array(
+        'totalUniqueUsers' => $totalUniqueUsers,
+        'totalEvents' => $totalEvents,
+        'totalActiveTime' => $totalActiveTime,
+        'averageActiveTime' => $media_ponderada,
+    );
+}
+
+function imx_users_get_cxense_traffic2($url) {
+    $cx_auth_date = date("o-m-d\TH:i:s.000O");
+    $cx_auth_signature =  hash_hmac ( 'sha256' , $cx_auth_date , IMX_USERS_CX_AUTH_SECRET );
+
+    $cx_req = array(
+        "start" => "-1M",
+        "fields" => array(
+            "events",
+            "uniqueUsers",
+            "activeTime",
+            "urls",
+            "sessionStarts",
+            "sessionStops",
+            "sessionBounces"
+        ),
+        "filters" => array(
+            array(
+                "type" => "event",
+                "group" => "url",
+                "items" => array(
+                    $url,
+                ),
+            )
+        ),
+        "siteId" => IMX_USERS_CX_SITE_ID,
+    );
+
+    $cx_json_req = json_encode($cx_req);
+    $header = array(
+        'Content-Type: application/json',
+        'Content-Length: ' . strlen($cx_json_req),
+        "X-cXense-Authentication: username=" . IMX_USERS_CX_AUTH_USERNAME . " date={$cx_auth_date} hmac-sha256-hex={$cx_auth_signature}"
+    );
+
+    $ch = curl_init(IMX_USERS_CX_URL);
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $cx_json_req);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 20);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $header);
+
+    $output = curl_exec($ch);
+
+    $ch_data['output'] = json_decode($output, true);
+    $ch_data['error'] = curl_errno($ch);
+    $ch_data['error_msg'] = curl_error($ch);
+    $ch_data['header'] = curl_getinfo($ch);
+    $ch_data['http_code'] = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+    curl_close($ch);
+    return $ch_data;
+}
+
+function imx_users_log($log) {
+  $path = variable_get('imx_users_debug_path', false);
+  if ($path) {
+    if (file_exists($path)) {
+      $file = $path . 'imx_users.log';
+      $resource = fopen($file, 'a+');
+      fwrite($resource, date("h:i:s d-m-Y") . ' => ');
+      fwrite($resource, $log . PHP_EOL);
+      fclose($resource);
+    }
+  }
+}
+
+function imx_users_get_ga_traffic($nid) {
+    $data = array();
+    if (db_table_exists('node_analytics') && isset($nid)) {
+        $query = db_select('node_analytics', 'nga');
+        $query->fields('nga');
+        $query->condition('nga.nid', $nid, '=');
+        $result = $query->execute();
+        $num_of_results = $result->rowCount();
+        if ($result && $num_of_results > 0 ) {
+            $nga = $result->fetchAssoc();
+            if ($nga && is_array($nga)) {
+                $nga['data']['activeTime'] = $nga['avgTimeOnPage'];
+                $nga['data']['uniqueUsers'] = $nga['uniquePageviews'];
+                $nga['data']['events'] = $nga['pageviews'];
+                $data = $nga;
+            }
+        }
+    }
+    return $data;
+}
+
+function imx_users_create_html_tag($tags, $string_key) {
+  $attributes = array();
+  $new_element = array();
+  $index = 0;
+  foreach ($tags as $key => $tag) {
+    foreach ($tag as $tag_key => $tag_attributes) {
+      $new_element = array(
+        '#tag' => $tag_key,
+        '#attributes' => $tag_attributes,
+      );
+    }
+    drupal_add_html_head($new_element, $string_key.$index);
+    unset($new_element);
+    unset($attributes);
+    $index++;
+  }
+}
+
+function imx_users_get_nodes_nids(array $options = array()) {
+    $data = array();
+
+    if (!isset($options['uid']))
+        return $data;
+
+    if (!isset($options['content_types']))
+        $options['content_types'] = array('article','video','gallerie');
+
+    $query = db_select('node','n');
+    $query->fields('n', array('nid'));
+    $query->condition('n.status', 1, '=');
+    $query->condition('n.type', $options['content_types'], 'IN');
+
+    if (variable_get('imx_users_relateds', FALSE)) {
+        $table = 'field_data_' . variable_get('imx_users_relateds');
+        if (variable_get('imx_users_relateds_field_custom', FALSE))
+            $field = variable_get('imx_users_relateds_field_custom');
+        else
+            $field = variable_get('imx_users_relateds').'_uid';
+
+        if (db_field_exists($table, $field)) {
+            $query = db_select('node','n');
+            $query->leftjoin($table, 'fdfr', 'n.nid = fdfr.entity_id');
+            $query->fields('n', array('nid'));
+            $query->condition('n.status', 1, '=');
+            $query->condition('n.type', $options['content_types'], 'IN');
+
+            $and = db_and();
+            $and->condition('n.uid', $options['uid'], '=');
+            $and->isNull('fdfr.'.$field);
+
+            $or = db_or();
+            $or->condition($and);
+            $or->condition('fdfr.'.$field, $options['uid'], '=');
+
+            $query->condition($or);
+        }
+        else {
+            $log = array(
+              'query' => 'El campo: ' . $field . ' no existe en la tabla: ' . $table,
+            );
+            $query->condition('n.uid', $options['uid'], '=');
+        }
+    }
+    else {
+        $query->condition('n.uid', $options['uid'], '=');
+    }
+
+    if (isset($options['orderByChanged']) && $options['orderByChanged'])
+        $query->orderby('n.changed', 'DESC');
+    else
+        $query->orderby('n.created', 'DESC');
+
+    $result = $query->execute();
+    $num_of_results = $result->rowCount();
+    if ($result && $num_of_results > 0 ){
+        foreach ($result as $key => $value) {
+            $data[] = $value->nid;
+        }
+    }
+    return $data;
+}
+
+function imx_users_get_cache($cache_name, $function_callback, $function_parameters, $time, $cache_type = 'cache') {
+    $data = array();
+    $cache = cache_get($cache_name);
+    if($cache && $cache->expire > time()){
+        $data = $cache->data;
+    }
+    else{
+        if (function_exists($function_callback)) {
+            $data = call_user_func($function_callback,$function_parameters);
+            if ($data) {
+                cache_set($cache_name, $data, $cache_type, $time);
+            }
+        }
+    }
+    return $data;
+}
+
+function imx_users_weighted_average(array $nids = array()) {
+    $data = array();
+    if (db_table_exists('node_analytics') && count($nids) > 0) {
+        $query = db_select('node_analytics', 'na');
+        $query->condition('na.nid', $nids, 'IN');
+        $query->addExpression('SUM(pageviews)', 'totalPageViews');
+        $query->addExpression('SUM(uniquePageviews)', 'totalUniquePageViews');
+        $query->addExpression('SUM(avgTimeOnPage)', 'totalAvgTimeOnPage');
+        $query->addExpression('SUM(avgTimeOnPage*uniquePageviews)', 'weighted_average');
+        $result = $query->execute();
+        $num_of_results = $result->rowCount();
+        if ($result && $num_of_results > 0 ) {
+            $nga = $result->fetchAssoc();
+            if ($nga && is_array($nga)) {
+                $data = $nga;
+            }
+        }
+    }
+    return $data;
+}
+
+function imx_users_get_total_analitics($uid, array $content_types = array()) {
+    $total_traffic = array();
+    $time = time() + (60*10); //diez minutos
+    $cache_name = 'imx_users_weighted_average_cache_' . $uid;
+    $opt = array(
+        'uid' => $uid,
+        'content_types' => $content_types,
+    );
+    $preweighted_average = imx_users_get_cache_total_analitics($cache_name);
+    if (count($preweighted_average) > 0 && isset($preweighted_average['totalUniquePageViews'])) {
+        $total_traffic = array(
+            'totalUniqueUsers' => $preweighted_average['totalUniquePageViews'],
+            'totalEvents' => $preweighted_average['totalPageViews'],
+            'totalActiveTime' => $preweighted_average['totalAvgTimeOnPage'],
+            'averageActiveTime' => $preweighted_average['weighted_average']/$preweighted_average['totalUniquePageViews'],
+        );
+    }
+    else {
+        $nids = imx_users_get_nodes_nids($opt);
+        if (count($nids) > 0) {
+            $preweighted_average = imx_users_get_cache($cache_name, 'imx_users_weighted_average', $nids, $time, 'cache');
+            if (count($preweighted_average) > 0) {
+                if ($preweighted_average['totalUniquePageViews'] > 0) {
+                    $total_traffic = array(
+                        'totalUniqueUsers' => $preweighted_average['totalUniquePageViews'],
+                        'totalEvents' => $preweighted_average['totalPageViews'],
+                        'totalActiveTime' => $preweighted_average['totalAvgTimeOnPage'],
+                        'averageActiveTime' => $preweighted_average['weighted_average']/$preweighted_average['totalUniquePageViews'],
+                    );
+                }
+            }
+        }
+    }
+    return $total_traffic;
+}
+
+function imx_users_get_cache_total_analitics($cache_name) {
+    $data = array();
+    $cache = cache_get($cache_name);
+    if($cache && $cache->expire > time()){
+        $data = $cache->data;
+    }
+    return $data;
+}

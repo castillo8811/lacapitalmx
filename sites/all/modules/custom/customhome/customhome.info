@@ -1,0 +1,7 @@
+name = "Custom HOME"
+description = "Crea administrador del armado del home"
+package = "FEM"
+version = 1.0
+core = 7.x
+php="5.x"
+files[] = customhome.module

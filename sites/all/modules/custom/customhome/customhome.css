@@ -1,0 +1,6 @@
+#customhome-wrapper img {cursor: move;}
+#customhome-wrapper input[type="text"] {padding: 2px; border: 0; background: none;}
+#customhome-wrapper {width: 62%;float: left;}
+#customhome-blocks-form {width: 32%;float: left;margin: 0 20px 0 0;}
+#customhome-wrapper tr td {padding: 0 0 0 10px !important;}
+#customhome-wrapper tr td .form-item {margin: 0;}

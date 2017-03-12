@@ -1,0 +1,1536 @@
+<?php
+
+/*
+ *
+ * Variable global PHP
+ *
+ * $imx_ads_smart_page_info;
+ *
+ * Almacena toda la información de Ads de smart de la página actual
+ *
+ * */
+
+include_once("imx_ads_queries.inc");
+include_once("imx_ads_queries.inc");
+//include_once("class/ImxAdsEplanning.class.php");
+
+/**
+ * Implements hook_help().
+ */
+function imx_ads_help($path, $arg)
+{
+    if ($path == 'admin/help#imx_ads') {
+        return t('Para iniciar hay que colocar el bloques Imx Ads Start Scripts en la región aperture o similar, posteriormente configurar los espacios publicitarios');
+    }
+}
+
+/**
+ * Implements hook init
+ */
+function imx_ads_init()
+{
+    global $theme;
+    $admin_theme = variable_get('admin_theme', '');
+
+    //Do only one time, only for non admin theme
+    if ($admin_theme !== $theme) {
+        $legacy_mode = variable_get("imx_ads_legacy_smart", 0);
+        $tail_target = variable_get("imx_ads_tail_target_smart", 0);
+        $call_type = variable_get("imx_ads_smart_call_method", "std");
+        $prequal_status = variable_get("imx_ads_prequal_status_smart", 0);
+        if ($call_type == 'std' && $prequal_status) {
+            $prequal_url = variable_get("imx_ads_prequal_url_smart", NULL);
+            if ($prequal_url) {
+                $prequal_url = strlen($prequal_url) > 0 ? str_replace("'", '', $prequal_url) : NULL;
+                $prequal_url = $prequal_url ? preg_replace("{cb=[a-zA-Z\s+()\.]+}", "cb=", $prequal_url) . round(microtime(TRUE) * 1000) : NULL;
+                drupal_add_js($prequal_url,
+                    array('type' => 'external', 'scope' => 'header', 'weight' => 4)
+                );
+            }
+        }
+
+
+        //Nueva función generica de Smart
+        drupal_add_js(drupal_get_path('module', 'imx_ads') . '/js_frameworks/smart_helpers.js');
+        drupal_add_js(imx_ads_get_Async_by_adex(), array('type' => 'inline', 'scope' => 'header', 'weight' => 3));
+
+
+        $legacy_mode = variable_get("imx_ads_legacy_smart", 0);
+        if (!$legacy_mode) {
+
+            drupal_add_js("http://ads.inventmx.com/config.js?nwid=1030",
+                array('type' => 'external', 'scope' => 'header', 'weight' => 4)
+            );
+
+            if ($call_type == "ajax") {
+                $smart_setup = "sas.setup({ domain: 'http://ads.inventmx.com',async: true, renderMode: 1});";
+            } else {
+                $smart_setup = "sas.setup({ domain: 'http://ads.inventmx.com'});";
+            }
+
+            drupal_add_js($smart_setup,
+                array('type' => 'inline', 'scope' => 'header', 'weight' => 4)
+            );
+        } else {
+            drupal_add_js("http://cdn1.smartadserver.com/diff/js/smartadserver.js",
+                array('type' => 'external', 'scope' => 'header', 'weight' => 0)
+            );
+        }
+
+        if ($tail_target) {
+            drupal_add_js(drupal_get_path('module', 'imx_ads') . '/js_frameworks/smart_tail_target_script.js');
+        }
+    }
+}
+
+/* * *
+ * Implements hook_menu().
+ */
+
+function imx_ads_menu()
+{
+    $items = array();
+
+    $items['admin/config/inventmx_ads'] = array(
+        'title' => 'InventMx Ads',
+        'description' => 'Configuración de Modulos InventMx.',
+        'access callback' => TRUE,
+        'page callback' => 'system_admin_menu_block_page',
+        'access arguments' => array('administer'),
+        'position' => 'right',
+        'weight' => -100,
+        'file' => 'system.admin.inc',
+        'file path' => drupal_get_path('module', 'system'),
+    );
+
+    $items['admin/structure/block/imx_ads'] = array(
+        'title' => 'Ads InventMx',
+        'description' => 'Configuración de InventMx Ads.',
+        'page callback' => 'drupal_get_form',
+        'access callback' => TRUE,
+        'type' => MENU_LOCAL_TASK,
+        'page arguments' => array('imx_ads_admin_settings_form'),
+        'file' => 'imx_ads.admin.inc',
+    );
+
+    //Listado de Ads
+
+    $items['admin/config/inventmx_ads/regions'] = array(
+        'title' => 'Regions Ads InventMx',
+        'description' => 'Configuración de InventMx Ads.',
+        'page callback' => 'drupal_get_form',
+        'type' => MENU_NORMAL_ITEM,
+        'access arguments' => array('administer imx ads'),
+        'page arguments' => array('imx_ads_regions_admin_settings_form'),
+        'file' => 'imx_ads_regions.admin.inc',
+    );
+
+
+    $items['admin/config/inventmx_ads/blocks'] = array(
+        'title' => 'Ads InventMx',
+        'description' => 'Configuración de InventMx Ads.',
+        'page callback' => 'drupal_get_form',
+        'type' => MENU_NORMAL_ITEM,
+        'access arguments' => array('administer imx ads'),
+        'page arguments' => array('imx_ads_admin_settings_form'),
+        'file' => 'imx_ads.admin.inc',
+    );
+
+
+    $items['admin/config/inventmx_ads/blocks/delete'] = array(
+        'title' => 'Ads InventMx',
+        'description' => 'Configuración de InventMx Ads.',
+        'page callback' => 'imx_ads_delete_block',
+        'access callback' => TRUE,
+        'access arguments' => array('administer imx ads'),
+        'type' => MENU_CALLBACK,
+        'page arguments' => array('imx_ads_admin_settings_form'),
+        'file' => 'imx_ads.admin.inc',
+    );
+
+
+    //Pestaña de Agregar/Editar de Bloques
+
+    $items['admin/config/inventmx_ads/blocks/form'] = array(
+        'title' => 'Ads InventMx',
+        'page callback' => 'drupal_get_form',
+        'type' => MENU_CALLBACK,
+        'access arguments' => array('administer imx ads'),
+        'page arguments' => array('imx_ads_block_config_form'),
+        'file' => 'imx_ads_block_config.inc',
+    );
+
+
+    /* Configuracion de la seccion de Frameworks */
+    $items['admin/config/inventmx_ads/frameworks'] = array(
+        'title' => 'AdsFrameworks InventMX',
+        'access arguments' => array('administer imx ads'),
+        'page callback' => 'imx_ads_frameworks_list',
+        'type' => MENU_NORMAL_ITEM,
+    );
+
+
+    $items['admin/config/inventmx_ads/framework/form'] = array(
+        'title' => 'ImxAds Frameworks InventMx',
+        'page callback' => 'drupal_get_form',
+        'type' => MENU_LOCAL_TASK,
+        'access arguments' => array('administer imx ads'),
+        'page arguments' => array('imx_ads_framework_config_form'),
+        'file' => 'imx_ads_framework_config.inc',
+    );
+
+
+    $items['admin/config/inventmx_ads/framework/stop'] = array(
+        'title' => 'Framework Stop',
+        'access callback' => TRUE,
+        'type' => MENU_CALLBACK,
+        'access arguments' => array('administer imx ads'),
+        'page callback' => array('imx_ads_framework_stop'),
+        'file' => 'imx_ads_framework_config.inc',
+    );
+
+    $items['admin/config/inventmx_ads/framework/start'] = array(
+        'title' => 'Framework Stop',
+        'access callback' => TRUE,
+        'type' => MENU_CALLBACK,
+        'access arguments' => array('administer imx ads'),
+        'page callback' => array('imx_ads_framework_start'),
+        'file' => 'imx_ads_framework_config.inc',
+    );
+
+
+    $items['admin/config/inventmx_ads/ss/add'] = array(
+        'title' => 'ImxAds Frameworks InventMx',
+        'page callback' => 'drupal_get_form',
+        'access callback' => TRUE,
+        'type' => MENU_CALLBACK,
+        'access arguments' => array('administer imx ads'),
+        'page arguments' => array('imx_ads_ss_config_form'),
+        'file' => 'imx_ads_ss_config.inc',
+    );
+
+
+    $items['imx_helpers/autocomplete_node_by_title'] = array(
+        'page callback' => 'imx_ads_node_autocomplete',
+        'access arguments' => array('access contend'),
+        'type' => MENU_CALLBACK
+    );
+
+    $items['imx_ads/getBlockByTitle'] = array(
+        'page callback' => 'imx_ads_get_block_by_title_js',
+        'type' => MENU_CALLBACK,
+        'access callback' => TRUE,
+    );
+
+    $items['imx_ads/getBlocksByRegion'] = array(
+        'page callback' => 'imx_ads_get_block_by_region_js',
+        'type' => MENU_CALLBACK,
+        'access callback' => TRUE,
+    );
+
+    $items['imx_ads/getBlocksByInvoqueId'] = array(
+        'page callback' => 'imx_ads_get_blocks_by_invoque_id_js',
+        'type' => MENU_CALLBACK,
+        'access callback' => TRUE,
+    );
+
+    $items['imx_ads/asyncAds'] = array(
+        'page callback' => 'imx_ads_get_Async_js',
+        'type' => MENU_CALLBACK,
+        'access callback' => TRUE,
+    );
+
+    $items['imx_ads/jeditag'] = array(
+        'page callback' => 'imx_ads_get_jeditag',
+        'type' => MENU_CALLBACK,
+        'access callback' => TRUE,
+    );
+
+    $items['imx_helpers/eplanning_ads_cache'] = array(
+        'page callback' => 'imx_ads_generate_cache',
+        'type' => MENU_CALLBACK,
+        'access callback' => TRUE,
+    );
+
+
+    return $items;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function imx_ads_permission()
+{
+    return array(
+        'administer imx ads' => array(
+            'title' => t('Administer InventMx Ads'),
+            'description' => t('Configure InventMx Adst Module.'),
+        ),
+    );
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function imx_ads_block_info()
+{
+    $blocks_data = getBlocksInfo();
+    $blocks = array();
+    $blocks["imx_ads_start"] = array(
+        'info' => "Imx Ads Starts Scripts(Scripts de configuracion necesarios para imx_ads(aperture o similar)",
+    );
+    foreach ($blocks_data as $b) {
+        $blocks[$b["title"]] = array(
+            'info' => t($b["block_info"]),
+            'cache' => DRUPAL_NO_CACHE,
+        );
+    }
+    return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function imx_ads_block_view($block_name = '')
+{
+    //Generado del Main Block Para Eplanning, y carga como contenido el scripdt de arranque
+    $block = array();
+    if ($block_name == "imx_ads_start") {
+        $block = array(
+            'subject' => t('imx_ads_start'),
+        );
+    } else {
+
+        //Generado de todos los bloques de  Adds
+
+        $data_blocks = getBlocksInfo(TRUE);
+        if (strlen(request_uri() > 1)) {
+            $current_url = substr(request_uri(), 1);
+        } else {
+            $current_url = request_uri();
+        }
+
+        foreach ($data_blocks as $b) {
+            if ($block_name == $b["title"]) {
+                $url_exclude = FALSE;
+                $exclude_urls = explode("\n", $b["custom_pages_exclude"]);
+                $url_exist = array_search($current_url, $exclude_urls);
+                if ($url_exist) {
+                    $url_exclude = TRUE;
+                }
+
+                switch ($b["framework"]) {
+                    case "eplanning":
+                        if ($b["status"] && !$url_exclude) {
+                            if (preg_match("/.*layer.*/", $b["title"])) {
+                                $contend = "<div class='imx_ads'>
+                                                <script type='text/javascript'>
+                                                    if (window.top==window.self){
+                                                        eplAD4M('" . $b['title'] . "');
+                                                    }
+                                                </script>
+                                            </div>";
+                            } else {
+                                if (!$b["async"]) {
+                                    $contend = "<div class='imx_ads'><script type='text/javascript'>eplAD4M('" . $b['title'] . "');</script></div>";
+                                }
+                            }
+
+                            $block = array(
+                                'subject' => t($b['title']),
+                                'content' => $contend,
+                            );
+                        }
+                        break;
+                    case "google analitics":
+                        if ($b["status"] && !$url_exclude) {
+                            $uri = $b["image_uri"];
+                            if ($b["img_url"]) {
+                                $image = $b["img_url"];
+                            } else {
+                                $image = file_create_url($uri);
+                            }
+                            $img = "<img src={$image} />";
+                            $link_info = explode("|", $b["link_info"]);
+                            $contend = "<div class='imx_ads'><a href='$link_info[0]' target='_blank' onClick=\"recordOutboundLink(this,'$link_info[1]','$link_info[2]','$link_info[3]');return false;\" >$img</a></div>";
+                            $block = array(
+                                'subject' => t($b['title']),
+                                'content' => $contend,
+                            );
+                        }
+                        break;
+                    case "cxense":
+                        if ($b["status"] && !$url_exclude) {
+                            $cxwh = explode("|", $b["cxwh"]);
+                            $cxinicial_vh = explode("|", $b["cxinicial_vh"]);
+
+                            $script = "
+                    <div class='lower-content-recomendaciones'>
+                                <!-- Simple Text Ads below the main content of article - title only-->
+                                <div id='insertAdSpaceBeforeThis_{$b['title']}' style='display:none'></div>
+                                            <script type='text/javascript'>
+                                                var cX = cX || {}; cX.callQueue = cX.callQueue || [];
+                                                    cX.callQueue.push(['insertAdSpace', {
+                                                    adSpaceId:'{$b['title']}', // Can also be set in the template
+                                                    adUnitWidth:'{$cxwh[0]}', adUnitHeight:'{$cxwh[1]}', //specify the AdSpace size via the Ad Unit size
+                                                    initialHorizontalAdUnits:{$cxinicial_vh[0]}, initialVerticalAdUnits:{$cxinicial_vh[1]}, //specify the default/max number of ad units
+                                                    useMappedRenderTemplate: true
+                                                }]);
+                                            </script>
+                    </div>";
+
+                            $contend = "<div class='imx_ads'>{$script}</div>";
+                            $block = array(
+                                'subject' => t($b['title']),
+                                'content' => trim($contend),
+                            );
+                        }
+                    case "smart":
+                        $call_type = variable_get("imx_ads_smart_call_method", "std");
+                        $call_function = ($call_type == "ajax") ? "SmartAdServerAjaxOneCall" : "SmartAdServer";
+                        if ($b["status"] && !$url_exclude) {
+                            $block_title_parts = explode("|", $b['title']);
+                            $site_id = $b["site_id"];
+                            $page_id = $block_title_parts[1];
+                            $format_id = $block_title_parts[2];
+                            if (count($block_title_parts) == 3) {
+                                if (preg_match("/.*flotante.*/", $b["title"])) {
+                                    $contend = "<div class='imx_ads'></div>";
+                                } else {
+                                    if (!$b["async"]) {
+                                        $contend = getSmartsTag($site_id, $page_id, $format_id, $call_function);
+                                    } else {
+                                        $contend = "<div class='imx_ads' id='{$format_id}'></div>";
+                                    }
+                                }
+                            }
+
+                            $block = array(
+                                'subject' => t($b['title']),
+                                'content' => trim($contend),
+                            );
+                        }
+                        break;
+                }
+            }
+        }
+    }
+    return $block;
+}
+
+function imx_ads_frameworks_list()
+{
+    $frameworks = getFrameworkData("all");
+    $rows = array();
+    foreach ($frameworks as $f) {
+        $rows[] = array(
+            $f["name"],
+            $f["sid"],
+            $f["ss"],
+            $f["script_url"],
+            l("Editar", "admin/config/inventmx_ads/framework/form/{$f['fid']}"),
+            l("Detener", "admin/config/inventmx_ads/framework/stop/{$f['fid']}"),
+            l("Activar", "admin/config/inventmx_ads/framework/start/{$f['fid']}"),
+        );
+    }
+    $rows[] = array(
+        l("Agregar", "admin/config/inventmx_ads/framework/form"),
+        "",
+        "",
+        "",
+    );
+    $table = array(
+        'header' => array(
+            t('Framework Name'),
+            t('site id'),
+            t('ss'),
+            t('Script Url'),
+            t('Editar'),
+            t('Detener Impresiones'),
+            l("Activar Impresiones", "admin/config/inventmx_ads/framework/form/{$f['fid']}"),
+        ),
+        'rows' => $rows
+    );
+    return theme('table', $table);
+}
+
+/*
+ * implements hook_preprocess_page
+ *
+ * Se implemento para filtrar los bloques que se estan pintando en la pagina principalmente de nodos y taxonomia
+ * ademas se encarga de armar el script de arranque del Frameworks de Ads
+ */
+
+function imx_ads_preprocess_page(&$variables)
+{
+
+    if (arg(0) != 'admin') {
+        global $imx_ads_smart_page_info;
+        $imx_ads_smart_page_info = new stdClass();
+
+
+        $regions = getAllRegions();
+        $frameworks = array();
+        $blocks_ads = getBlocksInfo(TRUE);
+        $page = $variables["page"];
+        $regions_found = array();
+        $regions_nfound = array();
+        $starts_frameworks = array();
+
+
+        //Buscamos las regiones activas en la pagina
+        foreach ($regions as $key => $region) {
+            //$variables["page"][$key]["#sorted"]=FALSE;
+            if (!@array_key_exists($region, $page)) {
+                @$regions_found[$key] = $page[$key];
+            }
+        }
+
+        $exclusive_blocks = array();
+        $non_exclusive_blocks = array();
+
+        foreach ($blocks_ads as $block) {
+            $name_block = "imx_ads_" . $block["title"];
+            $ads[$name_block] = array("block_name" => $name_block, "fid" => $block["fid"], "status" => $block["status"], "framework" => $block["framework"], "sec" => $block["sec"], "ss" => $block["ss"], "exclusive" => $block["exclusive"]);
+            $frameworks[$block["framework"]] = $block["fid"];
+            if ($block["exclusive"]) {
+                $exclusive_blocks[$block["region"]][$block["title"]] = $block["title"];
+            } else {
+                $non_exclusive_blocks[$block["region"]][$block["title"]] = $block["title"];
+            }
+        }
+
+
+        /*  Hacemos un barrido de toda la pagina buscando los bloques de IMX_ADS y los agregamos al start_script
+         *  del framework correpondiente, comparamos la info de $page contra los bloques que tengo cargados.
+         */
+        foreach ($regions_found as $key => $r) {
+
+            /*
+             * Buscamos y eliminamos los bloques no exclusivos en cada región, agregados por Drupal
+             */
+
+
+            /*
+            if (array_key_exists($key, $exclusive_blocks)) {
+                if (array_key_exists($key, $non_exclusive_blocks)) {
+                    foreach ($non_exclusive_blocks[$key] as $non_blocks) {
+                        unset($variables["page"][$key]["imx_ads_" . $non_blocks]);
+                    }
+                }
+            }
+            */
+
+            $clean_region = FALSE;
+            if (array_key_exists($key, $exclusive_blocks) && !$clean_region) {
+                foreach ($exclusive_blocks[$key] as $ex_blocks) {
+                    if (array_key_exists($ex_blocks, $variables["page"][$key]) ||
+                        array_key_exists("imx_ads_" . $ex_blocks, $variables["page"][$key])
+                    ) {
+                        $clean_region = TRUE;
+                    }
+                }
+            }
+
+            if (array_key_exists($key, $exclusive_blocks) && $clean_region) {
+                if (array_key_exists($key, $non_exclusive_blocks)) {
+                    foreach ($non_exclusive_blocks[$key] as $non_blocks) {
+                        unset($variables["page"][$key]["imx_ads_" . $non_blocks]);
+                        unset($variables["page"][$key][$non_blocks]);
+                    }
+                }
+            }
+            if ($r) {
+                foreach ($r as $title => $i) {
+                    if (@array_key_exists($title, $ads)) {
+                        $clean_title = str_replace("imx_ads_", "", $title);
+                        if ($ads[$title]["framework"] == "eplanning") {
+                            $imx_ads_items[$ads[$title]["framework"]][] = $clean_title;
+                        }
+                        if ($ads[$title]["framework"] == "smart") {
+                            $b_title = str_replace("imx_ads_", "", $title);
+                            $block_parts = explode("|", $b_title);
+                            $imx_ads_items[$ads[$title]["framework"]][] = $b_title;
+                            if (!$ads[$title]["async"]) {
+                                $imx_ads_formats[] = $block_parts[2];
+                            }
+                            $imx_ads_smart_page_info->regions[$key][] = array("title" => $title, "format" => $block_parts[2]);
+
+
+                        }
+                        if ($ads[$title]["status"] && !$ads[$title]["async"]) {
+                            $starts_frameworks[$ads[$title]["framework"]] = imx_ads_getStartScript($ads[$title]["framework"], $imx_ads_items, $ads[$title]["sec"], $ads[$title]["ss"], $imx_ads_formats);
+                        }
+                    }
+                }
+            }
+        }
+
+        /* Agregado de los ads para canales pertenecientes a las seccion por medio de la fuerza :p, ademas se parcha el "bug"
+         * de los bloques en los tipos de contenidos
+         */
+
+        if (arg(0) == 'node' && is_numeric(arg(1)) && is_null(arg(2))) {
+            //Tratamos de jalar la info de $page, si no tenemos que hacer un node_load
+            $node = node_load(arg(1));
+            $node_terms = getTermsNode($node->nid);
+            $node_tids = array_values($node_terms);
+            $node_type = $node->type;
+
+
+            if (!drupal_is_front_page()) {
+                foreach ($regions as $key => $r) {
+                    $variables["page"][$key]["#sorted"] = FALSE;
+                    if (strlen(request_uri()) > 1) {
+                        $current_url = substr(request_uri(), 1);
+                    } else {
+                        $current_url = request_uri();
+                    }
+
+
+                    $block_render = getBlockForNodeCanal($key, $node_tids, $node_type, $current_url);
+                    if (count($block_render)) {
+                        foreach ($block_render as $block) {
+                            if ($block->name == "eplanning" && $block->status) {
+                                $imx_ads_items[$block->name][] = $block->title;
+                                $starts_frameworks[$block->name] = imx_ads_getStartScript($block->name, $imx_ads_items, $block->sec, $block->ss);
+                            }
+                            if ($block->name == "smart" && $block->status) {
+
+                                $imx_ads_smart_page_info->regions[$key][] = array("title" => $block->title, "delta" => $block->name, "format" => $block_parts[2]);
+                                $block_parts = explode("|", $block->title);
+                                $imx_ads_items[$block->name][] = $block->title;
+                                if (!$block->async) {
+                                    $imx_ads_formats[] = $block_parts[2];
+                                    $starts_frameworks[$block->name] = imx_ads_getStartScript($block->name, $imx_ads_items, NULL, NULL, $imx_ads_formats, 1);
+                                }
+                            }
+                            $block_obj = new stdClass();
+                            $block_obj->bid = $block->bid;
+                            $block_obj->module = "imx_ads";
+                            $block_obj->delta = $block->title;
+                            $block_obj->theme = "dinero";
+                            $block_obj->status = 1;
+                            $block_obj->region = $key;
+                            $block_obj->title = "<none>";
+                            $block_obj->weight = (int)$block->weight;
+
+                            switch ($block->name) {
+                                case "eplanning":
+                                    if ($block->status) {
+                                        if (preg_match("/.*layer.*/", $block->title)) {
+                                            $contend = "<div class='imx_ads'><script type='text/javascript'>if(window.top==window.self){eplAD4M('" . $block->title . "');}</script></div>";
+                                            $variables["page"][$key][$block->title] = array(
+                                                "#markup" => $contend,
+                                                "#block" => $block_obj,
+                                                "#weight" => (int)$block->weight,
+                                                "#theme_wrappers" => array("block"),
+                                            );
+                                        } else {
+                                            $variables["page"][$key][$block->title] = array(
+                                                "#markup" => "<div class='tacenter'><script type='text/javascript'>eplAD4M('" . $block->title . "');</script></div>",
+                                                "#block" => $block_obj,
+                                                "#weight" => (int)$block->weight,
+                                                "#theme_wrappers" => array("block"),
+                                            );
+                                        }
+                                    }
+                                    break;
+
+                                case "google analitics":
+                                    if ($block->status) {
+                                        $uri = $block->image_uri;
+                                        if ($block->img_url) {
+                                            $image = $block->img_url;
+                                        } else {
+                                            $image = file_create_url($uri);
+                                        }
+                                        $img = "<img src={$image} />";
+                                        $link_info = explode("|", $block->link_info);
+                                        $contend = "<div class='imx_ads tacenter'><a href='$link_info[0]' target='_blank' onClick=\"recordOutboundLink(this,'$link_info[1]','$link_info[2]','$link_info[3]');return false;\" >$img</a></div>";
+
+                                        $variables["page"][$key][$block->title] = array(
+                                            "#markup" => $contend,
+                                            "#block" => $block_obj,
+                                            "#weight" => (int)$block->weight,
+                                            "#theme_wrappers" => array("block"),
+                                        );
+                                        break;
+                                    }
+                                case "cxense":
+                                    if ($block->status) {
+                                        $cxwh = explode("|", $block->cxwh);
+                                        $cxinicial_vh = explode("|", $block->cxinicial_vh);
+
+                                        $script = "
+                                <div class='lower-content-recomendaciones'>
+                                            <!-- Simple Text Ads below the main content of article - title only-->
+                                            <div id='insertAdSpaceBeforeThis_{$block->title}' style='display:none'></div>
+                                                        <script type='text/javascript'>
+                                                            var cX = cX || {}; cX.callQueue = cX.callQueue || [];
+                                                                cX.callQueue.push(['insertAdSpace', {
+                                                                adSpaceId:'{$block->title}', // Can also be set in the template
+                                                                adUnitWidth:'{$cxwh[0]}', adUnitHeight:'{$cxwh[1]}', //specify the AdSpace size via the Ad Unit size
+                                                                initialHorizontalAdUnits:{$cxinicial_vh[0]}, initialVerticalAdUnits:{$cxinicial_vh[1]}, //specify the default/max number of ad units
+                                                                useMappedRenderTemplate: true
+                                                            }]);
+                                                        </script>
+                                </div>";
+
+                                        $contend = "<div class='imx_ads tacenter'>{$script}</div>";
+                                        $variables["page"][$key][$block->title] = array(
+                                            "#markup" => $contend,
+                                            "#block" => $block_obj,
+                                            "#weight" => (int)$block->weight,
+                                            "#theme_wrappers" => array("block"),
+                                        );
+                                        break;
+                                    }
+
+                                case "smart":
+                                    $call_type = variable_get("imx_ads_smart_call_method", "std");
+                                    $call_function = ($call_type == "ajax") ? "SmartAdServerAjaxOneCall" : "SmartAdServer";
+                                    if ($block->status) {
+                                        $block_title_parts = explode("|", $block->title);
+                                        $site_id = $block->site_id;
+                                        $page_id = $block_title_parts[1];
+                                        $format_id = $block_title_parts[2];
+                                        if (count($block_title_parts) == 3) {
+                                            if (preg_match("/.*flotante.*/", $block->title)) {
+                                                $contend = "<div class='imx_ads'></div>";
+                                            } else {
+                                                if (!$block->async) {
+                                                    $contend = getSmartsTag($site_id, $page_id, $format_id);;
+                                                } else {
+                                                    $contend = "<div class='imx_ads' id='$format_id'></div>";
+                                                }
+                                            }
+
+                                            $variables["page"][$key][$block->title] = array(
+                                                "#markup" => $contend,
+                                                "#block" => $block_obj,
+                                                "#weight" => (int)$block->weight,
+                                                "#theme_wrappers" => array("block"),
+                                            );
+                                            break;
+                                        }
+                                    }
+                            }
+                        }
+                    }
+
+                    $page_temp = $variables["page"];
+                    //Actualizamos los pesos generados por drupal, con los pesos obtenidos de BD
+                    foreach ($page_temp[$key] as $block_title => $block_info) {
+                        if ($block_title === '' || $block_title[0] !== '#') {
+                            if (array_key_exists("#block", $block_info)) {
+                                if ($block_info["#block"]) {
+                                    $variables["page"][$key][$block_title]["#weight"] = $block_info["#block"]->weight;
+                                }
+                            }
+                        }
+                    }
+
+                    /*
+                     * Buscamos y eliminamos los bloques no exclusivos en cada región, agregados por IMX ADS
+                     */
+
+                    $clean_region = FALSE;
+                    if (array_key_exists($key, $exclusive_blocks)) {
+                        foreach ($exclusive_blocks[$key] as $ex_blocks) {
+                            if (array_key_exists($ex_blocks, $variables["page"][$key]) ||
+                                array_key_exists("imx_ads_" . $ex_blocks, $variables["page"][$key])
+                            ) {
+                                $clean_region = TRUE;
+                            }
+                        }
+                    }
+
+                    if (array_key_exists($key, $exclusive_blocks) && $clean_region) {
+                        if (array_key_exists($key, $non_exclusive_blocks)) {
+                            foreach ($non_exclusive_blocks[$key] as $non_blocks) {
+                                unset($variables["page"][$key]["imx_ads_" . $non_blocks]);
+                                unset($variables["page"][$key][$non_blocks]);
+                            }
+                        }
+                    }
+                    //Obligamos a drupal a que reordene nuevamente la region
+                    $variables["page"][$key]["#sorted"] = FALSE;
+                }
+            }
+        }
+
+        //Cargamos el start script de smart en el HEAD
+        if (array_key_exists("smart", $starts_frameworks)) {
+            drupal_add_js($starts_frameworks["smart"], array('type' => 'inline', 'scope' => 'header', 'weight' => 5, 'attributes' => array('id' => 'smart_js')));
+            $call_type = variable_get("imx_ads_smart_call_method", "std");
+            if ($call_type == "ajax") {
+                //drupal_add_js('http://cdn1.smartadserver.com/diff/js/smartadserver.js', array('type' => 'external', 'scope' => 'header', 'weight' => 6));
+            }
+            unset($starts_frameworks["smart"]);
+        }
+
+        //Cargamos el startscript de eplanning y extras en el aperture o header_top
+        $contend_script = array();
+        $contend_script[] = "<script type='text/javascript'>";
+
+        foreach ($starts_frameworks as $f) {
+            $contend_script[] = $f . "\n";
+        }
+        $contend_script[] = "</script>";
+
+        $block_data_start = array(
+            "#markup" => trim(implode("\n", $contend_script)),
+            "#weight" => 0,
+            "#theme_wrappers" => array("block"),
+        );
+
+        if (array_key_exists("header_top", $variables["page"])) {
+            $variables["page"]["header_top"]["imx_ads_start"] = $block_data_start;
+            @sortBySubkey($variables["page"]["header_top"], "#weight");
+        } else {
+            $variables["page"]["aperture"]["imx_ads_start"] = $block_data_start;
+            @sortBySubkey($variables["page"]["aperture"], "#weight");
+        }
+
+        //Cargamos los scripts de Frameworks de Ads
+        $data = getFrameworkData("all");
+
+        foreach ($data as $i) {
+            if ($i['name'] == 'smart') {
+                if ($call_type == 'ajax') {
+                    drupal_add_js(drupal_get_path('module', 'imx_ads') . '/js_frameworks/' . trim($i["script_url"]));
+                }
+            } else {
+                drupal_add_js(drupal_get_path('module', 'imx_ads') . '/js_frameworks/' . trim($i["script_url"]));
+            }
+        }
+
+        drupal_add_css(drupal_get_path('module', 'imx_ads') . '/imx_ads.css');
+        drupal_add_js(array('imx_ads' => array('imx_ads_smart_page_info' => $imx_ads_smart_page_info)), array('type' => 'setting'));
+    }
+}
+
+function imx_ads_delete_block()
+{
+    $block = arg(5);
+    $success = delete_block($block);
+
+    if ($success) {
+        drupal_set_message(t('Block eliminado.'));
+        drupal_goto("admin/config/inventmx_ads/blocks");
+    } else {
+        drupal_set_message(t('No se puedo eliminar el bloque.', "error"));
+    }
+}
+
+/*
+ * Devuelce el scrip de arranque para un framework determinado
+ *
+ * @arguements $framework Id del framework
+ * @items Espacios a cargar
+ */
+
+function imx_ads_getStartScript($framework, $items, $sec, $ss, $formats = array(), $render_mode = 0)
+{
+    if ($framework == "eplanning") {
+        $source_script = file_get_contents(drupal_get_path('module', 'imx_ads') . '/js_frameworks/eplanning_start_script.js');
+        $start_script = "";
+        $data = getFrameworkData($framework);
+        $jdata = json_encode($items["eplanning"]);
+        $start_script = str_replace("#blocks", $jdata, $source_script);
+        $start_script = str_replace("#sid", $data[0]["sid"], $start_script);
+        $start_script = str_replace("#sec", $sec, $start_script);
+        if ($ss) {
+            $start_script = str_replace("#ss", 'ss:"' . $ss . '",', $start_script);
+        } else {
+            $start_script = str_replace("#ss", '', $start_script);
+        }
+    }
+    if ($framework == "google analitics") {
+        $source_script = file_get_contents(drupal_get_path('module', 'imx_ads') . '/js_frameworks/ga.txt');
+        $start_script = "";
+        $data = getFrameworkData($framework);
+        $jdata = json_encode($items["google analitics"]);
+        $start_script = str_replace("#blocks", $jdata, $source_script);
+        $start_script = str_replace("#account", $data[0]["account"], $start_script);
+        $start_script = str_replace("#domain_name", $data[0]["domain_name"], $start_script);
+    }
+
+    if ($framework == "smart") {
+        $legacy_mode = variable_get("imx_ads_legacy_smart", 0);
+        $call_type = variable_get("imx_ads_smart_call_method", "std");
+
+        if ($call_type == "onecall") {
+            $smart_config_include = "ajax";
+        } else {
+            $smart_config_include = "std";
+        }
+
+        $prequal_status = variable_get("imx_ads_prequal_status_smart", 0);
+        $tail_target = variable_get("imx_ads_tail_target_smart", 0);
+        $urlhost= variable_get("imx_ads_urlhost_smart", 0);
+        $sas_scriptDomain = $prequal_status ? '//ads.inventmx.com' : '//www5.smartadserver.com'; //Domain Script- colocar en config <luis@invent.mx - 20150506>
+        $prequal_url = $prequal_status ? variable_get("imx_ads_prequal_url_smart", '') : 'null';
+        $source_script = file_get_contents(drupal_get_path('module', 'imx_ads') . "/js_frameworks/smart_start_script_{$smart_config_include}.js");
+        $start_script = "";
+        $data = getFrameworkData($framework);
+
+        /* Punto debil de IMX_ADS, el armados de la configuracion se hace en base al primer elemento que se cuentra en el array de items
+         * si el primer bloque que se agrega viene mal configurado esto afecta a todos los demás
+         */
+
+        //Validamos que los bloques tengan el correctamente el nombre con "|" y escojemos el primer elemento
+        foreach ($items["smart"] as $blocks_ads) {
+            $block_parts = explode("|", $blocks_ads);
+            if (count($block_parts) > 1) {
+                break;
+            }
+        }
+
+        //Determinamos los targets para el espacio
+        $call_function = ($call_type == "ajax") ? "SmartAdServerAjaxOneCall" : "SmartAdServer";
+        //if ($call_type = "ajax") { //What for? no es comparación es asignación
+        $targets = get_smart_target();
+
+
+        $formats = array_unique($formats);
+        //Armamos las variables
+        $page_id = "{$data[0]["site_id"]}/{$block_parts[1]}"; // [site_id / page_id]
+        $formats_ids = implode(",", $formats);
+
+        $start_script = str_replace('"#prequal_url"', $prequal_url, $source_script);
+        $start_script = str_replace("#targets", $targets, $start_script);
+        $start_script = str_replace('"#urlhost_status"', $urlhost, $start_script);
+        $start_script = str_replace('"#tail_target_status"', $tail_target, $start_script);
+        $start_script = str_replace("#site_id", $data[0]["site_id"], $start_script);
+        $start_script = str_replace("#page_id", $page_id, $start_script);
+        $start_script = str_replace("#sas_scriptDomain", $sas_scriptDomain, $start_script);
+        $start_script = str_replace("#formats_ids", $formats_ids, $start_script);
+        $start_script = str_replace('"#render_mode"', $render_mode, $start_script);
+
+
+        global $imx_ads_smart_page_info;
+        $imx_ads_smart_page_info->page_id = $page_id;
+        $imx_ads_smart_page_info->site_id = $data[0]["site_id"];
+        $imx_ads_smart_page_info->formarts_ids = $formats;
+        $imx_ads_smart_page_info->targets = $targets;
+        $imx_ads_smart_page_info->render_mod = $render_mode;
+        $imx_ads_smart_page_info->legacy = $legacy_mode;
+        $imx_ads_smart_page_info->prequal_status = $prequal_status;
+
+
+        if ($prequal_status) {
+            if ($call_type == "ajaxOne") {
+                $start_script = str_replace('//prequal_script', file_get_contents(drupal_get_path('module', 'imx_ads') . "/js_frameworks/smart_prequal_script.js"), $start_script);
+            } else {
+                $start_script = str_replace('//prequal_script', file_get_contents(drupal_get_path('module', 'imx_ads') . "/js_frameworks/smart_prequal_script_std.js"), $start_script);
+            }
+            $start_script = str_replace('"#prequal_status"', "true", $start_script);
+        } else {
+            $start_script = str_replace('"#prequal_status"', "false", $start_script);
+            $start_script = str_replace('//prequal_script', "", $start_script);
+        }
+
+        $function_ads = array();
+        //Creamos los llamados para los banners tipo flotantes los cuales deben ir despues del body ni mas ni menos -.-
+
+        $legacy_mode = variable_get("imx_ads_legacy_smart", 0);
+        $off_mode = variable_get("imx_ads_smart_off", 0);
+        foreach ($items["smart"] as $blocks_ads) {
+            if (!$off_mode) {
+                $block_parts = explode("|", $blocks_ads);
+                if (preg_match("/.*flotante.*/", $block_parts[0])) {
+                    if ($legacy_mode) {
+                        $function_ads[] = "
+                                      if (window.top==window.self){
+                                        sas_pageid='{$data[0]["site_id"]}/{$block_parts[1]}';	// site_id/page_id
+                                        sas_formatid={$block_parts[2]};		// format_id
+                                        //sas_manager.render({$block_parts[2]});
+                                        {$call_function}(sas_pageid,sas_formatid,sas_target_slot);
+                                       }";
+
+                    } else {
+                        $function_ads[] = "
+                                      if (window.top==window.self){
+                                            //sas_formatid={$block_parts[2]};
+                                            sas.call('{$call_type}', {
+                                                siteId       :{$data[0]["site_id"]},
+                                                pageId     :{$block_parts[1]},
+                                                formatid :{$block_parts[2]},
+                                                target       :sas_target_slot
+                                            });
+                                       }";
+                    }
+                }
+            }
+        }
+        $start_script = $start_script . "\n" . "function smart_ads(){"
+            . implode(" ", $function_ads)
+            . "}";
+    }
+
+    return $start_script;
+}
+
+/*
+ *
+ */
+
+function imx_ads_generate_cache()
+{
+    $f = getFrameworkData("eplanning");
+    $a = new ImxAdsEplanning($f[0]["user"], $f[0]["password"], $f[0]["site_id"]);
+    $a->getAdsBySite();
+}
+
+function getAdStatus($adname)
+{
+    $f = getFrameworkData("eplanning");
+    $a = new ImxAdsEplanning($f[0]["user"], $f[0]["site_id"], $f[0]["site_id"]);
+    $status = $a->getAdStatus($adname);
+    if ($status == "144" || $status == "128") {
+        return FALSE;
+    } else {
+        return TRUE;
+    }
+}
+
+/*
+  function sortBySubkey($block1,$block2){
+  Ordena una funcion en base a un subkey
+  }
+ * */
+
+function sortBySubkey(&$array, $subkey, $sortType = SORT_NUMERIC)
+{
+    $keys = array();
+    foreach ($array as $subarray) {
+        $keys[] = abs($subarray[$subkey]);
+    }
+    array_multisort($keys, $sortType, $array);
+}
+
+function get_smart_target()
+{
+
+    ctools_include('cleanstring');
+    $settings = array(
+        'clean slash' => TRUE,
+        'ignore words' => array(),
+        'separator' => '-',
+        'replacements' => array(),
+        'transliterate' => TRUE,
+        'reduce ascii' => TRUE,
+        'max length' => FALSE,
+        'lower case' => TRUE,
+    );
+
+    $target = FALSE;
+    $data = menu_get_object();
+    if (drupal_is_front_page()) {
+        $target[] = "c=inicio";
+        $target[] = "n=no";
+    } else if (!$data) {
+        if (arg(0) == 'taxonomy' && arg(1) == 'term' && arg(2)) {
+            $data = taxonomy_term_load(arg(2));
+            if ($data) {
+                $target[] = "c=" . ctools_cleanstring($data->name, $settings);
+                $term_parents = taxonomy_get_parents($data->tid);
+                if ($term_parents) {
+                    foreach ($term_parents as $t) {
+                        $target[] = "c=" . ctools_cleanstring($t->name, $settings);
+                    }
+                }
+                if (function_exists("getFemParentFromTid")) {
+                    $parent_fem = getFemParentFromTid($data->tid);
+                    if ($parent_fem) {
+                        $target[] = "c=" . ctools_cleanstring($parent_fem["name"], $settings);
+                    }
+                }
+                $target[] = "n=no";
+            }
+        }else{
+            $target[] = "n=no";
+        }
+    } else {
+        $type = getNodeType(array("type" => $data->type));
+        $target[] = "n=" . strtolower($type);
+        $terms = getTermsNodeExclude($data->nid);
+        if ($terms) {
+            foreach ($terms as $tid) {
+                $term = taxonomy_term_load($tid);
+                $target[] = "c=" . ctools_cleanstring($term->name, $settings);
+                $term_parents = taxonomy_get_parents($tid);
+                if ($term_parents) {
+                    foreach ($term_parents as $t) {
+                        $target[] = "c=" . ctools_cleanstring($t->name, $settings);
+                    }
+                }
+            }
+        }
+    }
+
+    if ($target) {
+        $target = array_unique($target);
+        $target_string = implode(";", $target);
+        if (count($target == 1)) {
+            $target_string = $target_string . ";";
+        }
+    }
+    return $target_string;
+}
+
+function getNodeType($node)
+{
+    if ($node["type"] == "story") {
+        $type = "article";
+    } elseif ($node["type"] == "gallery" || $node["type"] == "galery" || $node["type"] == "gallerie") {
+        $type = "gallerie";
+    } elseif ($node["type"] == "videogallery" || $node["type"] == "videogalery" || $node["type"] == "video" || $node["type"] == "videogallerie" || $node["type"] == "videos") {
+        $type = "video";
+    } else {
+        $type = $node["type"];
+    }
+
+    return $type;
+}
+
+/* Regresa el bloque solicitado si esta activo
+ * @arguments string $title nombre del bloque
+ * @return array con block rendereable de drupal
+ *
+ * ejem
+ *
+ * $block= imx_ads_smart_invoque_block("supe|111|1233");
+ * render($block);
+ *
+ */
+function imx_ads_smart_invoque_block($title, $format = "block")
+{
+    $off_mode = variable_get("imx_ads_smart_off", 0);
+    $legacy_mode = variable_get("imx_ads_legacy_smart", 0);
+
+    if(!$off_mode) {
+        if ($legacy_mode) {
+            $iframe_url = "http://cf.imx.static.files.invent.mx/imx_ads_legacy_async.html";
+        } else {
+            $iframe_url = "http://cf.imx.static.files.invent.mx/imx_ads_async_v2.html";
+            //$iframe_url = "/sites/all/modules/custom/imx_ads/js_frameworks/imx_ads_legacy_async.html";
+        }
+
+        if (!$title)
+            return NULL;
+        $qry = db_select('imx_ads_blocks', 'ab');
+        $qry->innerJoin("imx_ads_frameworks", "af", "af.fid=ab.fid");
+        $qry->fields('ab', array('title', 'status'));
+        $qry->fields("af", array("site_id"));
+
+        if ($title) {
+            $qry->condition('ab.status', 1, '=');
+            $qry->condition('ab.title', $title, '=');
+        }
+        $result = $qry->execute()->fetchAll();
+
+        if ($result) {
+            foreach ($result as $data) {
+                if ($format == "block") {
+                    $blocks[] = module_invoke('imx_ads', 'block_view', $data->title);
+                } elseif ($format == "info") {
+                    $block_parts = explode("|", $data->title);
+                    $blocks[] = array("site_id" => $data->site_id, "page_id" => $block_parts[1], "format_id" => $block_parts[2], "title" => $block_parts[0], "iframe_url" => $iframe_url);
+                }
+            }
+            return $blocks;
+        } else {
+            return FALSE;
+        }
+    }else{
+        return false;
+    }
+}
+
+
+/* Regresa los bloquesa activos disponibles para un determinada región
+ * @arguments string $region nombre de la región
+ * @return array con blocks rendereables de drupal
+ *
+ * ejem:
+ *
+ * $blocks=imx_ads_smart_invoque_blocks_region("second_sidebar");
+ *
+ * render($blocks[1]);
+ *
+ *
+ */
+function imx_ads_smart_invoque_blocks_region($region)
+{
+    $legacy_mode = variable_get("imx_ads_legacy_smart", 0);
+    $off_mode = variable_get("imx_ads_smart_off", 0);
+
+    if(!$off_mode) {
+
+        if ($legacy_mode) {
+            $iframe_url = "http://cf.imx.static.files.invent.mx/imx_ads_legacy_async.html";
+        } else {
+            $iframe_url = "http://cf.imx.static.files.invent.mx/imx_ads_async_v2.html";
+            //$iframe_url = "/sites/all/modules/custom/imx_ads/js_frameworks/imx_ads_legacy_async.html";
+        }
+
+        if (!$region)
+            return NULL;
+        $qry = db_select('imx_ads_blocks', 'ab');
+        $qry->fields('ab', array('title', 'status'));
+        if ($region) {
+            $qry->condition('ab.status', 1, '=');
+            $qry->condition('ab.region', $region, '=');
+        }
+        $result = $qry->execute()->fetchAll();
+
+        if ($result) {
+            foreach ($result as $data) {
+                $blocks[] = module_invoke('imx_ads', 'block_view', $data->title);
+            }
+            return $blocks;
+        } else {
+            return FALSE;
+        }
+    }else{
+
+        return false;
+    }
+}
+
+
+/* Regresa los bloquesa activos disponibles para un determinado invoque_id
+ * @arguments string $id Id de los bloques a invocar
+ * @return array con blocks rendereables de drupal
+ *
+ * ejem:
+ *
+ * $blocks=imx_ads_smart_invoque_id("#carrusel");
+ *
+ * render($blocks[1]);
+ *
+ *
+ */
+function imx_ads_invoque_id($id, $format = "block")
+{
+    $legacy_mode = variable_get("imx_ads_legacy_smart", 0);
+    $off_mode = variable_get("imx_ads_smart_off", 0);
+
+    if(!$off_mode) {
+
+        if ($legacy_mode) {
+            $iframe_url = "http://cf.imx.static.files.invent.mx/imx_ads_legacy_async.html";
+        } else {
+            $iframe_url = "http://cf.imx.static.files.invent.mx/imx_ads_async_v2.html";
+            //$iframe_url = "/sites/all/modules/custom/imx_ads/js_frameworks/imx_ads_legacy_async.html";
+        }
+
+        if (!$id)
+            return NULL;
+        $qry = db_select('imx_ads_blocks', 'ab');
+        $qry->innerJoin("imx_ads_frameworks", "af", "af.fid=ab.fid");
+        $qry->fields('ab', array('title', 'status'));
+        $qry->fields("af", array("site_id"));
+        if ($id) {
+            $qry->condition('ab.status', 1, '=');
+            $qry->condition('ab.invoque_id', $id, '=');
+        }
+        $result = $qry->execute()->fetchAll();
+        if ($result) {
+            foreach ($result as $data) {
+                if ($format == "block") {
+                    $blocks[] = module_invoke('imx_ads', 'block_view', $data->title);
+                } elseif ($format == "info") {
+                    $block_parts = explode("|", $data->title);
+                    $blocks[] = array("site_id" => $data->site_id, "page_id" => $block_parts[1], "format_id" => $block_parts[2], "title" => $block_parts[0], "iframe_url" => $iframe_url);
+                }
+            }
+            return $blocks;
+        } else {
+            return FALSE;
+        }
+    }else{
+        return false;
+    }
+}
+
+
+/* callback para funcion JS
+ * @arguments string $title nombre del bloque
+ * @return json con block
+ **
+ */
+
+function imx_ads_get_block_by_title_js()
+{
+    $block_title = $_GET["title"];
+    $format = $_GET["format_ad"];
+    $data = FALSE;
+    if ($block_title) {
+        $data = imx_ads_smart_invoque_block($block_title, $format);
+        $data = drupal_json_output($data);
+    }
+    return $data;
+}
+
+/* Callback para función JS
+ * @arguments string $region nombre de la región
+ * @return json con blocks
+
+ */
+function imx_ads_get_block_by_region_js()
+{
+    $region = $_GET["region"];
+    $data = FALSE;
+    if ($region) {
+        $data = imx_ads_smart_invoque_blocks_region($region);
+        $data = drupal_json_output($data);
+    }
+    return $data;
+}
+
+/* Callback para función JS
+ * @arguments string $id Id de los bloques a invocar
+ * @return json con blocks
+
+ */
+function imx_ads_get_blocks_by_invoque_id_js()
+{
+    $id = $_GET["id"];
+    $format = $_GET["format_ad"];
+    $data = FALSE;
+    if ($id) {
+        $data = imx_ads_invoque_id($id, $format);
+        $data = drupal_json_output($data);
+    }
+    return $data;
+}
+
+
+function imx_ads_get_Async_js()
+{
+
+    header("Access-Control-Allow-Origin: http://cf.imx.static.files.invent.mx");
+    header("Access-Control-Allow-Credentials: true");
+    header("Access-Control-Allow-Methods: POST, GET, PUT, OPTIONS, PATCH, DELETE");
+    header("Access-Control-Allow-Headers: X-Accept-Charset,X-Accept,Content-Type,X-Requested-With");
+
+
+    $legacy_mode = variable_get("imx_ads_legacy_smart", 0);
+
+    if ($legacy_mode) {
+        $iframe_url = "http://cf.imx.static.files.invent.mx/imx_ads_legacy_async.html";
+    } else {
+        $iframe_url = "http://cf.imx.static.files.invent.mx/imx_ads_async_v2.html";
+        //$iframe_url = "/sites/all/modules/custom/imx_ads/js_frameworks/imx_ads_legacy_async.html";
+    }
+    $invoques = FALSE;
+    $invoques_string = "";
+    $async_names = getBlocksAsyncsNames();
+
+    $call_type = variable_get("imx_ads_smart_call_method", "std");
+
+    if ($call_type == 'std') {
+        $invoques["start"] = "window.addEventListener('load', function(){";
+    }
+
+
+    if ($async_names) {
+        foreach ($async_names as $b) {
+            $bn = $b->title;
+            $block_parts = explode("|", $bn);
+
+            if ($block_parts[2]) {
+                if ($b->site_id) {
+                    $pid = $b->site_id . "/" . $block_parts[1];
+                    $invoques[$block_parts[2]] = "createJeditag({$b->site_id},{$block_parts[1]},{$block_parts[2]},window.parent.sas_target);";
+                }
+            }
+        }
+    }
+
+    if ($call_type == 'std') {
+        $invoques["end"] = "});";
+    }
+
+    if ($invoques) {
+        $invoques_string = implode(" ", $invoques);
+    }
+
+    $jeditag_js = file_get_contents(drupal_get_path("module", "imx_ads") . "/js_frameworks/smart_jeditag.js");
+    $jeditag_js = $jeditag_js . "
+        {$invoques_string}
+    ";
+
+    echo $jeditag_js;
+}
+
+function imx_ads_get_Async_by_adex()
+{
+
+    $legacy_mode = variable_get("imx_ads_legacy_smart", 0);
+
+    if ($legacy_mode) {
+        $iframe_url = "http://cf.imx.static.files.invent.mx/imx_ads_legacy_async.html";
+    } else {
+        $iframe_url = "http://cf.imx.static.files.invent.mx/imx_ads_async_v2.html";
+        //$iframe_url = "/sites/all/modules/custom/imx_ads/js_frameworks/imx_ads_legacy_async.html";
+    }
+
+    $invoques = FALSE;
+    $invoques_string = "";
+    $async_names = getBlocksAsyncsNames();
+
+    $call_type = variable_get("imx_ads_smart_call_method", "std");
+
+    if ($call_type == 'std') {
+        $invoques["start"] = "window.addEventListener('load', function(){";
+    }
+
+
+    if ($async_names) {
+        foreach ($async_names as $b) {
+            $bn = $b->title;
+            $block_parts = explode("|", $bn);
+
+            if ($block_parts[2]) {
+                if ($b->site_id) {
+                    $pid = $b->site_id . "/" . $block_parts[1];
+                    $invoques[$block_parts[2]] = "createIframeIMX('{$iframe_url}','{$pid}',{$block_parts[2]},window.parent.sas_target);";
+                }
+            }
+        }
+    }
+
+    if ($call_type == 'std') {
+        $invoques["end"] = "});";
+    }
+
+    if ($invoques) {
+        $invoques_string = implode(" ", $invoques);
+    }
+
+    $js = "
+     function render_ads_by_adex(){
+        {$invoques_string}
+     }
+    ";
+
+    return $js;
+}
+
+
+function getSmartsTag($site_id, $page_id, $format_id, $call_function)
+{
+    $legacy_mode = variable_get("imx_ads_legacy_smart", 0);
+    $call_type = variable_get("imx_ads_smart_call_method", "std");
+    $off_mode = variable_get("imx_ads_smart_off", 0);
+    if (!$off_mode) {
+
+        if ($legacy_mode) {
+            if ($call_type == "onecall") {
+                $call_function = "SmartAdServerAjaxOneCall";
+            } else if ($call_type == "ajax") {
+                $call_function = "SmartAdServerAjax";
+            } else {
+                $call_function = "SmartAdServer";
+            }
+
+            $tag = "<div class='imx_ads' id='imx_ads_{$format_id}'>
+                <script type='text/javascript'>
+                    sas_pageid='{$site_id}/{$page_id}';	// site_id/page_id
+                    sas_formatid={$format_id};		// format_id
+                    //sas_manager.render({$format_id});
+                    {$call_function}(sas_pageid,sas_formatid,sas_target_slot);
+                </script>
+                <noscript>
+                    <a href='http://ads.inventmx.com/call/pubjumpi/{$site_id}/{$page_id}/{$format_id}/M/[timestamp]/?' target='_blank'>
+                    <img src='http://ads.inventmx.com/call/pubi/{$site_id}/{$page_id}/{$format_id}/M/[timestamp]/?' border='0' alt='' /></a>
+                </noscript>
+           </div>";
+        } else {
+
+            if ($call_type == "onecall") {
+                $tag = "<div class='imx_ads' id='imx_ads_{$format_id}'>
+                    <script type='text/javascript'>
+                        //sas_formatid={$format_id};
+                        sas.render('{$format_id}');  // Formato : box_betsa_1 300x250
+                    </script>
+               </div>";
+
+            } else {
+                $call_type = "std";
+                $tag = "<div class='imx_ads' id='imx_ads_{$format_id}'>
+                    <script type='text/javascript'>
+                        //sas_formatid={$format_id};
+                        sas.call('{$call_type}', {
+                            siteId       :{$site_id},
+                            pageId     :{$page_id},
+                            formatid :{$format_id},
+                            target       :sas_target_slot
+                        });
+                    </script>
+                    <noscript>
+                        <a href='http://ads.inventmx.com/ac?jump=1&nwid=1030&siteid={$site_id}&pgname=exclusive_site&fmtid={$format_id}&visit=m&tmstp=[timestamp]&out=nonrich' target='_blank'>
+                        <img src='http://ads.inventmx.com/ac?out=nonrich&nwid=1030&siteid={$site_id}&pgname=exclusive_site&fmtid={$format_id}&visit=m&tmstp=[timestamp]' border='0' alt='' /></a>
+                    </noscript>
+               </div>";
+            }
+        }
+
+        return $tag;
+    } else {
+        return "";
+    }
+}
+
+function imx_ads_get_jeditag()
+{
+
+    $jeditag_js = "";
+    $off_mode = variable_get("imx_ads_smart_off", 0);
+    if (!$off_mode) {
+        $invoques = FALSE;
+        $invoques_string = "";
+        $async_names = getBlocksAsyncsNames();
+
+        $call_type = variable_get("imx_ads_smart_call_method", "std");
+
+        if ($call_type == 'std') {
+            $invoques["start"] = "window.addEventListener('load', function(){";
+        }
+
+
+        if ($async_names) {
+            foreach ($async_names as $b) {
+                $bn = $b->title;
+                $block_parts = explode("|", $bn);
+
+                if ($block_parts[2]) {
+                    if ($b->site_id) {
+                        $pid = $b->site_id . "/" . $block_parts[1];
+                        $invoques[$block_parts[2]] = "createJeditag({$b->site_id},{$block_parts[1]},{$block_parts[2]},window.parent.sas_target);";
+                    }
+                }
+            }
+        }
+
+        if ($call_type == 'std') {
+            $invoques["end"] = "});";
+        }
+
+        if ($invoques) {
+            $invoques_string = implode(" ", $invoques);
+        }
+
+        $jeditag_js = file_get_contents(drupal_get_path("module", "imx_ads") . "/js_frameworks/smart_jeditag.js");
+        $jeditag_js = $jeditag_js . "
+        {$invoques_string}
+    ";
+
+        echo $jeditag_js;
+    }
+}

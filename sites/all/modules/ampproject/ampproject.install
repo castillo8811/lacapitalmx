@@ -1,0 +1,24 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions.
+ */
+
+/**
+ * Implements hook_install().
+ */
+function ampproject_install() {
+  # Code.
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function ampproject_uninstall() {
+  variable_del('ampproject_url_segment');
+  variable_del('ampproject_styles');
+  variable_del('ampproject_entity_types');
+  variable_del('ampproject_node_types');
+  variable_del('ampproject_srcset');
+}

@@ -1,0 +1,62 @@
+<?php
+
+/**
+ * Implements hook_help().
+ */
+function bottom_help($path, $arg) {
+    if ($path == 'admin/help#bottom') {
+        return t('Bottom con sindicación de la red de sitios de InventMX.');
+    }
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function bottom_block_info() {
+    $blocks = array();
+    $blocks['bottom'] = array(
+        'info' => t('Bottom con sindicación.'),
+    );
+    return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function bottom_block_view($block_name = '') {
+    $items = get_bottom();
+    $block = array(
+        'subject' => t(''),
+        'content' => $items,
+    );
+    return $block;
+}
+
+function get_bottom() {
+    $contenttypesSticky = array('article','gallerie','videos');
+    $width = 690;
+//    if(arg(0) == 'node' && is_numeric(arg(1)) && !arg(2)){
+//        if(in_array(get_node_type(arg(1)), $contenttypesSticky)){
+            $width = 610;
+//        }
+//    }
+    $script = 'http://776561ea720ed80d100a-d15d7e8f8f7f4ad15567639aa98ea820.r76.cf2.rackcdn.com/imx_bottom_responsive.js';
+//    $script = 'http://776561ea720ed80d100a-d15d7e8f8f7f4ad15567639aa98ea820.r76.cf2.rackcdn.com/imx_bottom_v5.js';
+//    <script src="' . $script . '" type="text/javascript" id="imx_bottom_js" class="imx_bottom_light" w="' . $width . '"></script>
+//    $script = '/sites/all/modules/custom/bottom/imx_bottom_responsive.js';
+    $html = '<div>
+                <script src="' . $script . '" type="text/javascript" id="imx_bottom_js"></script>
+                <div id="bottom-links" style="display:none;">
+                    <span id="politicasprivacidad">/aviso-de-privacidad</span>
+                    <span id="gomobile">m.swagger.com</span>
+                    <span id="condiciones-uso">/terminos-y-condiciones-de-uso</span>
+                    <span id="gotop">#page</span>
+                    <span id="politicaambiental">/politica-ambiental</span>
+                    <span id="sitemap">/sitemap.xml</span>
+                    <span id="rss">/rss.xml</span>
+                </div>
+            </div>';
+//    drupal_add_css(drupal_get_path('module', 'bottom') . '/imx_bottom_v4.css');
+    return $html;
+}
+

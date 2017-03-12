@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8"/>
+    <style>body {
+        margin: 0;
+        padding: 0;
+        background-color: #b2b2b2;
+    }
+    img, iframe{
+        margin: 0 auto;
+    }
+
+    .imx_ads{
+        text-align: center;
+    }
+    </style>
+    <script type="text/javascript">
+        var sas_domain = 'ads.inventmx.com';
+        sas_tmstp = Math.round(Math.random() * 10000000000);
+        sas_masterflag = 1;
+        function SmartAdServer(sas_pageid, sas_formatid, sas_target) {
+            if (sas_masterflag == 1) {
+                sas_masterflag = 0;
+                sas_master = 'M';
+            } else {
+                sas_master = 'S';
+            }
+            ;
+            document.write('<scr' + 'ipt src="http://' + sas_domain + '/call/pubj/' + sas_pageid + '/' + sas_formatid + '/' + sas_master + '/' + sas_tmstp + '/' + escape(sas_target) + '?"></scr' + 'ipt>');
+        }
+        function getQueryParams(qs) {
+            qs = qs.split("+").join(" ");
+            var params = {}, tokens,
+                    re = /[?&]?([^=]+)=([^&]*)/g;
+            while (tokens = re.exec(qs)) {
+                params[decodeURIComponent(tokens[1])] = decodeURIComponent(tokens[2]);
+            }
+            return params;
+        }
+        function printAd() {
+            var _GET = getQueryParams(document.location.search);
+            if (typeof _GET.pageid == 'undefined' || typeof _GET.formatid == 'undefined' || _GET.pageid == null || typeof _GET.formatid == null)
+                return null;
+
+            if (typeof _GET.target == 'undefined' || _GET.target == null)
+                _GET.target = '';
+
+            textAd = '<scr' + 'ipt type="text/javascript">' +
+                    'SmartAdServer("' + _GET.pageid + '",' + _GET.formatid + ',"' + _GET.target + '");' +
+                    '</scr' + 'ipt>' +
+                    '<noscript>' +
+                    '<a href="http://' + sas_domain + '/call/pubjumpi/' + _GET.pageid + '/' + _GET.formatid + '/S/[timestamp]/?" target="_blank">' +
+                    '<img src="http://' + sas_domain + '/call/pubi/' + _GET.pageid + '/' + _GET.formatid + '/S/[timestamp]/?" border="0" alt="" />' +
+                    '</a>' +
+                    '</noscript>';
+            document.write(textAd);
+
+            window.addEventListener('load', function() {
+                window.parent.postMessage("imx_ads-"+_GET.formatid+":" +document.body.offsetWidth+"#"+ document.body.offsetHeight, '*');
+            });
+        }
+    </script>
+</head>
+<body>
+<div class="imx_ads">
+    <script>printAd();</script>
+</div>
+</body>
+</html>

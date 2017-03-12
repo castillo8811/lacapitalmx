@@ -1,0 +1,7 @@
+name = "Node flush"
+description = "Borra cache del node activo"
+package = "InventMX"
+core = "7.x"
+version = "7.x"
+php="5.x"
+files[] = imx_nodeflush.module

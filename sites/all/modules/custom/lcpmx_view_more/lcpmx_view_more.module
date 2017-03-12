@@ -1,0 +1,25 @@
+<?php
+
+  /**
+   * Implements hook_menu().
+   */
+  function lcpmx_view_more_menu() {
+    $items['filter/taxonomy/%'] = array(
+      'page callback' => 'filter_taxonomy',
+      'page arguments' => array(2),
+      'access callback' => TRUE,
+      'access arguments' => array('access content'),
+      'title' => 'Filter taxonomy',
+      'type' => MENU_CALLBACK,
+    );
+    return $items;
+  }
+  
+  /**
+   * Implements hook_permission().
+   */
+
+  function filter_taxonomy($tid){
+    $view_data=  views_embed_view("taxonomy_term","taxonomy_inferior",$tid);
+    print ($view_data);
+  }  

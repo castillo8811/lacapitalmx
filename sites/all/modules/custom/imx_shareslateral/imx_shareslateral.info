@@ -1,0 +1,7 @@
+; $Id$
+name = "Shares lateral"
+description = "Muestra los botones de redes sociales en las notas con estilo Sticky"
+package = "FEM"
+version = 1.0
+core = 7.x
+files[]="imx_shareslateral.module"

@@ -1,0 +1,153 @@
+<?php
+
+/**
+ * Devuelve el pintado de los tres nodos más vistos
+ */
+function imx_related_nodes_help($path, $arg) {
+    if ($path == 'admin/help#imx_related_nodes') {
+        return t('Módulo que muestra 30 notas relacionadas a un nodo por canal');
+    }
+}
+
+function imx_related_nodes_block_info() {
+    $blocks['imx_related_nodes'] = array(
+        'info' => t('30 Notas relacionadas')
+    );
+    $blocks['imx_related_nodes_home'] = array(
+        'info' => t('30 Notas principales Home')
+    );
+    return $blocks;
+}
+
+function related_nodes_list_home($view_name, $template = NULL) {
+    $items = NULL;
+    $file = '/srv/data/files/cache/fem/related_fem_home.json';
+    // Buscar primero caché
+    if(file_exists($file))
+        $items = json_decode(file_get_contents($file), true);
+    if($items && is_array($items) && count($items)){
+        // si hay caché, la devuelvo
+        return $items;
+    } else {
+        // si no, la consulto del query de la vista y la creo
+        if (!$view_name)
+            return NULL;
+        $view = views_get_view($view_name);
+        $view->preview($template);
+        $view = $view->result;
+        $items = array();
+        foreach ($view as $node) {
+            $items[] = array(
+                'nid' => $node->nid,
+                'title' => $node->node_title,
+                'taxonomy' => $node->taxonomy_term_data_node_name,
+                'image' => $node->field_field_image[0]['rendered']['#item']['uri']
+            );
+        }
+        // Crear JSON cache
+        unlink($file);
+        file_put_contents($file, json_encode($items));
+        return $items;
+    }
+}
+
+function related_nodes_list($view_name = null, $template = NULL) {
+    $items = NULL;
+    
+    if (arg(0) == 'taxonomy' && is_numeric(arg(2))) {
+        //si estamos en taxonomy
+        // debo pintar notas del canal sólo en el vid == 2
+        $tid = (int) arg(2);
+        $taxonomy = taxonomy_term_load($tid);
+        $vid = $taxonomy->vid;
+        if ($vid == 2) {
+            $file = '/srv/data/files/cache/fem/related_fem_' . $tid . '.json';
+            $args = array($tid);
+        } else {
+            $file = '/srv/data/files/cache/fem/related_fem_home.json';
+            $args = array();
+            $template = 'block_1';
+        }
+    } else {
+        //si estamos en una nota
+        $tid = get_section_by_nid((int) arg(1), 2, FALSE);
+        $file = '/srv/data/files/cache/fem/related_fem_' . $tid . '.json';
+        $args = array($tid);
+    }
+    
+    // Buscar primero caché
+    if (file_exists($file))
+        $items = json_decode(file_get_contents($file), true);
+    if($items && is_array($items) && count($items)){
+        // si hay caché, la devuelvo
+        return $items;
+    } else {
+        // si no, la consulto del query de la vista y la creo
+        if (!$view_name)
+            return NULL;
+        $view = views_get_view($view_name);
+        $view->preview($template, $args);
+        $view = $view->result;
+        $items = array();
+        foreach ($view as $node) {
+            $items[] = array(
+                'nid' => $node->nid,
+                'title' => $node->node_title,
+                'taxonomy' => $node->taxonomy_term_data_node_name,
+                'image' => $node->field_field_image[0]['rendered']['#item']['uri']
+            );
+        }
+        // Crear JSON cache
+        unlink($file);
+        file_put_contents($file, json_encode($items));
+        return $items;
+    }
+}
+
+function imx_related_nodes_block_view($delta = '') {
+    $block = array(
+        'subject' => t(''),
+        'content' => '',
+    );
+
+    if ($delta == 'imx_related_nodes') {
+        $block['subject'] = t('30 Notas relacionadas');
+        $block['content'] = array(
+            '#theme' => 'imx_related_nodes'
+        );
+    };
+    if ($delta == 'imx_related_nodes_home') {
+        $block['subject'] = t('30 Notas principales Home');
+        $block['content'] = array(
+            '#theme' => 'imx_related_nodes_home'
+        );
+    };
+    return $block;
+}
+
+function imx_related_nodes_theme($existing, $type, $theme, $path) {
+    return array(
+        'imx_related_nodes' => array(
+            'variables' => array(
+                'items_imx_related_nodes' => NULL,
+            ),
+            'template' => 'imx_related_nodes',
+        ),
+        'imx_related_nodes_home' => array(
+            'variables' => array(
+                'items_imx_related_nodes_home' => NULL,
+            ),
+            'template' => 'imx_related_nodes_home',
+        ),
+    );
+}
+
+function template_preprocess_imx_related_nodes_home(&$variables) {
+    $variables['items_imx_related_nodes_home'] = related_nodes_list_home('relacionados', 'block_2');
+}
+
+function template_preprocess_imx_related_nodes(&$variables) {
+    $taxonomy = get_section_by_nid((int) arg(1), 2, FALSE);
+    $variables['tid'] = $taxonomy;
+    $variables['items_imx_related_nodes'] = related_nodes_list('relacionados', 'block_1');
+}

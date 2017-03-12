@@ -1,0 +1,609 @@
+<?php
+
+/**
+ * Implements hook_help.
+ *
+ * Displays help and module information.
+ *
+ * @param path
+ * Which path of the site we're using to display help
+ * @param arg
+ * Array that holds the current path as returned from arg() function
+ */
+function relacionados_help($path, $arg) {
+    switch ($path) {
+        case "admin/help#relacionados":
+            return t("Muestra en varios bloques o interfaces una lista de contenidos relacionado a una serie de terms");
+            break;
+    }
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function relacionados_block_info() {
+    $blocks['relacionados_nota_top'] = array(
+        'info' => t('Notas relacionados en el node TOP'),
+        'cache' => DRUPAL_NO_CACHE,
+    );
+    $blocks['relacionados_nota_bottom'] = array(
+        'info' => t('Notas relacionados en node BOTTOM'),
+        'cache' => DRUPAL_NO_CACHE,
+    );
+    $blocks['relacionados_nota_visitas'] = array(
+        'info' => t('Notas más visitadas en node'),
+        'cache' => DRUPAL_NO_CACHE,
+    );
+    $blocks['relacionados_nota_ciudad'] = array(
+        'info' => t('Notas en ciudad'),
+        'cache' => DRUPAL_NO_CACHE,
+    );
+    $blocks['relacionados_mas_fotogalerias'] = array(
+        'info' => t('Mas fotogalerias'),
+        'cache' => DRUPAL_NO_CACHE,
+    );
+    $blocks['relacionados_cxsense'] = array(
+        'info' => t('RelacionadosCxsense'),
+        'cache' => DRUPAL_NO_CACHE,
+    );
+    return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function relacionados_block_view($block_name = '') {
+    $block = array();
+    drupal_add_css(drupal_get_path('module', 'relacionados') . '/relacionados.css');
+    switch ($block_name) {
+        case 'relacionados_nota_top':
+            $block['content'] = array(
+                '#theme' => 'relacionados_nota_top',
+                '#data' => data_relacionados_nota_top(),
+            );
+            break;
+
+        case 'relacionados_nota_bottom':
+            //drupal_add_css(drupal_get_path('module', 'relacionados') . '/infiniteScroll/IMXScroll.css');
+            //drupal_add_js(drupal_get_path('module', 'relacionados') . '/infiniteScroll/handlebars-v1.3.0.js');
+            //drupal_add_js(drupal_get_path('module', 'relacionados') . '/infiniteScroll/jquery.ImxInfiniteScroll.plugin-v1.3.6.min.js');
+            //drupal_add_js(drupal_get_path('module', 'relacionados') . '/infiniteScroll/relacionados.js');
+            $block['content'] = array(
+                '#theme' => 'relacionados_nota_bottom',
+                '#data' => data_relacionados_nota_top(),
+            );
+            break;
+
+        case 'relacionados_nota_ciudad':
+            //drupal_add_css(drupal_get_path('module', 'relacionados') . '/infiniteScroll/IMXScroll.css');
+            //drupal_add_js(drupal_get_path('module', 'relacionados') . '/infiniteScroll/handlebars-v1.3.0.js');
+            //drupal_add_js(drupal_get_path('module', 'relacionados') . '/infiniteScroll/jquery.ImxInfiniteScroll.plugin-v1.3.6.min.js');
+            //drupal_add_js(drupal_get_path('module', 'relacionados') . '/infiniteScroll/relacionados.js');
+            $block['content'] = array(
+                '#theme' => 'relacionados_nota_ciudad',
+                '#data' => data_relacionados_nota_bottom(3,6),
+            );
+            break;
+
+        case 'relacionados_nota_visitas':
+            $block['content'] = array(
+                '#theme' => 'relacionados_nota_visitas',
+                '#data' => get_most_visited_nodes_relacionados(),
+            );
+            break;
+
+
+        case 'relacionados_cxsense':
+            $items = data_relacionados_notas_cxsense();
+            if (!empty($items['items'])) {
+                $block['content'] = array(
+                    '#theme' => 'relacionadosCxsense',
+                    '#data' => $items,
+                );
+            }
+            break;
+    }
+
+    return $block;
+}
+
+/**
+ * Implement of Hook theme
+ * @return type
+ */
+function relacionados_theme() {
+    return array(
+        'relacionados_nota_top' => array(
+            'template' => 'relacionados_nota_top',
+            'variables' => array('data' => NULL,),
+        ),
+        'relacionados_nota_visitas' => array(
+            'template' => 'relacionados_nota_visitas',
+            'variables' => array('data' => NULL,),
+        ),
+        'relacionados_nota_bottom' => array(
+            'template' => 'relacionados_nota_bottom',
+            'variables' => array('data' => NULL,),
+        ),
+        'relacionados_nota_ciudad' => array(
+            'template' => 'relacionados_nota_ciudad',
+            'variables' => array('data' => NULL,),
+        ),
+        'relacionadosCxsense' => array(
+            'template' => 'relacionados_cxsense',
+            'variables' => array('data' => NULL,),
+        ),
+    );
+}
+
+/**
+ * Regresa ls relacionados directos de la nota
+ * si el editor no selecciono notas se buscan las
+ * notas más recientes de la categoria de la nota
+ * @return mixed
+ */
+function data_relacionados_nota_top($nid=false) {
+//    $domain = domain_get_domain();
+    $path = arg();
+    $data = array();
+    if ($path[0] == 'node' && is_numeric($path[1]) && !isset($path[2])) {
+        $node = menu_get_object();
+        if($node){
+            $relacionados = field_get_items('node', $node, 'field_relacionado');//campo de relacionados de salud180 modificar por el propio
+            if ($relacionados != FALSE) {
+                foreach ($relacionados as $item) {
+                    $nids[]=$item["nid"];
+                }
+                $nodes=get_related_nids_of_node_data($nids);
+
+            } else {
+                //obtenemos los tids del nodo para buscar los datos relacionados
+                $items_tags = field_get_items('node', $node, 'field_categoria');//campo de categorias de saldu180 cambiar por el campo correspondiente
+                $tags = array();
+                foreach ($items_tags as $key => $value) {
+                    $tags[] = $value['tid'];
+                }
+                $nodes = relacionados_get_data($tags,0, 3, array($node->nid), array('article', 'gallerie','video'));
+            }
+
+
+
+    //    $data['sitename'] = $domain['sitename'];
+            $data['items'] = $nodes;
+        }
+    }
+    return $data;
+}
+
+/**
+ * Relacionados con scroll infinito
+ * Obtiene la categoria padre del node
+ * y se lo manda al json de la pagina para poder enviarla al scroll infinito
+ * las primeras 5 notas se traen del sitio las demás desde el api via ImxInfiniteScroll
+ * @return mixed
+ */
+function data_relacionados_nota_bottom($start=0,$limit=3) {
+//    $domain = domain_get_domain();
+    $path = arg();
+    $data = array();
+    if ($path[0] == 'node' && is_numeric($path[1]) && !isset($path[2])) {
+        $node = menu_get_object();
+        if($node){
+            $conten_type = array('article', 'videos','gallery');//para query
+            $tid = $node->field_categoria['und'][0]['tid'];//obtengo la categoria
+            $data['items'] = relacionados_get_data(array($tid), $start, $limit, array($node->nid), $conten_type);//query para obtener los 5 resultados
+            //$data['next'] = '/taxonomy/term/' . implode('+', $tags);
+            //Para establecer un titulo diferente a topicos para el tipo page (Relacionados a nombre_nodo)
+            if ($node->type == 'page') {
+                $data['title'] = $node->title;
+            }
+            $term=taxonomy_term_load($tid);
+            $data['term'] = $term->name;
+        }
+    }
+    return $data;
+}
+
+
+/**
+ * Realiza las peticiones a cxsense para traer los contenidos relacionados por los tags
+ * de la nota, de no traer los 6 resultados o menos se buscar
+ * @return array
+ */
+function data_relacionados_notas_cxsense() {
+    $path = arg();
+    $data = array();
+    if ($path[0] == 'node' && is_numeric($path[1]) && !isset($path[2])) {
+        $node = menu_get_object();//objeto del node
+        if($node){
+            $conten_type = array('article', 'gallerie', 'videos');
+            //obtenemos los tids del nodo para buscar los datos relacionados
+            $temas_tags = field_get_items('node', $node, 'field_tags');//tags de salud180 reemplazar por el campo propio
+            $tags = array();
+            $tags_words = array();
+            //obtenemos los tids y nombres de los tags
+            foreach ($temas_tags as $key => $value) {
+                $tags[] = $value['tid'];
+                $tags_words[] = $value['taxonomy_term']->name;
+            }
+            if (empty($tags) && count($tags) < 1) {
+                return $data;//si no hay tags se regresa vacio y el bloque no se pinta
+            }
+            $nodes_before = xcense_basica($tags_words, 9222288259132208950);
+            $cantidad = count($nodes_before);
+            if ($cantidad < 6) {
+                //si no se consiguen los 6 elementos se busca en la bd obviando los resultados obtenidos por cxsense
+                if (!empty($nodes_before)) {
+                    $nids = array();
+                    foreach ($nodes_before as $key => $value) {
+                        if ($value['nid'] > 0) {
+                            $nids[] = $value['nid'];
+                        }
+                    }                
+                }
+                $nids[] = $node->nid;
+                $nodes = relacionados_get_data($tags, 0, 6 - $cantidad, $nids, $conten_type);//query para obtener los datos restantes
+                foreach ($nodes as $key => $value) {
+                    $nodes_before[] = array(
+                        'title' => $value['title'],
+                        'categoria' => $value['category_name'],
+                        'imagen' => image_style_url('gallerie', $value['image_uri']),
+                        'url' => $value['url']
+                    );
+                }
+            }
+            $data['items'] = $nodes_before;
+        }
+    }
+    return $data;
+}
+
+/**
+ * Devuelve un array con la informacion de los nodos relacionados 
+ * a los terms que se envian como parametro.
+ * @param array $terms ids de los terminos a buscar
+ * @param int $start offset del limite de la query
+ * @param int $limit limite de nodos a traer
+ * @param array $exclude nids a excluir de la consulta
+ * @param array $content_type tipos de contenido a traer
+ * @param boolean $display_terms opcion que determina si debe o no traer los tags de cada nodo
+ * @return mixed
+ */
+function relacionados_get_data(Array $terms, $start = 0, $limit = 10, Array $exclude = array(), $content_type = array('article', 'gallerie')) {
+    if (empty($terms)) {
+        return false;
+    }
+
+
+
+    $query = db_select('taxonomy_index', 'ti')
+            ->fields('ti')
+            ->condition('ti.tid', $terms, 'IN');
+
+
+    if (!empty($exclude)) {
+        $query->condition('ti.nid', $exclude, 'NOT IN');
+    }
+    $query->join('node', 'n', 'n.nid = ti.nid');
+    $query->condition('n.type', $content_type, 'IN');
+    $query->condition('n.status', 1, '=');
+    $query->groupBy('ti.nid');
+    $query->orderBy('n.created', 'DESC');
+    $query->range($start, $limit);
+    $result = $query->execute()->fetchAll();
+    unset($query);
+    $nids = array();
+    foreach ($result as $res) {
+        $nids[] = $res->nid;
+    }
+    $related = get_related_nids_of_node_data($nids);
+    return $related;
+}
+
+/**
+ *  Retorna un array con la informacion del nodo
+ * titulo, nid, url, imagen y los datos de la imagen, el body
+ * y los tags asignados
+ * @param array $nids array de ids de nodos a traer la informacion relacionada a cada nodo
+ * @return mixed
+ */
+function get_related_nids_of_node_data($nids = array()) {
+    $result = array();
+    if (!empty($nids) && count($nids) && is_array($nids)) {
+        foreach ($nids as $key => $value) {
+            if(is_numeric($value)){
+                $nodes[] = node_load($value);
+            }
+        }
+               
+        if (!empty($nodes)) {
+            foreach ($nodes as $k => $v) {
+                $text = strip_tags($v->body['und'][0]['safe_value']);
+                $text = check_plain(text_summary($text));
+                $text = trim(str_replace(array("\n"), "", $text));
+//                if ($field_categorias = field_get_items('node', $v, 'field_seccion')) {
+//                    $term_categorias = reset($field_categorias);
+////                    $term_tid = $term_categorias['tid'];
+////                    $termx = taxonomy_term_load($term_tid);
+////                    $category_name = $termx->name;
+//                    unset($termx);
+//                }
+                $result[] = array(
+                    'nid' => $v->nid,
+                    'title' => $v->title,
+                    'type' => $v->type,
+                    'url' => url('node/' . $v->nid, array('absolute' => true)),
+                    'image_title' => $v->field_image['und'][0]['title'],
+                    'image_uri' => $v->field_image['und'][0]['uri'],
+                    'image_file_name' => $v->field_image['und'][0]['filename'],
+                    'body' => $text
+                );
+            }
+            unset($nodes);
+        }
+    }
+    return $result;
+}
+
+/**
+ * 
+ * @param type $tems
+ * @return type
+ */
+function get_temas_centrales_nodes_related($terms = array()) {
+    $temas = array();
+    if (!empty($terms)) {
+        $c = 0;
+        foreach ($terms as $term) {
+            if ($c == 6)
+                break;
+            $temas[$term['tid']] = strtolower(get_name_of_taxonomy($term['tid']));
+            $c++;
+        }
+    }
+    return $temas;
+}
+
+/**
+ * Convierte los tags(palabras) en el formato de cxense para  filtrar solo artículos.
+ * @param type $palabras
+ * @return string
+ */
+function palabras_concept($palabras = array()) {
+    if (count($palabras) > 0) {
+        $concept = array();
+        foreach ($palabras as $key => $value) {
+            $concept[] = 'query(kw-concept:"' . $value . '")';
+        }
+        $resultado = implode(' or ', $concept);
+    } else {
+        return false;
+    }
+    //filtrando solo articulos
+    $resultado.='and filter(imx-nodetype="article")';//tipo article$$
+    return urlencode($resultado);
+}
+
+/**
+ * Realiza un busqueda a cxsense basado en los tags que son enviados
+ * Estos parámetros son metatags que cxense lee de los sitios, así que si no viene alguno revisen primero estos metatags
+ * de lo contrario cambien los parametros por los propios
+ * imx-nodetitle: usado para el título.   
+ * imx-img-principal: usado para traer la imagen, en su defecto og-image si no existiera ninguna
+ * Kw-category:  usado para indicar a qué categoría pertenece el artículo
+ * @param array $palabras tags para buscar contenido relacionado
+ * @param int $siteid id del sitio en cxsense default el de salud
+ * @param int $total total de contenidos a buscar
+ * @param int $limite limite de contendidos a agregar al array de retorno
+ * @return array
+ */
+function xcense_basica($palabras = array(), $siteid = 9222288259132208952, $total = 8, $limite = 6) {
+    $query = palabras_concept($palabras);
+    $xcense = 'http://recs.cxense.com/api/recommendation/'
+            . $siteid . '?media=json&matching_mode=behavioral^,trend^,contextual^'
+            . '&p_aq=' . $query
+            . '&p_sm=recs-publishtime:desc'//ordenamos por fecha de creacion descendente
+            . '&p_c=' . $total
+            . '&p_dr=recs-articleid' //evitamos duplicacion
+            . '&p_rs=fl:[title,url,imx-img-principal,og-image,kw-category,imx-nodetitle,recs-articleid]';//campos a traer aumenta la velocidad de respuesta   
+    $xcense_json = file_get_contents($xcense);
+    if ($xcense_json !== false) {
+        $array_xcense = json_decode($xcense_json, true);
+        $documentos = $array_xcense['matches'];
+        $datos_xcense = array();
+        $o = array("\n", "\t", "\r");
+        foreach ($documentos as $key => $value) {//buscamos la imagen
+            if (!empty($value['document']['fields']['imx-img-principal'])) {
+                $imagen = $value['document']['fields']['imx-img-principal'];
+            } else {//si no viene la sacamos del og image
+                if (!empty($value['document']['fields']['og-image'])) {
+                    $imagen = $value['document']['fields']['og-image'];
+                } else {//si tampoco viene, una por default
+                    //imagen default
+                    $imagen = "";
+                }
+            }
+            $categoria = get_section_by_nid((int) $value['document']['fields']['recs-articleid'], 3);
+            if (!$categoria) {//buscamos la categoria
+                $categoria = str_replace('-', " ", $value['document']['fields']['kw-category']);
+                if (!$categoria) {//si no viene la sacamos de la url
+                    $categoria = explode('//', $value['document']['fields']['url']);
+                    $categoria = explode('/', $categoria[1]);
+                    $categoria = str_replace('-', " ", $categoria[1]);
+                }
+            }
+            // evitamos duplicacion en base al nid de la nota, si hay un valor repetido no se anexa al array muy comun en salud
+            if (!exist_array_multi($datos_xcense, $value['document']['fields']['recs-articleid'], 'nid')) {
+                if ($limite > 0) {
+                    $datos_xcense[] = array(
+                        'title' => str_replace($o, "", $value['document']['fields']['title']),
+                        'categoria' => $categoria,
+                        'imagen' => $imagen,
+                        'url' => $value['document']['fields']['url'],
+                        'nid' => (int) $value['document']['fields']['recs-articleid'],
+                    );
+                    $limite-=1;
+                }
+            }
+        }
+    } else {
+        $datos_xcense = null;
+    }
+
+    return $datos_xcense;
+}
+
+/**
+ * Evitamos duplicacion en el array en base a un elemento dado
+ * @param type $padre
+ * @param type $hijo
+ * @param type $elemento
+ * @return boolean
+ */
+function exist_array_multi($padre = array(), $hijo, $elemento) {
+    if (count($padre) > 0) {  
+        foreach ($padre as $key => $value) {
+            if($hijo == $value[$elemento]){
+                return TRUE;
+            }
+        }
+    }
+    return false;
+}
+
+/**
+ * Regresa el nombre de la taxonomia
+ * Recibe el tid de la taxonomia consulta y devuelve 
+ * el nombre de la taxonomia
+ * @param type $tid
+ * @return type 
+ */
+function get_name_of_taxonomy($tid = NULL) {
+    $name = null;
+    if ($tid) {
+        $query = db_query("SELECT name FROM {taxonomy_term_data} where tid = $tid");
+        $name = $query->fetchField();
+        unset($query);
+    }
+    return $name;
+}
+
+function get_most_visited_query_relacionados() {
+    $time = variable_get('imx_sidebar_visited_time', 7);
+    $created = variable_get('imx_sidebar_created_time', 15);
+    $week = strtotime("-2 week"); //most visited of week
+    $past = mktime(0, 0, 0, date('m'), date('d') - $created, date('Y')); //
+    $types = array('article');
+    $serialize = variable_get('imx_sidebar_types', NULL);
+    if ($serialize) {
+        $unserialize = unserialize($serialize);
+        unset($types);
+        foreach ($unserialize as $key => $value) {
+            $types[] = $value;
+        }
+    }
+    $qry = db_select('node', 'n');
+    $qry->innerJoin('node_counter', 'nc', 'nc.nid = n.nid');
+
+    $qry->fields('n', array('nid', 'title'));
+    $qry->fields('nc', array('totalcount'));
+    $qry->condition('n.status', 1, '=');
+    $qry->condition('n.type', array("article","gallerie","video"), 'IN');
+    //$qry->condition('nc.timestamp', $week, '>');
+    //$qry->condition('n.changed', $past, '>');
+    $qry->orderBy('nc.nid', 'DESC');
+    $qry->orderBy('nc.totalcount', 'DESC');
+
+    $qry->groupBy('nid');
+    $qry->range(0,6);
+    $result = $qry->execute()->fetchAll();
+    return $result;
+}
+
+function get_most_visited_nodes_relacionados() {
+    $items = array();
+    $data=array();
+    if ($cache = cache_get('imx_most_visited_nodes')) {
+        $items = $cache->data;
+    } else {
+        $tomorrow = mktime(0, 0, 0, date('m'), date('d') + 1, date('Y'));
+        $result = get_most_visited_query_relacionados();
+        $style = variable_get('imx_sidebar_img_style', 'barra_lateral');
+        foreach ($result as $key => $value) {
+            $nid = $value->nid;
+            $node = node_load($nid);
+            $image = entity_metadata_wrapper('node', $node)->field_image->value();
+            if (is_array($image)) {
+                if (array_key_exists(0, $image)) {
+                    if (($image[0]) > 1) {
+                        $image = array_shift($image);
+                    }
+                }
+            } else {
+                if (count($image) > 1) {
+                    $image = array_shift($image);
+                }
+            }
+
+            $items[] = array(
+                'nid' => $node->nid,
+                'url'=>url('node/' . $node->nid, array('absolute' => true)),
+                'title' => $node->title,
+                'image' => image_style_url($style,($image['uri'])? $image["uri"] : ""),
+                'category' => get_sections_by_nid_relacionados($nid,2),
+                'image_uri'=>$node->field_image['und'][0]['uri'],
+            );
+
+            unset($node, $image, $nid, $tid, $category);
+        }
+        cache_set('imx_most_visited_nodes', $items, 'cache', $tomorrow);
+    }
+    return $data["items"]=$items;
+}
+
+function get_sections_by_nid_relacionados($nid, $vid = 2) {
+    if (!$nid)
+        return NULL;
+    $query = "SELECT ttd.tid, ttd.name
+              FROM {taxonomy_term_data} ttd
+              INNER JOIN {taxonomy_index} ti ON ti.tid=ttd.tid
+              WHERE ti.nid = $nid AND ttd.vid = $vid limit 3";
+    $result = db_query($query)->fetchAll();
+    foreach($result as $r){
+        $terms[]=array("name"=>$r->name,"tid"=>$r->tid);
+    }
+//    $terms = $name ? $result[0]->name : $result[0]->tid;
+    return $terms;
+}
+
+function data_relacionados_nota_nid($nid=false) {
+//    $domain = domain_get_domain();
+    $data = array();
+    if ($nid) {
+        $node = node_load($nid);
+        if($node){
+            $relacionados = field_get_items('node', $node, 'field_relacionado');//campo de relacionados de salud180 modificar por el propio
+            if ($relacionados != FALSE) {
+                foreach ($relacionados as $item) {
+                    $nids[]=$item["nid"];
+                }
+                $nodes=get_related_nids_of_node_data($nids);
+
+            } else {
+                //obtenemos los tids del nodo para buscar los datos relacionados
+                $items_tags = field_get_items('node', $node, 'field_categoria');//campo de categorias de saldu180 cambiar por el campo correspondiente
+                $tags = array();
+                foreach ($items_tags as $key => $value) {
+                    $tags[] = $value['tid'];
+                }
+                $nodes = relacionados_get_data($tags,0, 3, array($node->nid), array('article', 'gallerie','video'));
+            }
+
+
+
+            //    $data['sitename'] = $domain['sitename'];
+            $data['items'] = $nodes;
+        }
+    }
+    return $data;
+}

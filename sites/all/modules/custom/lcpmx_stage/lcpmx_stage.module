@@ -1,0 +1,82 @@
+<?php
+
+function lcpmx_stage_help($path, $arg) {
+    if ($path == 'admin/help#lcpmx_stage') {
+        return t('Muestra el bloque Stage Home');
+    }
+}
+
+function lcpmx_stage_block_info() {
+    $blocks['lcpmx_stage'] = array(
+        'info' => t('LaCapitalMX Stage')
+    );
+    return $blocks;
+}
+
+function lcpmx_stage_block_view($delta = '') {
+    $block = array(
+        'subject' => t(''),
+        'content' => '',
+    );
+
+    if ($delta == 'lcpmx_stage') {
+        drupal_add_js(drupal_get_path('theme','lacapitalmx') . "/js/jCarouselLite.js");
+        drupal_add_js(drupal_get_path('theme','lacapitalmx') . "/js/jquery.bxslider/jquery.bxslider.min.js");
+        $block['content'] = array(
+            '#theme' => 'lcpmx_stage'
+        );
+    };
+    return $block;
+}
+
+function lcpmx_stage_theme($existing, $type, $theme, $path) {
+    return array(
+        'lcpmx_stage' => array(
+            'variables' => array(
+                'items_lcpmx_stage' => NULL,
+            ),
+            'template' => 'lcpmx_stage',
+        ),
+    );
+}
+
+function template_preprocess_lcpmx_stage(&$variables) {
+    $variables['items_lcpmx_stage'] = array();
+}
+
+
+function get_view_array($name,$preview,$style="home_y_canales") {
+    $items = array();
+    $view = views_get_view($name);
+    $view->preview($preview);
+    $view = $view->result;
+    foreach ($view as $key => $node) {
+        $user_picture=null;
+        $username=null;
+        if($node->_field_data['nid']['entity']->field_colaborador["und"][0]["uid"]) {
+            $user = user_load($node->_field_data['nid']['entity']->field_colaborador["und"][0]["uid"]);
+            $user_picture= $user->picture->uri;
+            $username=$user->name;
+        }
+        $items[$key] = array(
+            'title' => $node->node_title,
+            'colaborador' => $username,
+            'type' => $node->_field_data['nid']['entity']->type,
+            "summary"=>text_summary($node->_field_data['nid']['entity']->body["und"][0]["value"],null,150),
+            'nid' => $node->nid,
+            'url' => url('node/' . $node->nid, array('absolute' => true)),
+            'image' => array_key_exists(0, $node->field_field_image) ? image_style_url($style, $node->field_field_image[0]['rendered']['#item']['uri']) : NULL,
+            'user_image'=>($user_picture)?file_create_url($user_picture) : NULL,
+            'section' => get_section_by_nid($node->nid, 2)
+        );
+
+        if($style == 'stage'){
+            $items[$key]['imagecarrusel'] = array_key_exists(0, $node->field_field_imagen_carrusel) ? image_style_url($style, $node->field_field_imagen_carrusel[0]['rendered']['#item']['uri']) : NULL;
+        }
+        if($style == 'sismo'){
+            $items[$key]['imagesismo'] = array_key_exists(0, $node->field_field_imagen_sismo) ? image_style_url($style, $node->field_field_imagen_sismo[0]['rendered']['#item']['uri']) : NULL;
+        }
+    }
+    unset($view);
+    return $items;
+}

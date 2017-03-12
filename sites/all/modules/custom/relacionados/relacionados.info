@@ -1,0 +1,8 @@
+name = "Notas relacionadas"
+description = "Muestra en varios bloques o interfaces una lista de contenidos relacionado a una serie de terms"
+package = "InventMX"
+core = "7.x"
+version = "7.x"
+php = "5.x"
+
+

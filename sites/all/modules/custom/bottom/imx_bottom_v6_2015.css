@@ -1,0 +1,65 @@
+#bottom-imx-fixed .left {float: left;}
+#bottom-imx-fixed .right {float: right;}
+#bottom-imx-fixed .prelative {position: relative;}
+#bottom-imx-fixed .dblock {display: block;}
+#bottom-imx-fixed .clear {clear: both;}
+#bottom-imx-fixed-wrapper {
+width: 100%;
+z-index: 1000;
+font: 12px Arial;
+color: #fff;
+}
+#bottom-imx-fixed-wrapper.bottom-fixed {
+position: fixed;
+bottom: 0; /**/
+left: 0;
+}
+#bottom-imx-fixed-wrapper.bottom-static { /**/
+position: relative;
+height: 55px !important;
+bottom: auto !important;
+padding-top: 0 !important;
+overflow: visible !important;
+}
+#bottom-imx-fixed {
+    width: 1024px;
+    margin: 0 auto;
+    position: relative;
+}
+#bottom-imx-fixed a {
+    color: #fff;
+}
+#bottom-imx-fixed .logo-invent {
+    background: url(http://776561ea720ed80d100a-d15d7e8f8f7f4ad15567639aa98ea820.r76.cf2.rackcdn.com/sprite_2015.png) no-repeat 0px 3px;
+    width: 154px;
+    height: 55px
+}
+#bottom-imx-fixed .logo-gimm {
+    background: url(http://776561ea720ed80d100a-d15d7e8f8f7f4ad15567639aa98ea820.r76.cf2.rackcdn.com/sprite_2015.png) no-repeat -160px 2px;
+    width: 113px;
+    height: 55px;
+}
+#bottom-imx-fixed .bottom-top {
+    background: #1a1a1a !important;
+    height: 55px;
+    width: 610px;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+}
+#bottom-imx-fixed .bottom-top-links {
+    width: 335px;
+    float: left;
+    text-align: center;
+    display: table;
+    height: 55px;
+    left: 20px;
+    right: 0;
+    margin: auto;
+    position: absolute;
+}
+#bottom-imx-fixed .bottom-top-links a {
+    max-width: 24%;
+    display: table-cell;
+    vertical-align: middle;
+}

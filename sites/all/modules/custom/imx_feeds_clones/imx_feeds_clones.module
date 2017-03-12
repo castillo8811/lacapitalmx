@@ -1,0 +1,76 @@
+<?php
+
+/**
+ * Devuelve el pintado del contenido relacionado respectivo al nodo
+ */
+function imx_feeds_clones_help($path, $arg) {
+    if ($path == 'admin/help#imx_feeds_clones') {
+        return t('Feeds JSON Clones');
+    }
+}
+
+function imx_feeds_clones_menu() {
+    $items = array();
+    $items['feed/clones/%/rss.json'] = array(
+        'title' => t('Feed Clones JSON'),
+        'access callback' => TRUE,
+        'access arguments' => array('access content'),
+        'page callback' => 'imx_feeds_clones_list',
+        'page arguments' => array('stage_carrusel', 1),
+        'type' => MENU_CALLBACK,
+        'file' => 'imx_feeds_clones.inc',
+    );
+    return $items;
+}
+
+function imx_feeds_clones_info_expert($nid){
+    $experto = get_info_user_by_nid('expert_by_nid', 'default', $nid);
+    return $experto;
+}
+
+function imx_feeds_clones_get_image_style($node = NULL, $style = NULL) {
+    if (!$node || !$style)
+        return NULL;
+    $url_image = string_shift(file_create_url(array_key_exists('und', $node->_field_data['nid']['entity']->field_image) ? $node->_field_data['nid']['entity']->field_image['und'][0]['uri'] : ''), 5, '/');
+    return image_style_url($style, $url_image);
+}
+
+function imx_feeds_clones_get_video($data = NULL) {
+    if (!$data)
+        return NULL;
+    $items = array();
+    foreach ($data as $item) {
+        $items[] = array(
+            'titulo' => $item['title'],
+            'descripcion' => $item['alt'],
+            'url' => $item['url'],
+        );
+    }
+    return $items;
+}
+
+function imx_feeds_clones_get_galleries($data = NULL) {
+    if (!$data)
+        return NULL;
+    $items = array();
+    foreach ($data as $item) {
+        $items[] = array(
+            'titulo' => $item['raw']['alt'],
+            'descripcion' => $item['raw']['alt'],
+            'url' => image_style_url('large_mobile', string_shift(file_create_url($item['raw']['uri']), 5, '/')),
+        );
+    }
+    return $items;
+}
+
+function imx_feeds_clones_get_nodeimage_wide($node = NULL) {
+    if (!$node)
+        return null;
+    $result = file_uri_target($node->_field_data['nid']['entity']->field_image_wide['und'][0]['uri']);
+    //Si existe archivo wide
+    if ($result) {
+        return file_create_url($node->_field_data['nid']['entity']->field_image_wide['und'][0]['uri']);
+    } else {
+        return imx_feeds_clones_get_image_style($node, 'medium_mobile');
+    }
+}

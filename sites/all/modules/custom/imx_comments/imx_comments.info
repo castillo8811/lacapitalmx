@@ -1,0 +1,7 @@
+; $Id$
+name = "Comentarios"
+description = "Muestra el formulario de comentarios de facebook y twitter en las notas"
+package = "FEM"
+version = 7.x
+core = 7.x
+files[]="imx_comments.module"

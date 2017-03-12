@@ -1,0 +1,1656 @@
+<?php
+
+/**
+ * @file
+ * Módulo de videonota.
+ */
+
+define('IMX_VIDEONOTA_TYPE', variable_get('imx_videonota_type', ''));
+
+/**
+ * Implements hook_permisson().
+ */
+function imx_videonota_permission() {
+  $permissions['administer imx_videonota settings'] = array(
+    'title' => t('Administer imx_videonota.'),
+    'restrict access' => TRUE,
+  );
+  return $permissions;
+}
+
+/**
+ * Implements hook_help().
+ */
+function imx_videonota_help($path, $arg) {
+  if ($path == 'admin/help#imx_videonota') {
+    return t('Muestra bloques de video nota imx_videonota');
+  }
+}
+
+/**
+ * Implements hook_menu().
+ */
+function imx_videonota_menu() {
+  $alias = imx_videonota_get_alias();
+  $items = array();
+  $items['admin/config/imx_videonota'] = array(
+    'title' => 'Configuracion Video Nota',
+    'description' => 'Parámetros de configuracion video nota',
+    'position' => 'left',
+    'page callback' => 'system_admin_menu_block_page',
+    'access arguments' => array('administer imx_videonota settings'),
+    'file' => 'system.admin.inc',
+    'file path' => drupal_get_path('module', 'system'),
+    '#type' => MENU_NORMAL_ITEM,
+  );
+  $items['admin/config/imx_videonota/settings'] = array(
+    'title' => 'Video Nota Configuración',
+    'description' => 'Configuración',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('imx_videonota_frm'),
+    'access arguments' => array('administer imx_videonota settings'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  $items['admin/config/imx_videonota/settings_player'] = array(
+    'title' => 'Video Nota Reproductor Configuración',
+    'description' => 'Parámetros',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('imx_videonota_player_frm'),
+    'access arguments' => array('administer imx_videonota settings'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  $items[$alias] = array(
+    'title' => 'Series',
+    'page callback' => 'imx_videonota_print_home',
+    'page arguments' => array(),
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function imx_videonota_block_info() {
+  $blocks = array();
+  $blocks["imx_videonota_video"] = array(
+    'info' => t('Muestra bloque reproductor de video'),
+    'cache' => DRUPAL_CACHE_GLOBAL,
+  );
+  $blocks["imx_videonota_channel"] = array(
+    'info' => t('Muestra bloque portada de serie por canal'),
+    'cache' => DRUPAL_CACHE_GLOBAL,
+  );
+  $blocks["imx_videonota_series"] = array(
+    'info' => t('Muestra bloque series por canal'),
+    'cache' => DRUPAL_CACHE_GLOBAL,
+  );
+  $blocks["imx_videonota_jcxense"] = array(
+    'info' => t('Muestra bloque video notas relacionadas con cxense'),
+    'cache' => DRUPAL_CACHE_GLOBAL,
+  );
+  $blocks["imx_videonota_serieshome"] = array(
+    'info' => t('Muestra bloque de series en home de video'),
+    'cache' => DRUPAL_CACHE_GLOBAL,
+  );
+  $blocks["imx_videonota_seriesplayer"] = array(
+    'info' => t('Muestra bloque reproductor en home series'),
+    'cache' => DRUPAL_CACHE_GLOBAL,
+  );
+  $blocks["imx_videonota_inventplay"] = array(
+    'info' => t('Muestra bloque series invent.play'),
+    'cache' => DRUPAL_CACHE_GLOBAL,
+  );
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function imx_videonota_block_view($delta = '') {
+  $block = array();
+  switch ($delta) {
+    case 'imx_videonota_video':
+      $content = '';
+      $gallery = array();
+      $video_array = array();
+      $images_array = array();
+      $node = menu_get_object();
+      $image = NULL;
+      $ytchannel = NULL;
+      $imx_videonota_config = imx_videonota_get_player_config();
+      $serie = array();
+      if (is_object($node) && isset($node->type)) {
+        if ($node->type == IMX_VIDEONOTA_TYPE) {
+          $config = imx_videonota_get_config();
+          if (isset($config['ytchannel']) && mb_strlen(trim($config['ytchannel'])) > 0) {
+            $ytchannel = $config['ytchannel'];
+          }
+          unset($config);
+//          drupal_add_css(drupal_get_path('module', 'imx_videonota') . "/css/imx_videonota.css");
+          if ($imx_videonota_config['player'] == 'jwplayer') {
+            // Incluir los js de jwplayer.
+            drupal_add_js('http://ca95cd4a28ba657315c9-9abfc6d8cf3476de6bde1a63fa4aa83e.r6.cf2.rackcdn.com/streamsense.min.js', 'external');
+            drupal_add_js('http://jwpsrv.com/library/xIHuSPDAEeOFhCIAC0MJiQ.js', 'external');
+          }
+          $wrapper = entity_metadata_wrapper('node', $node);
+          $config_fc = imx_videonota_get_config_field_collection();
+          if (isset($wrapper->{$config_fc['field_collection']})) {
+            $i = 0;
+            foreach ($wrapper->{$config_fc['field_collection']}->value() as $data_video) {
+              if (isset($data_video->{$config_fc['field_url']}) && !empty($data_video->{$config_fc['field_url']})) {
+                $input = $data_video->{$config_fc['field_url']}['und'][0]['input'];
+                $list = '';
+                $list_id = imx_videonota_get_list_youtube_url($input);
+                if ($list_id) {
+                  $list = '&list=' . $list_id;
+                }
+                $id_youtube = $data_video->{$config_fc['field_url']}['und'][0]['video_id'];
+                $iframe = 'http://www.youtube.com/embed/' . $id_youtube . '?wmode=transparent' . $list . '&version=3&enablejsapi=1';
+                $thumbnail = 'http://i1.ytimg.com/vi/' . $id_youtube . '/mqdefault.jpg';
+                $video_array[$i] = array(
+                  'iframe' => $iframe,
+                  'thumbnail' => $thumbnail,
+                  'yid' => $id_youtube,
+                  'isList'  => is_null($list_id) ? FALSE : TRUE,
+                  'list'  => $list_id,
+                );
+              }
+              if (isset($data_video->{$config_fc['field_description']})) {
+                  $description="";
+                  if($data_video->{$config_fc['field_description']}){
+                                   $description = $data_video->{$config_fc['field_description']}['und'][0]['value'];
+                if (!$description) {
+                  $description = $data_video->{$config_fc['field_description']}['und'][0]['value'];
+                }   
+                  }
+              }
+
+              $video_array[$i]['description'] = ($description) ? $description : '';
+              unset($id_youtube, $iframe, $thumbnail, $description, $type);
+              $i++;
+            }
+          }
+          else if(!empty($config_fc['field_url'])) {
+            if (isset($node->{$config_fc['field_url']})) {
+              $input = $node->{$config_fc['field_url']}['und'][0]['input'];
+              $list = '';
+              $list_id = imx_videonota_get_list_youtube_url($input);
+              if ($list_id) {
+                $list = '&list=' . $list_id;
+              }
+              #$id_youtube = $data_video->{$config_fc['field_url']}['und'][0]['video_id'];
+              $id_youtube = $node->{$config_fc['field_url']}['und'][0]['video_id'];
+              $iframe = 'http://www.youtube.com/embed/' . $id_youtube . '?wmode=transparent' . $list . '&version=3&enablejsapi=1';
+              $thumbnail = 'http://i1.ytimg.com/vi/' . $id_youtube . '/mqdefault.jpg';
+              $video_array[] = array(
+                'iframe' => $iframe,
+                'thumbnail' => $thumbnail,
+                'yid' => $id_youtube,
+                'isList'  => is_null($list_id) ? FALSE : TRUE,
+                'list'  => $list_id,
+              );
+            }
+          }
+          elseif (isset($config_fc['field_video_embed']) && isset($wrapper->{$config_fc['field_video_embed']})) {
+            foreach ($wrapper->{$config_fc['field_video_embed']}->value() as $data_video) {
+              if (isset($data_video['video_url']) && !empty($data_video['video_url'])) {
+                if ($id_youtube = imx_videonota_get_youtubeid($data_video['video_url'])) {
+                  $input = $data_video['video_url'];
+                  $list = '';
+                  $list_id = imx_videonota_get_list_youtube_url($input);
+                  if ($list_id) {
+                    $list = '&list=' . $list_id;
+                  }
+                  $iframe = 'http://www.youtube.com/embed/' . $id_youtube . '?wmode=transparent' . $list . '&version=3&enablejsapi=1';
+                  $thumbnail = 'http://i1.ytimg.com/vi/' . $id_youtube . '/mqdefault.jpg';
+                  $video_array[] = array(
+                    'iframe' => $iframe,
+                    'thumbnail' => $thumbnail,
+                    'yid' => $id_youtube,
+                    'isList'  => is_null($list_id) ? FALSE : TRUE,
+                    'list'  => $list_id,
+                    'description' => $data_video['description'],
+                  );
+                }
+              }
+            }
+          }
+          if (isset($wrapper->field_image)) {
+            $image = $wrapper->field_image->value();
+          }
+        }
+        // serie.
+        if (isset($wrapper->field_serie_reference)) {
+          $taxonomy = $wrapper->field_serie_reference->value();
+          $serie = imx_videonota_get_taxonomy_formated($taxonomy);
+        }
+        $title = $node->title;
+      }
+      $content = array(
+        '#theme' => 'imx_videonota_video',
+        '#gallery' => $video_array,
+        '#image' => $image,
+        '#config' => $imx_videonota_config,
+        '#serie' => $serie,
+        '#title' => $title,
+        '#ytchannel' => $ytchannel,
+        '#node'=>$node
+      );
+      $block['subject'] = t('Muestra bloque reproductor de video');
+      $block['content'] = $content;
+      break;
+
+    case 'imx_videonota_channel':
+      drupal_add_css(drupal_get_path('module', 'imx_videonota') . "/css/imx_videonota_channel.css");
+
+      $content = '';
+      $data_first = array();
+      $data = array();
+      $path = arg();
+      $series_vid = NULL;
+
+      // Obtener el vocabulario.
+      $series_vid = imx_videonota_get_id_vocabulary();
+      $q = drupal_get_query_parameters();
+      if ($path[0] == 'taxonomy' && $path[1] == 'term' && is_numeric($path[2])) {
+        if ($taxonomy = taxonomy_term_load($path[2])) {
+          if ($taxonomy->vid == $series_vid) {
+            $imx_videonota_config = imx_videonota_get_config();
+            if (!isset($q['page'])) {
+              // Sin paginador.
+              $taxonomy_formated = imx_videonota_get_taxonomy_formated($taxonomy);
+              $content = array(
+                '#taxonomy' => $taxonomy_formated,
+                '#data' => $data,
+                '#title' => $taxonomy->name,
+                '#theme' => 'imx_videonota_channel',
+              );
+              $options = array(
+                'tid' => $taxonomy->tid,
+                'vid' => $taxonomy->vid,
+                'type' => array($imx_videonota_config['type']),
+              );
+              $options_node = array(
+                'image_style' => $imx_videonota_config['style_channel_first'],
+                'image_default' => $imx_videonota_config['field_image'],
+              // Campo de imagen default.
+              );
+              $nids = imx_videonota_get_recent_nodes($options, $offset = 1, $limit = 19);
+              if ($nids && count($nids) > 0) {
+                foreach ($nids as $key => $nid) {
+                  $node = node_load($nid['nid']);
+                  if ($key == 0) {
+                    $node_data_formated = imx_videonota_get_node_data_formated($node, $options_node);
+                    if (isset($node_data_formated['youtube_id'])) {
+                      $node_data_formated['image_youtube'] = 'http://img.youtube.com/vi/' . $node_data_formated['youtube_id'] . '/hqdefault.jpg';
+                    }
+                    $data[] = $node_data_formated;
+                  }
+                  else {
+                    $options_node['image_style'] = $imx_videonota_config['style_channel'];
+                    $node_data_formated = imx_videonota_get_node_data_formated($node, $options_node);
+                    if (isset($node_data_formated['youtube_id'])) {
+                      $node_data_formated['image_youtube'] = 'http://img.youtube.com/vi/' . $node_data_formated['youtube_id'] . '/mqdefault.jpg';
+                    }
+                    $data[] = $node_data_formated;
+                  }
+                }
+                $data = array_merge($data_first, $data);
+                // seo.
+                $tags = array(
+                  array(
+                    'meta' => array(
+                      'property' => 'og:image',
+                      'content' => $taxonomy_formated['image_channel_url'],
+                    ),
+                  ),
+                  array(
+                    'meta' => array(
+                      'property' => 'og:description',
+                      'content' => truncate_utf8(strip_tags($taxonomy_formated['description']), 80, FALSE, TRUE, 5),
+                    ),
+                  ),
+                  array(
+                    'meta' => array(
+                      'name' => 'description',
+                      'content' => truncate_utf8(strip_tags($taxonomy_formated['description']), 80, FALSE, TRUE, 5),
+                    ),
+                  ),
+                );
+                imx_videonota_create_html_tag($tags, 'series');
+                // Reasignamos la variable con datos.
+                $content['#data'] = $data;
+              }
+            }
+            else {
+              // Con paginador.
+              $title_count = 100;
+              // Palabras en título
+              $options = array(
+                'tid' => $taxonomy->tid,
+                'vid' => $taxonomy->vid,
+                'title' => $taxonomy->name,
+                'theme' => 'imx_videonota_channel_list',
+                'image_style' => $imx_videonota_config['style_list'],
+                'image_default' => $imx_videonota_config['field_image'],
+                'title_count' => $title_count,
+                'pager_default' => 'PagerVideoNotas',
+                'type' => array($imx_videonota_config['type']),
+              );
+              $pager_options = array(
+                'pager' => TRUE,
+                  // 'up' => true,
+                'down' => TRUE,
+              );
+              $content = imx_videonota_get_recent_nodes($options, $offset = 0, $limit = 10, $pager_options);
+            }
+          }
+        }
+      }
+      $block['subject'] = t('Muestra bloque portada de serie por canal');
+      $block['content'] = $content;
+      break;
+
+    case 'imx_videonota_series':
+      $content = '';
+      $vid = imx_videonota_get_id_vocabulary();
+      $list = array();
+      if (!is_null($vid)) {
+        $series = taxonomy_get_tree($vid, $parent = 0, $max_depth = NULL, $load_entities = FALSE);
+        foreach ($series as $serie) {
+          $taxonomy = taxonomy_term_load($serie->tid);
+          $list[] = imx_videonota_get_taxonomy_formated($taxonomy);
+          if (count($list) >= 6) {
+            break;
+          }
+        }
+      }
+      if (count($list) > 0) {
+        drupal_add_css(drupal_get_path('module', 'imx_videonota') . "/css/imx_videonota_channel_play.css");
+        $content = array(
+          '#theme' => 'imx_videonota_series',
+          '#series' => $list,
+          '#home' => imx_videonota_get_alias(),
+        );
+      }
+      $block['subject'] = t('Muestra bloque series por canal');
+      $block['content'] = $content;
+      break;
+
+    case 'imx_videonota_jcxense':
+      $content = '';
+      $node = menu_get_object();
+      if (is_object($node) && isset($node->type)) {
+        if ($node->type == IMX_VIDEONOTA_TYPE) {
+          $wrapper = entity_metadata_wrapper('node', $node);
+          if (isset($wrapper->field_serie_reference)) {
+            $widget_id = variable_get('imx_videonota_cxense_widget_id', '');
+            if (mb_strlen(trim($widget_id)) > 5) {
+              $taxonomy = $wrapper->field_serie_reference->value();
+              $serie = imx_videonota_get_taxonomy_formated($taxonomy);
+              drupal_add_css(drupal_get_path('module', 'imx_videonota') . "/css/imx_videonota_jcxense.css");
+              drupal_add_js(drupal_get_path('module', 'imx_videonota') . '/js/ICanHaz.min.js', array('type' => 'file', 'scope' => 'footer'));
+              global $base_url;
+              $url_decode = '';
+              $url = 'http://api.cxense.com/public/widget/data?json=';
+              $url_decode .= '{';
+              $url_decode .= '"widgetId":"' . $widget_id . '",';
+              $url_decode .= '"context":{"url":"' . $base_url . '/' . drupal_get_path_alias('node/' . $node->nid) . '"}';
+              $url_decode .= '}';
+              $url .= urlencode($url_decode);
+              $url .= '&callback=?';
+              $content = array(
+                '#theme' => 'imx_videonota_jcxense',
+                '#serie' => $serie,
+                '#url' => $url,
+              );
+            }
+          }
+        }
+      }
+      $block['subject'] = t('Muestra bloque video notas relacionadas con cxense');
+      $block['content'] = $content;
+      break;
+
+    case 'imx_videonota_serieshome':
+      drupal_add_css(drupal_get_path('module', 'imx_videonota') . "/css/imx_videonota_series_home.css");
+      $content = '';
+      $vocabulary = taxonomy_vocabulary_machine_name_load('series');
+      if (is_object($vocabulary)) {
+        $taxonomies = taxonomy_get_tree($vocabulary->vid, $parent = 0, $max_depth = 1, $load_entities = TRUE);
+        if (count($taxonomies) > 0) {
+          $imx_videonota_config = imx_videonota_get_config();
+          foreach ($taxonomies as $taxonomy) {
+            $nids = array();
+            $data = array();
+            $data_serie = array();
+            $serie = imx_videonota_get_taxonomy_formated($taxonomy);
+            $options = array(
+              'tid' => $taxonomy->tid,
+              'vid' => $taxonomy->vid,
+              'type' => array($imx_videonota_config['type']),
+            );
+            $options_node = array(
+              'image_style' => $imx_videonota_config['style_home_first'],
+              'image_default' => $imx_videonota_config['field_image'],
+            );
+            $nids = imx_videonota_get_recent_nodes($options, $offset = 0, $limit = 4);
+            if ($nids && count($nids) > 0) {
+              $data = array();
+              foreach ($nids as $key => $nid) {
+                $node = node_load($nid['nid']);
+                if ($key == 0) {
+                  $node_data_formated = imx_videonota_get_node_data_formated($node, $options_node);
+                  if (isset($node_data_formated['youtube_id'])) {
+                    $node_data_formated['image_youtube'] = 'http://img.youtube.com/vi/' . $node_data_formated['youtube_id'] . '/hqdefault.jpg';
+                  }
+                  $data[] = $node_data_formated;
+                  // 314x124: wide 340x135, medium_mobile 310x120
+                }
+                else {
+                  $options_node['image_style'] = $imx_videonota_config['style_home_list'];
+                  $node_data_formated = imx_videonota_get_node_data_formated($node, $options_node);
+                  if (isset($node_data_formated['youtube_id'])) {
+                    $node_data_formated['image_youtube'] = 'http://img.youtube.com/vi/' . $node_data_formated['youtube_id'] . '/mqdefault.jpg';
+                  }
+                  $data[] = $node_data_formated;
+                }
+              }
+              $data_serie = array(
+                'data' => $data,
+                'serie' => $serie,
+              );
+              $content .= theme('imx_videonota_serieshome', array('data' => $data_serie));
+              unset($data_serie);
+            }
+          }
+        }
+      }
+      $block['subject'] = t('Muestra bloque de series en home de video');
+      $block['content'] = $content;
+      break;
+
+    case 'imx_videonota_seriesplayer':
+      $content = '';
+      $video_array = array();
+      $image = NULL;
+      $imx_videonota_config = imx_videonota_get_player_config();
+      $config = imx_videonota_get_config();
+      if (isset($config['ytchannel']) && mb_strlen(trim($config['ytchannel'])) > 0) {
+        $ytchannel = $config['ytchannel'];
+      }
+      else {
+        $ytchannel = NULL;
+      }
+      if ($qid = imx_videonota_get_qid_from_name($config['nodequeue'])) {
+        $nids = imx_videonota_get_nodequeue_node_nids($qid, FALSE, 0, NULL, TRUE);
+        if (count($nids) > 1) {
+          while($nid = current($nids)) {
+            $node = node_load($nid);
+            if (is_object($node) && isset($node->nid)) {
+              $yid = imx_videonota_get_first_youtube_id($node);
+              if (!is_null($yid)) {
+                $video_array[] = array(
+                  'iframe' => "http://www.youtube.com/embed/$yid" . '?wmode=transparent&version=3&enablejsapi=1',
+                  'thumbnail' => "http://i1.ytimg.com/vi/$yid/mqdefault.jpg",
+                  'yid' => $yid,
+                  'isList'  => FALSE,
+                  'list'  => NULL,
+                  'description' => $node->title,
+                );
+              }
+            }
+            next($nids);
+          }
+          if (count($video_array) > 1) {
+            global $theme;
+            drupal_add_css(drupal_get_path('theme', $theme) . $imx_videonota_config['gallerie_css']);
+            drupal_add_css(drupal_get_path('module', 'imx_videonota') . "/css/imx_videonota_seriesplayer.css");
+            drupal_add_js('http://7327b8b8869b339d7dc2-e4c3f72b307ad87a3accc93231efb439.r9.cf2.rackcdn.com/IMx_smartsReload.js', array('type' => 'external', 'scope' => 'footer'));
+            $content = array(
+              '#theme' => 'imx_videonota_seriesplayer',
+              '#gallery' => $video_array,
+              '#image' => $image,
+              '#config' => $imx_videonota_config,
+              '#serie' => NULL,
+              // '#title' => $title,
+              '#ytchannel' => $ytchannel,
+            );
+          }
+        }
+      }
+
+      $block['subject'] = t('Muestra bloque reproductor en home series');
+      $block['content'] = $content;
+      break;
+
+    case 'imx_videonota_inventplay':
+      $content = '';
+      $show = TRUE;
+      $vid = imx_videonota_get_id_vocabulary();
+      $list = array();
+      if (!is_null($vid)) {
+        $series = taxonomy_get_tree($vid, $parent = 0, $max_depth = NULL, $load_entities = FALSE);
+        foreach ($series as $serie) {
+          $taxonomy = taxonomy_term_load($serie->tid);
+          $list[] = imx_videonota_get_taxonomy_formated($taxonomy);
+          if (count($list) >= 6) {
+            break;
+          }
+        }
+      }
+      $path = arg();
+      if (count($path) == 3) {
+        if ($path[0] == 'taxonomy' && $path[1] == 'term') {
+          $term = menu_get_object('taxonomy_term', 2);
+          if(!$term){
+            $term = taxonomy_term_load($path[2]);
+          }
+          if (is_object($term)) {
+            if (isset($term->vid)) {
+              if ($term->vid <> $vid) {
+                $show = FALSE;
+              }
+            }
+          }
+        }
+      }
+      if (count($list) > 0 && $show) {
+        drupal_add_css(drupal_get_path('module', 'imx_videonota') . "/css/imx_videonota_channel_play.css");
+        $content = array(
+          '#theme' => 'imx_videonota_inventplay',
+          '#series' => $list,
+        );
+      }
+      $block['subject'] = t('Muestra bloque series invent.play');
+      $block['content'] = $content;
+      break;
+
+  }
+
+  return $block;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function imx_videonota_theme() {
+  return array(
+    'imx_videonota_video' => array(
+      'variables' => array(
+        'image' => NULL,
+        'gallery' => NULL,
+        'config' => NULL,
+        'serie' => NULL,
+        'title' => NULL,
+        'ytchannel' => NULL,
+        'node' => NULL,
+      ),
+      'template' => 'imx_videonota_video',
+    ),
+    'imx_videonota_channel' => array(
+      'variables' => array(
+        'taxonomy' => NULL,
+        'data' => NULL,
+        'title' => NULL,
+      ),
+      'template' => 'imx_videonota_channel',
+    ),
+    'imx_videonota_channel_list' => array(
+      'variables' => array(
+        'data' => NULL,
+        'title' => NULL,
+      ),
+      'template' => 'imx_videonota_channel_list',
+    ),
+    'imx_videonota_series' => array(
+      'variables' => array(
+        'series' => NULL,
+        'home' => NULL,
+      ),
+      'template' => 'imx_videonota_series',
+    ),
+    'imx_videonota_jcxense' => array(
+      'variables' => array(
+        'serie' => NULL,
+        'url' => NULL,
+      ),
+      'template' => 'imx_videonota_jcxense',
+    ),
+    'imx_videonota_serieshome' => array(
+      'variables' => array(
+        'data' => NULL,
+      ),
+      'template' => 'imx_videonota_serieshome',
+    ),
+    'imx_videonota_seriesplayer' => array(
+      'variables' => array(
+        'image' => NULL,
+        'gallery' => NULL,
+        'config' => NULL,
+        'serie' => NULL,
+        'title' => NULL,
+        'ytchannel' => NULL,
+      ),
+      'template' => 'imx_videonota_seriesplayer',
+    ),
+    'imx_videonota_inventplay' => array(
+      'variables' => array(
+        'series' => NULL,
+      ),
+      'template' => 'imx_videonota_inventplay',
+    ),
+  );
+}
+
+/**
+ * Implements hook_template_preprocess_theme().
+ */
+function template_preprocess_imx_videonota(&$variables) {
+  $variables['data'] = $variables['data'];
+}
+
+/**
+ * Verifica su una cadena contiene el parametro list.
+ *
+ * Obtiene el parametro list de la url de youtube de existir
+ * si existe el parametro se regresa solamente el argumento del ?list=.
+ *
+ * @param string $url
+ *   Cadena recibida.
+ *
+ * @return string
+ *   Retorna una cadena o null en caso con existir el parámetro.
+ */
+function imx_videonota_get_list_youtube_url($url = '') {
+  $list_parametre = NULL;
+  $list_begin = explode('list=', (string) $url);
+  if (count($list_begin) > 1) {
+    // Encontrando el final del parametro.
+    if (count($list_end = explode('&', $list_begin[1])) > 1) {
+      $list_parametre = $list_end[0];
+    }
+    else {
+      // No habia  ningun otro parametro siguiente.
+      $list_parametre = $list_begin[1];
+    }
+  }
+  return $list_parametre;
+}
+
+/**
+ * Formulario de configuración de video nota.
+ */
+function imx_videonota_frm($form, &$form_state) {
+  $form['content'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Parámetros'),
+  );
+  $form['content']['imx_videonota_type'] = array(
+    '#type' => 'textfield',
+    '#title' => t("Machine name del tipo de contenido"),
+    '#description' => t("Ej. video"),
+    '#default_value' => variable_get("imx_videonota_type", ''),
+    '#size' => 70,
+    '#required' => TRUE,
+  );
+  $form['content']['imx_videonota_alias'] = array(
+    '#type' => 'textfield',
+    '#title' => t("Nombre de url alias del home de videos"),
+    '#description' => t("Ej. videos"),
+    '#default_value' => variable_get("imx_videonota_alias", 'videos'),
+    '#size' => 70,
+    '#required' => TRUE,
+  );
+  $form['content']['imx_videonota_field_image'] = array(
+    '#type' => 'textfield',
+    '#title' => t("Machine name del campo imagen"),
+    '#description' => t("Se usará para recuperar las imágenes de los listados Ej. field_image_default"),
+    '#default_value' => variable_get("imx_videonota_field_image", 'field_image_default'),
+    '#size' => 70,
+    '#required' => FALSE,
+  );
+  $form['content']['imx_videonota_field_collection'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Field Collection para la extracción del Video'),
+  );
+  $form['content']['imx_videonota_field_collection']['imx_videonota_field_collection_video'] = array(
+    '#type' => 'textfield',
+    '#title' => t("Machine name del campo field collection"),
+    '#description' => t("Ej. field_video"),
+    '#default_value' => variable_get("imx_videonota_field_collection_video", ''),
+    '#size' => 40,
+    '#required' => FALSE,
+  );
+  $form['content']['imx_videonota_field_collection']['imx_videonota_field_collection_youtube'] = array(
+    '#type' => 'textfield',
+    '#title' => t("Machine name del campo URL de YouTube"),
+    '#description' => t("Ej. field_url"),
+    '#default_value' => variable_get("imx_videonota_field_collection_youtube", ''),
+    '#size' => 40,
+    '#required' => FALSE,
+  );
+  $form['content']['imx_videonota_field_collection']['imx_videonota_field_collection_description'] = array(
+    '#type' => 'textfield',
+    '#title' => t("Machine name del campo descripción del video"),
+    '#description' => t("Ej. field_description"),
+    '#default_value' => variable_get("imx_videonota_field_collection_description", ''),
+    '#size' => 40,
+    '#required' => FALSE,
+  );
+  $form['content']['imx_videonota_video_embed'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Video Embed Field para la extracción del Video'),
+  );
+  $form['content']['imx_videonota_video_embed']['imx_videonota_video_embed_field'] = array(
+    '#type' => 'textfield',
+    '#title' => t("Machine name del Video Embed Field"),
+    '#description' => t("Ej. field_video"),
+    '#default_value' => variable_get("imx_videonota_video_embed_field", ''),
+    '#size' => 40,
+    '#required' => FALSE,
+  );
+  $styles = imx_videonota_get_images_styles();
+  // Canal.
+  $form['content']['imx_videonota_styles_channel'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Estilos de imagen en canal'),
+  );
+  $form['content']['imx_videonota_styles_channel']['imx_videonota_style_channel_first'] = array(
+    '#title' => 'Estilo de primer imagen de listado',
+    '#type' => 'select',
+    '#options' => $styles,
+    '#default_value' => variable_get("imx_videonota_style_channel_first", 'thumbnail'),
+    '#description' => t('Elija el estilo que tendrá la primer imagen del listado'),
+  );
+  $form['content']['imx_videonota_styles_channel']['imx_videonota_style_channel'] = array(
+    '#title' => 'Estilo del resto de imágenes:',
+    '#type' => 'select',
+    '#options' => $styles,
+    '#default_value' => variable_get("imx_videonota_style_channel", 'thumbnail'),
+    '#description' => t('Elija el estilo que tendran las imagenes del listado'),
+  );
+  $form['content']['imx_videonota_styles_channel']['imx_videonota_styles_list'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Estilo de imagen para listado en canal'),
+  );
+  $form['content']['imx_videonota_styles_channel']['imx_videonota_styles_list']['imx_videonota_style_list'] = array(
+    '#title' => 'Estilo de imagen para listado',
+    '#type' => 'select',
+    '#options' => $styles,
+    '#default_value' => variable_get("imx_videonota_style_list", 'thumbnail'),
+    '#description' => t('Elija el estilo para el listado'),
+  );
+  // Home.
+  $form['content']['imx_videonota_styles_home'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Estilos de imagen en Home de Videos'),
+  );
+  $form['content']['imx_videonota_styles_home']['imx_videonota_style_home_first'] = array(
+    '#title' => 'Estilo de primer imagen de listado',
+    '#type' => 'select',
+    '#options' => $styles,
+    '#default_value' => variable_get("imx_videonota_style_home_first", 'thumbnail'),
+    '#description' => t('Elija el estilo que tendrá la primer imagen del listado'),
+  );
+  $form['content']['imx_videonota_styles_home']['imx_videonota_style_home_list'] = array(
+    '#title' => 'Estilo del resto de imágenes:',
+    '#type' => 'select',
+    '#options' => $styles,
+    '#default_value' => variable_get("imx_videonota_style_home_list", 'thumbnail'),
+    '#description' => t('Elija el estilo que tendran las imagenes del listado'),
+  );
+  $form['content']['imx_videonota_ytchannel'] = array(
+    '#type' => 'textfield',
+    '#title' => t("Canal YouTube default"),
+    '#description' => t("Ej. DineroEnImagen"),
+    '#default_value' => variable_get("imx_videonota_ytchannel", ''),
+    '#size' => 70,
+  );
+  $form['content']['imx_videonota_summary_max_length'] = array(
+    '#type' => 'textfield',
+    '#title' => t("Número de caracteres en sumario"),
+    '#description' => t("Ej. 300"),
+    '#default_value' => variable_get("imx_videonota_summary_max_length", 300),
+    '#size' => 10,
+  );
+  $form['content']['imx_videonota_cxense_widget_id'] = array(
+    '#type' => 'textfield',
+    '#title' => t("cXense Widget ID"),
+    '#description' => t("Escriba el widget id."),
+    '#default_value' => variable_get("imx_videonota_cxense_widget_id", ''),
+    '#size' => 40,
+  );
+  $form['content']['imx_videonota_nodequeue'] = array(
+    '#type' => 'textfield',
+    '#title' => t("Machine name del node queue para Video Galería"),
+    '#description' => t(""),
+    '#default_value' => variable_get("imx_videonota_nodequeue", ''),
+    '#size' => 40,
+  );
+  $form['imx_videonota_submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Guardar',
+  );
+
+  return $form;
+}
+
+/**
+ * Implements hook_validate().
+ */
+function imx_videonota_frm_validate($form, &$form_state) {
+}
+
+/**
+ * Implements hook_submit().
+ */
+function imx_videonota_frm_submit($form, &$form_state) {
+  variable_set('imx_videonota_type', trim($form_state['values']['imx_videonota_type']));
+  variable_set('imx_videonota_alias', trim($form_state['values']['imx_videonota_alias']));
+  variable_set('imx_videonota_field_image', trim($form_state['values']['imx_videonota_field_image']));
+  variable_set('imx_videonota_style_channel', trim($form_state['values']['imx_videonota_style_channel']));
+  variable_set('imx_videonota_style_channel_first', $form_state['values']['imx_videonota_style_channel_first']);
+  variable_set('imx_videonota_style_list', $form_state['values']['imx_videonota_style_list']);
+  variable_set('imx_videonota_ytchannel', trim($form_state['values']['imx_videonota_ytchannel']));
+  variable_set('imx_videonota_style_home_first', $form_state['values']['imx_videonota_style_home_first']);
+  variable_set('imx_videonota_style_home_list', $form_state['values']['imx_videonota_style_home_list']);
+  variable_set('imx_videonota_summary_max_length', $form_state['values']['imx_videonota_summary_max_length']);
+  variable_set('imx_videonota_cxense_widget_id', $form_state['values']['imx_videonota_cxense_widget_id']);
+  variable_set('imx_videonota_field_collection_video', trim($form_state['values']['imx_videonota_field_collection_video']));
+  variable_set('imx_videonota_field_collection_youtube', trim($form_state['values']['imx_videonota_field_collection_youtube']));
+  variable_set('imx_videonota_field_collection_description', trim($form_state['values']['imx_videonota_field_collection_description']));
+  variable_set('imx_videonota_nodequeue', trim($form_state['values']['imx_videonota_nodequeue']));
+  variable_set('imx_videonota_video_embed_field', trim($form_state['values']['imx_videonota_video_embed_field']));
+
+  drupal_set_message('Parámetros salvados.');
+}
+
+/**
+ * Formulario de configuración de reproductor.
+ */
+function imx_videonota_player_frm($form, &$form_state) {
+  $form['content'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Parámetros'),
+  );
+  $players = array(
+    'youtube' => 'YouTube',
+    'jwplayer' => 'JW Player',
+    'ultimedia' => 'Ultimedia',
+  );
+  $player = variable_get('imx_videonota_player', 'youtube');
+  $player_default = array_key_exists($player, $players) ? $player : 'youtube';
+  $form['content']['imx_videonota_player'] = array(
+    '#type' => 'radios',
+    '#title' => t('Player a usar en las notas'),
+    '#options' => $players,
+    '#default_value' => $player_default,
+  );
+  $form['content']['imx_videonota_gallerie'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Galería original'),
+  );
+  $form['content']['imx_videonota_gallerie']['imx_videonota_gallerie_dummy_logo'] = array(
+    '#type' => 'textfield',
+    '#title' => t("URL Dummy Logo"),
+    '#description' => t("Ej. /sites/local.dinero.com/themes/dinero/images/dinero_share.jpg"),
+    '#default_value' => variable_get("imx_videonota_gallerie_dummy_logo", ''),
+    '#size' => 70,
+    '#required' => TRUE,
+  );
+  $form['content']['imx_videonota_gallerie']['imx_videonota_gallerie_css'] = array(
+    '#type' => 'textfield',
+    '#title' => t("Ruta del archivo de estilos de la galeria original"),
+    '#description' => t("Ej. /js/galleria/themes/dinero/galleria.dinero.css"),
+    '#default_value' => variable_get("imx_videonota_gallerie_css", ''),
+    '#size' => 70,
+    '#required' => TRUE,
+  );
+  $form['content']['imx_videonota_jwplayer'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Parámetros JW Player'),
+  );
+  $form['content']['imx_videonota_jwplayer']['imx_videonota_jwplayer_image'] = array(
+    '#type' => 'textfield',
+    '#title' => t("Image"),
+    '#description' => t("Ej. http://70e512aae98b743c8b72-a3a5a60255dfcd3748559755a0b86934.r28.cf2.rackcdn.com/image/600/cadenatres.jpg"),
+    '#default_value' => variable_get("imx_videonota_jwplayer_image", ''),
+    '#size' => 70,
+    '#required' => TRUE,
+  );
+  $form['content']['imx_videonota_jwplayer']['imx_videonota_jwplayer_title'] = array(
+    '#type' => 'textfield',
+    '#title' => t("Title"),
+    '#description' => t("Ej. CadenaTres Canal 28 | La televisión más abierta que nunca"),
+    '#default_value' => variable_get("imx_videonota_jwplayer_title", ''),
+    '#size' => 70,
+    '#required' => TRUE,
+  );
+  $form['content']['imx_videonota_jwplayer']['imx_videonota_jwplayer_width'] = array(
+    '#type' => 'textfield',
+    '#title' => t("Width"),
+    '#description' => t("Ej. 100% o 1024"),
+    '#default_value' => variable_get("imx_videonota_jwplayer_width", ''),
+    '#size' => 5,
+    '#required' => TRUE,
+  );
+  $form['content']['imx_videonota_jwplayer']['imx_videonota_jwplayer_height'] = array(
+    '#type' => 'textfield',
+    '#title' => t("Height"),
+    '#description' => t("Ej. 100% o 600"),
+    '#default_value' => variable_get("imx_videonota_jwplayer_height", ''),
+    '#size' => 5,
+    '#required' => TRUE,
+  );
+  $form['content']['imx_videonota_jwplayer']['imx_videonota_jwplayer_aspect_ratio'] = array(
+    '#type' => 'textfield',
+    '#title' => t("Aspecto"),
+    '#description' => t("Ej. 16:9"),
+    '#default_value' => variable_get("imx_videonota_jwplayer_aspect_ratio", ''),
+    '#size' => 5,
+    '#required' => TRUE,
+  );
+  $form['content']['imx_videonota_jwplayer']['imx_videonota_jwplayer_autoplay'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Autoplay'),
+    '#default_value' => variable_get('imx_videonota_jwplayer_autoplay', FALSE),
+  );
+  $form['content']['imx_videonota_jwplayer']['imx_videonota_jwplayer_vast_fieldset'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('VastUrl'),
+  );
+  $form['content']['imx_videonota_jwplayer']['imx_videonota_jwplayer_vast_fieldset']['imx_videonota_jwplayer_vast_flag'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Activar VastUrl'),
+    '#default_value' => variable_get('imx_videonota_jwplayer_vast_flag', FALSE),
+  );
+  $form['content']['imx_videonota_jwplayer']['imx_videonota_jwplayer_vast_fieldset']['imx_videonota_jwplayer_vastUrl_desktop'] = array(
+    '#type' => 'textfield',
+    '#title' => t("Desktop"),
+    '#description' => t("Ej. http://www5.smartadserver.com/call/pubx/56103/437653/24453/S/[timestamp]/[target]?"),
+    '#default_value' => variable_get("imx_videonota_jwplayer_vastUrl_desktop", ''),
+    '#size' => 70,
+    // '#required' => TRUE,
+  );
+  $form['content']['imx_videonota_jwplayer']['imx_videonota_jwplayer_vast_fieldset']['imx_videonota_jwplayer_vastUrl_mobile'] = array(
+    '#type' => 'textfield',
+    '#title' => t("Mobile"),
+    '#description' => t("Ej. http://ad4.liverail.com/?LR_PUBLISHER_ID=61304&LR_SCHEMA=vast2&LR_FORMAT=video%2Fmp4"),
+    '#default_value' => variable_get("imx_videonota_jwplayer_vastUrl_mobile", ''),
+    '#size' => 70,
+    // '#required' => TRUE,
+  );
+  $form['content']['imx_videonota_jwplayer']['imx_videonota_jwplayer_logo_fieldset'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Logo'),
+  );
+  $form['content']['imx_videonota_jwplayer']['imx_videonota_jwplayer_logo_fieldset']['imx_videonota_jwplayer_logo_file'] = array(
+    '#type' => 'textfield',
+    '#title' => t("File"),
+    '#description' => t("Ej. http://70e512aae98b743c8b72-a3a5a60255dfcd3748559755a0b86934.r28.cf2.rackcdn.com/logo/white/200/cadenatres.png"),
+    '#default_value' => variable_get("imx_videonota_jwplayer_logo_file", ''),
+    '#size' => 70,
+    // '#required' => TRUE,
+  );
+  $form['content']['imx_videonota_jwplayer']['imx_videonota_jwplayer_logo_fieldset']['imx_videonota_jwplayer_logo_link'] = array(
+    '#type' => 'textfield',
+    '#title' => t("Link"),
+    '#description' => t("Ej. http://www.cadenatres.com.mx"),
+    '#default_value' => variable_get("imx_videonota_jwplayer_logo_link", ''),
+    '#size' => 70,
+    // '#required' => TRUE,
+  );
+  $form['content']['imx_videonota_jwplayer']['imx_videonota_jwplayer_share'] = array(
+    '#type' => 'textfield',
+    '#title' => t("Share title"),
+    '#description' => t("Ej. Comparte con tus amigos"),
+    '#default_value' => variable_get("imx_videonota_jwplayer_share", ''),
+    '#size' => 70,
+    // '#required' => TRUE,
+  );
+  $form['content']['imx_videonota_jwplayer']['imx_videonota_jwplayer_clip_fieldset'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Clip'),
+  );
+  $form['content']['imx_videonota_jwplayer']['imx_videonota_jwplayer_clip_fieldset']['imx_videonota_jwplayer_clip_ns_st_ci'] = array(
+    '#type' => 'textfield',
+    '#title' => t("ns_st_ci"),
+    '#description' => t("Ej. cadenatres.envivo.video"),
+    '#default_value' => variable_get("imx_videonota_jwplayer_clip_ns_st_ci", ''),
+    '#size' => 70,
+    // '#required' => TRUE,
+  );
+  $form['content']['imx_videonota_jwplayer']['imx_videonota_jwplayer_clip_fieldset']['imx_videonota_jwplayer_clip_ns_st_pr'] = array(
+    '#type' => 'textfield',
+    '#title' => t("ns_st_pr"),
+    '#description' => t("Ej. CadenaTres Canal 28"),
+    '#default_value' => variable_get("imx_videonota_jwplayer_clip_ns_st_pr", ''),
+    '#size' => 70,
+    // '#required' => TRUE,
+  );
+  $form['content']['imx_videonota_jwplayer']['imx_videonota_jwplayer_clip_fieldset']['imx_videonota_jwplayer_clip_ns_st_pl'] = array(
+    '#type' => 'textfield',
+    '#title' => t("ns_st_pl"),
+    '#description' => t("Ej. Transmisión en Vivo"),
+    '#default_value' => variable_get("imx_videonota_jwplayer_clip_ns_st_pl", ''),
+    '#size' => 70,
+    // '#required' => TRUE,
+  );
+  $form['content']['imx_videonota_jwplayer']['imx_videonota_jwplayer_clip_fieldset']['imx_videonota_jwplayer_clip_ns_st_ep'] = array(
+    '#type' => 'textfield',
+    '#title' => t("ns_st_ep"),
+    '#description' => t("Ej. CadenaTres Canal 28"),
+    '#default_value' => variable_get("imx_videonota_jwplayer_clip_ns_st_ep", ''),
+    '#size' => 70,
+    // '#required' => TRUE,
+  );
+  $form['content']['imx_videonota_jwplayer']['imx_videonota_jwplayer_clip_fieldset']['imx_videonota_jwplayer_clip_ns_st_ge'] = array(
+    '#type' => 'textfield',
+    '#title' => t("ns_st_ge"),
+    '#description' => t("Ej. Entretenimiento"),
+    '#default_value' => variable_get("imx_videonota_jwplayer_clip_ns_st_ge", ''),
+    '#size' => 70,
+    // '#required' => TRUE,
+  );  $form['content']['imx_videonota_jwplayer']['imx_videonota_jwplayer_clip_fieldset']['imx_videonota_jwplayer_clip_ns_st_ty'] = array(
+    '#type' => 'textfield',
+    '#title' => t("ns_st_ty"),
+    '#description' => t("Ej. live"),
+    '#default_value' => variable_get("imx_videonota_jwplayer_clip_ns_st_ty", ''),
+    '#size' => 70,
+    // '#required' => TRUE,
+  );
+  $form['imx_videonota_submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Guardar',
+  );
+
+  return $form;
+}
+
+/**
+ * Implements hook_validate().
+ */
+function imx_videonota_player_frm_validate($form, &$form_state) {
+}
+
+/**
+ * Implements hook_submit().
+ */
+function imx_videonota_player_frm_submit($form, &$form_state) {
+  variable_set('imx_videonota_gallerie_dummy_logo', $form_state['values']['imx_videonota_gallerie_dummy_logo']);
+  variable_set('imx_videonota_gallerie_css', $form_state['values']['imx_videonota_gallerie_css']);
+  variable_set('imx_videonota_player', $form_state['values']['imx_videonota_player']);
+  variable_set('imx_videonota_jwplayer_vast_flag', $form_state['values']['imx_videonota_jwplayer_vast_flag']);
+  variable_set('imx_videonota_jwplayer_vastUrl_desktop', $form_state['values']['imx_videonota_jwplayer_vastUrl_desktop']);
+  variable_set('imx_videonota_jwplayer_vastUrl_mobile', $form_state['values']['imx_videonota_jwplayer_vastUrl_mobile']);
+  variable_set('imx_videonota_jwplayer_image', $form_state['values']['imx_videonota_jwplayer_image']);
+  variable_set('imx_videonota_jwplayer_title', $form_state['values']['imx_videonota_jwplayer_title']);
+  variable_set('imx_videonota_jwplayer_width', $form_state['values']['imx_videonota_jwplayer_width']);
+  variable_set('imx_videonota_jwplayer_height', $form_state['values']['imx_videonota_jwplayer_height']);
+  variable_set('imx_videonota_jwplayer_aspect_ratio', $form_state['values']['imx_videonota_jwplayer_aspect_ratio']);
+  variable_set('imx_videonota_jwplayer_autoplay', $form_state['values']['imx_videonota_jwplayer_autoplay']);
+  variable_set('imx_videonota_jwplayer_logo_file', $form_state['values']['imx_videonota_jwplayer_logo_file']);
+  variable_set('imx_videonota_jwplayer_logo_link', $form_state['values']['imx_videonota_jwplayer_logo_link']);
+  variable_set('imx_videonota_jwplayer_share', $form_state['values']['imx_videonota_jwplayer_share']);
+  variable_set('imx_videonota_jwplayer_clip_ns_st_ci', $form_state['values']['imx_videonota_jwplayer_clip_ns_st_ci']);
+  variable_set('imx_videonota_jwplayer_clip_ns_st_pr', $form_state['values']['imx_videonota_jwplayer_clip_ns_st_pr']);
+  variable_set('imx_videonota_jwplayer_clip_ns_st_pl', $form_state['values']['imx_videonota_jwplayer_clip_ns_st_pl']);
+  variable_set('imx_videonota_jwplayer_clip_ns_st_ep', $form_state['values']['imx_videonota_jwplayer_clip_ns_st_ep']);
+  variable_set('imx_videonota_jwplayer_clip_ns_st_ge', $form_state['values']['imx_videonota_jwplayer_clip_ns_st_ge']);
+  variable_set('imx_videonota_jwplayer_clip_ns_st_ty', $form_state['values']['imx_videonota_jwplayer_clip_ns_st_ty']);
+  drupal_set_message('Parámetros salvados.');
+}
+
+/**
+ * Devuelve la configuración del parámetros del reproductor.
+ */
+function imx_videonota_get_player_config() {
+  return array(
+    'player' => variable_get('imx_videonota_player', 'youtube'),
+    'gallerie_dummy_logo' => variable_get('imx_videonota_gallerie_dummy_logo', ''),
+    'gallerie_css' => variable_get('imx_videonota_gallerie_css', ''),
+    'jwplayer_vast_flag' => variable_get('imx_videonota_jwplayer_vast_flag', FALSE),
+    'jwplayer_vastUrl_desktop' => variable_get('imx_videonota_jwplayer_vastUrl_desktop', ''),
+    'jwplayer_vastUrl_mobile' => variable_get('imx_videonota_jwplayer_vastUrl_mobile', ''),
+    'jwplayer_image' => variable_get('imx_videonota_jwplayer_image', ''),
+    'jwplayer_title' => variable_get('imx_videonota_jwplayer_title', ''),
+    'jwplayer_width' => variable_get('imx_videonota_jwplayer_width', ''),
+    'jwplayer_height' => variable_get('imx_videonota_jwplayer_height', ''),
+    'jwplayer_aspect_ratio' => variable_get('imx_videonota_jwplayer_aspect_ratio', ''),
+    'jwplayer_autoplay' => variable_get('imx_videonota_jwplayer_autoplay', FALSE),
+    'jwplayer_logo_file' => variable_get('imx_videonota_jwplayer_logo_file', ''),
+    'jwplayer_logo_link' => variable_get('imx_videonota_jwplayer_logo_link', ''),
+    'jwplayer_share' => variable_get('imx_videonota_jwplayer_share', ''),
+    'jwplayer_clip_ns_st_ci' => variable_get('imx_videonota_jwplayer_clip_ns_st_ci', ''),
+    'jwplayer_clip_ns_st_pr' => variable_get('imx_videonota_jwplayer_clip_ns_st_pr', ''),
+    'jwplayer_clip_ns_st_pl' => variable_get('imx_videonota_jwplayer_clip_ns_st_pl', ''),
+    'jwplayer_clip_ns_st_ep' => variable_get('imx_videonota_jwplayer_clip_ns_st_ep', ''),
+    'jwplayer_clip_ns_st_ge' => variable_get('imx_videonota_jwplayer_clip_ns_st_ge', ''),
+    'jwplayer_clip_ns_st_ty' => variable_get('imx_videonota_jwplayer_clip_ns_st_ty', ''),
+  );
+}
+
+/**
+ * Obtiene el id de vocabulario de series.
+ */
+function imx_videonota_get_id_vocabulary() {
+  $series_vid = NULL;
+  $vocabulario = taxonomy_vocabulary_machine_name_load('series');
+  if (is_object($vocabulario)) {
+    $series_vid = $vocabulario->vid;
+  }
+  return $series_vid;
+}
+
+/**
+ * Regresa un array de taxonomia formateado.
+ */
+function imx_videonota_get_taxonomy_formated($taxonomy) {
+  $taxonomy_formated = array();
+  if (is_object($taxonomy) && isset($taxonomy->tid)) {
+    if (isset($taxonomy->field_serie_ytchannel['und']['0']['safe_value'])
+     && mb_strlen(trim($taxonomy->field_serie_ytchannel['und']['0']['safe_value'])) > 0) {
+      $ytchannel = $taxonomy->field_serie_ytchannel['und']['0']['safe_value'];
+    }
+    else {
+      $imx_videonota_get_config = imx_videonota_get_config();
+      $ytchannel = $imx_videonota_get_config['ytchannel'];
+    }
+    $taxonomy_formated = array(
+      'tid' => $taxonomy->tid,
+      'name' => $taxonomy->name,
+      'description' => truncate_utf8(strip_tags($taxonomy->description), 140, FALSE, TRUE, 30),
+      'ytchannel' => $ytchannel,
+      'schedule' => isset($taxonomy->field_serie_schedule['und']['0']['safe_value']) ? $taxonomy->field_serie_schedule['und']['0']['safe_value'] : NULL,
+      'url' => drupal_get_path_alias('taxonomy/term/' . $taxonomy->tid),
+      'image_logo_url' => image_style_url("series_small",$taxonomy->field_serie_image_logo['und']['0']['uri']),
+      'image_logo_alt' => $taxonomy->field_serie_image_logo['und']['0']['alt'],
+      'image_logo_title' => $taxonomy->field_serie_image_logo['und']['0']['title'],
+      'image_list_url' => image_style_url("series_medium",$taxonomy->field_serie_image_list['und']['0']['uri']),
+      'image_list_alt' => $taxonomy->field_serie_image_list['und']['0']['alt'],
+      'image_list_title' => $taxonomy->field_serie_image_list['und']['0']['title'],
+      'image_channel_url' => file_create_url($taxonomy->field_serie_image_channel['und']['0']['uri']),
+      'image_channel_alt' => $taxonomy->field_serie_image_channel['und']['0']['alt'],
+      'image_channel_title' => $taxonomy->field_serie_image_channel['und']['0']['title'],
+    );
+  }
+  return $taxonomy_formated;
+}
+
+/**
+ * Implements hook_views_pre_render().
+ */
+function imx_videonota_views_pre_render(&$view) {
+  if ($view->name == 'taxonomy_override_nh' && $view->current_display == 'page') {
+    $path = arg();
+    $series_vid = NULL;
+    if (count($path) == 3 && $path[0] == 'taxonomy' && $path[1] == 'term' && is_numeric($path[2])) {
+      if ($taxonomy = taxonomy_term_load($path[2])) {
+        // Obtener el vocabulario.
+        $vocabulario = taxonomy_vocabulary_machine_name_load('series');
+        if (is_object($vocabulario)) {
+          $series_vid = $vocabulario->vid;
+          if ($taxonomy->vid == $series_vid) {
+            // Estableciendo título de página.
+            $view->set_title($taxonomy->name);
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Clase para el paginado de notas.
+ */
+class PagerVideoNotas extends PagerDefault {
+
+  /**
+   * Overrides PagerDefault::execute().
+   */
+  public function execute() {
+    // Add convenience tag to mark that this is an extended query. We have to
+    // do this in the constructor to ensure that it is set before preExecute()
+    // gets called.
+    if (!$this->preExecute($this)) {
+      return NULL;
+    }
+
+    // A NULL limit is the "kill switch" for pager queries.
+    if (empty($this->limit)) {
+      return;
+    }
+    $this->ensureElement();
+
+    // Get the total items from our new statically cached function.
+    $total_items = $this->getTotalItemCount();
+
+    $current_page = pager_default_initialize($total_items, $this->limit, $this->element);
+    if ($this->limit == 10 && $current_page >= 2) {
+      $offset = ($current_page * $this->limit) - 1;
+      $this->range($offset, $this->limit);
+    }
+    else {
+      $offset = $current_page * $this->limit;
+      $this->range($offset, $this->limit);
+    }
+
+    // Now that we've added our pager-based range instructions,
+    // run the query normally.
+    return $this->query->execute();
+  }
+
+  /**
+   * Cache the results of PagerDefault::getCountQuery().
+   */
+  public function getTotalItemCount() {
+    static $total_items = NULL;
+
+    if ($total_items === NULL) {
+      $total_items = $this->getCountQuery()->execute()->fetchField();
+    }
+
+    return $total_items;
+  }
+
+}
+
+/**
+ * Regresa n nodos más recientes por termino de taxonomia de x vocabulario.
+ *
+ * @param int or array $tid id de termino(s) de taxonomia
+ * @param int $vid id de cocabulario
+ * @param int $uid id de usuario conductor
+ * @param int $offset a partir de que indice
+ * @param int $limit cantidad de nodos
+ *
+ * @return array
+ *   Regresa un arreglo de nid
+ */
+function imx_videonota_get_recent_nodes($options, $offset = 0, $limit = 1, $pager = NULL) {
+  global $base_url;
+  $data = array();
+  $output = '';
+
+  if (!isset($options['tid'])) {
+    return $data;
+  }
+
+  if (!isset($options['vid'])) {
+    // Default taxonomy vocabulary is category.
+    $options['vid'] = 3;
+    // canales.
+  }
+
+  if (!isset($options['type'])) {
+    $options['type'] = array('video');
+  }
+
+  $query = db_select('node', 'n');
+  $query->join('taxonomy_index', 'ti', 'ti.nid = n.nid');
+  $query->join('taxonomy_term_data', 'ttd', 'ti.tid = ttd.tid');
+  $query->join('taxonomy_vocabulary', 'tv', 'tv.vid = ttd.vid');
+  $query->fields('n', array('nid'));
+  $query->condition('n.status', 1, '=');
+  $query->condition('n.type', $options['type'], 'IN');
+
+  if (is_array($options['tid'])) {
+    $query->condition('ttd.tid', $options['tid'], 'IN');
+  }
+  else {
+    $query->condition('ttd.tid', $options['tid'], '=');
+  }
+
+  $query->condition('tv.vid', $options['vid'], '=');
+
+  if (isset($options['orderByChanged']) && $options['orderByChanged']) {
+    $query->orderby('n.changed', 'DESC');
+  }
+  else {
+    $query->orderby('n.created', 'DESC');
+  }
+  if (!($pager['pager'])) {
+    $query->range($offset, $limit);
+    // dvm('sin pager');
+    $result = $query->execute();
+
+    $num_of_results = $result->rowCount();
+
+    if ($result && $num_of_results > 0) {
+      foreach ($result as $key => $value) {
+        $data[] = array(
+          'nid' => $value->nid,
+        );
+      }
+    }
+
+    return $data;
+  }
+  else {
+    // dvm('con pager');
+    $title = isset($options['title']) ? $options['title'] : NULL;
+    $theme = isset($options['theme']) ? $options['theme'] : 'imx_rn_flujo_btn';
+    $pager_default = isset($options['pager_default']) ? $options['pager_default'] : 'PagerDefault';
+    $query->extend($pager_default)->limit($limit)->execute();
+    $result = $query->execute();
+    $num_of_results = $result->rowCount();
+
+    if ($result && $num_of_results > 0) {
+      $options_node = array(
+        'image_style' => $options['image_style'],
+        'image_default' => $options['image_default'],
+        // Campo de imagen default.
+      );
+      foreach ($result as $key => $value) {
+        $node = node_load($value->nid);
+        $node_data_formated = imx_videonota_get_node_data_formated($node, $options_node);
+        if (isset($node_data_formated['youtube_id'])) {
+          $node_data_formated['image_youtube'] = 'http://img.youtube.com/vi/' . $node_data_formated['youtube_id'] . '/mqdefault.jpg';
+        }
+        $data[] = $node_data_formated;
+        unset($node);
+      }
+    }
+    $args = array('tags' => array('', ' ', '', ' ', ''));
+    $output .= ($pager['up']) ? theme('pager', $args) : '';
+    $output .= theme($theme, array('data' => $data, 'title' => $title));
+    $output .= ($pager['down']) ? theme('pager', $args) : '';
+    return $output;
+  }
+}
+
+/**
+ * Genera tags html.
+ *
+ * @param array $tags
+ *   ie.
+ * $tags = array(
+ *   array(
+ *     'meta' => array(
+ *       'http-equiv' => 'refresh',
+ *       'content' => '30',
+ *     )
+ *   ),
+ *   array(
+ *     'meta' => array(
+ *     'http-equiv' => 'refresh2',
+ *     'content' => '30',
+ *     )
+ *   ),
+ * );
+ *
+ * @return void
+ *   No regresa valor.
+ */
+function imx_videonota_create_html_tag($tags, $string_key) {
+  $attributes = array();
+  $new_element = array();
+  $index = 0;
+  foreach ($tags as $key => $tag) {
+    foreach ($tag as $tag_key => $tag_attributes) {
+      $new_element = array(
+        '#tag' => $tag_key,
+        '#attributes' => $tag_attributes,
+      );
+    }
+    drupal_add_html_head($new_element, $string_key . $index);
+    unset($new_element);
+    unset($attributes);
+    $index++;
+  }
+}
+
+/**
+ * Llamado para pintar el hook de menu.
+ */
+function imx_videonota_print_home() {
+  $output = '';
+  return $output;
+}
+
+/**
+ * Recupera las configuraciones de multimedia.
+ */
+function imx_videonota_get_data_block_multimedia_portada($config_json_ruta_tv = NULL) {
+  $data = array();
+  $data_block = array();
+  if (!is_null($config_json_ruta_tv)) {
+    $file = $config_json_ruta_tv . "multimedia-portada.json";
+    if (file_exists($file)) {
+      $data_block = json_decode(file_get_contents($file), TRUE);
+    }
+    if (count($data_block) > 0) {
+      if ($data_block["estado"] == 1) {
+        $data = $data_block;
+      }
+    }
+  }
+  return $data;
+}
+
+/**
+ * Ordena un arreglo bidimensional a partir de un campo.
+ * $arra_asc_peso = ARREGLO A ORDENAR
+ * $field = NOMBRE DEL CAMPO
+ * $inverse = ASCENDENTE O DESCENDENTE .
+ *   Tipo de ordenamiento.
+ */
+function imx_videonota_array_asc_peso($arra_asc_peso, $field, $inverse = FALSE) {
+  $position = array();
+  $new_row = array();
+  foreach ($arra_asc_peso as $key => $row) {
+    $position[$key]  = $row[$field];
+    $new_row[$key] = $row;
+  }
+  if ($inverse) {
+    arsort($position);
+  }
+  else {
+    asort($position);
+  }
+  $return_array = array();
+  foreach ($position as $key => $pos) {
+    $return_array[] = $new_row[$key];
+  }
+  return $return_array;
+}
+
+/**
+ * Formatea los datos de nodo para el pintado.
+ *
+ * @param array $node
+ *   Onjeto nodo.
+ * @param array $options
+ *   Arreglo de opciones.
+ *
+ * @return array
+ *   Regresa arreglo formateado.
+ */
+function imx_videonota_get_node_data_formated($node, array $options = array()) {
+  global $base_url;
+  $data = array();
+  $image_url = NULL;
+  $summary = NULL;
+  $summary_count = variable_get('imx_videonota_summary_max_length', 300);
+
+  if (isset($options['image_style']) && isset($node->{$options['image_default']}['und'][0]['uri'])) {
+    // Pidiendo imagen especifica.
+    $image_url = image_style_url($options['image_style'], $node->{$options['image_default']}['und'][0]['uri']);
+  }
+  if (isset($node->body['und'][0]['safe_summary'])) {
+    if (strlen(trim($node->body['und'][0]['safe_summary'])) > 0) {
+      $summary = truncate_utf8(strip_tags($node->body['und'][0]['safe_summary']), $summary_count, FALSE, TRUE, 5);
+    }
+    else {
+      $summary = truncate_utf8(strip_tags($node->body['und'][0]['safe_value']), $summary_count, FALSE, TRUE, 5);
+    }
+  }
+  else {
+    if (strlen(trim($node->body['und'][0]['summary'])) > 0) {
+      $summary = truncate_utf8(strip_tags($node->body['und'][0]['summary']), $summary_count, FALSE, TRUE, 5);
+    }
+    else {
+      $summary = truncate_utf8(strip_tags($node->body['und'][0]['value']), $summary_count, FALSE, TRUE, 5);
+    }
+  }
+  $youtube_id = imx_videonota_get_first_youtube_id($node);
+  $data = array(
+    'nid' => $node->nid,
+    'title' => $node->title,
+    'url' => drupal_get_path_alias('node/' . $node->nid),
+    'full_url' => $base_url . '/' . drupal_get_path_alias('node/' . $node->nid),
+    'image_uri' => $image_url,
+    'summary' => $summary,
+    'date' => date('d/m/Y', $node->created),
+    'youtube_id' => $youtube_id,
+  );
+  return $data;
+}
+
+/**
+ * Función de Eric para recuperar los eslilos del sitio.
+ */
+function imx_videonota_get_images_styles() {
+  $styles_array = image_styles();
+  $images = array();
+  foreach ($styles_array as $key => $value) {
+    $images[$key] = $value['name'];
+  }
+  return $images;
+}
+
+/**
+ * Recupera las configuraciones de la videonota.
+ */
+function imx_videonota_get_config() {
+  return array(
+    'type' => variable_get('imx_videonota_type', 'video'),
+    'alias' => variable_get('imx_videonota_alias', 'videos'),
+    'field_image' => variable_get('imx_videonota_field_image', 'field_image'),
+    'style_channel' => variable_get('imx_videonota_style_channel', 'thumbnail'),
+    'style_channel_first' => variable_get('imx_videonota_style_channel_first', 'thumbnail'),
+    'style_list' => variable_get('imx_videonota_style_list', 'thumbnail'),
+    'style_home_first' => variable_get('imx_videonota_style_home_first', 'thumbnail'),
+    'style_home_list' => variable_get('imx_videonota_style_home_list', 'thumbnail'),
+    'ytchannel' => variable_get('imx_videonota_ytchannel', 'thumbnail'),
+    'nodequeue' => variable_get('imx_videonota_nodequeue', ''),
+  );
+}
+
+/**
+ * Recupera el alias del home de videos.
+ */
+function imx_videonota_get_alias() {
+  $imx_videonota_config = imx_videonota_get_config();
+  if (isset($imx_videonota_config['alias']) && trim($imx_videonota_config['alias']) <> '') {
+    $alias = $imx_videonota_config['alias'];
+  }
+  else {
+    $alias = 'videos';
+  }
+  return $alias;
+}
+
+function imx_videonota_get_first_youtube_id($node) {
+  $id_youtube = NULL;
+  $wrapper = entity_metadata_wrapper('node', $node);
+  $config_fc = imx_videonota_get_config_field_collection();
+  if (isset($wrapper->{$config_fc['field_collection']})) {
+    foreach ($wrapper->{$config_fc['field_collection']}->value() as $data_video) {
+      if (isset($data_video->{$config_fc['field_url']}) && !empty($data_video->{$config_fc['field_url']})) {
+        $id_youtube = $data_video->{$config_fc['field_url']}['und'][0]['video_id'];
+      }
+      break;
+    }
+  }
+  elseif (!empty($config_fc['field_url'])) {
+    if (isset($node->{$config_fc['field_url']})) {
+      $id_youtube = $node->{$config_fc['field_url']}['und'][0]['video_id'];
+    }
+  }
+  elseif (isset($config_fc['field_video_embed']) && isset($wrapper->{$config_fc['field_video_embed']})) {
+    foreach ($wrapper->{$config_fc['field_video_embed']}->value() as $data_video) {
+      if (isset($data_video['video_url']) && !empty($data_video['video_url'])) {
+        if ($yid = imx_videonota_get_youtubeid($data_video['video_url'])) {
+          $id_youtube = $yid;
+        }
+      }
+      break;
+    }
+  }
+  return $id_youtube;
+}
+
+/**
+ * Recupera la configuración del field collection.
+ */
+function imx_videonota_get_config_field_collection() {
+  $fields = array(
+      'field_collection' => variable_get('imx_videonota_field_collection_video', ''),
+      'field_url' => variable_get('imx_videonota_field_collection_youtube', ''),
+      'field_description' => variable_get('imx_videonota_field_collection_description', ''),
+  );
+  $video_embed_field = variable_get('imx_videonota_video_embed_field', '');
+  if (strlen($video_embed_field) > 0) {
+      $fields['field_video_embed'] = $video_embed_field;
+  }
+  return $fields;
+}
+
+function imx_videonota_get_qid_from_name($name) {
+  $query = db_select('nodequeue_queue', 'nq');
+  $query->fields('nq', array('qid'));
+  $query->condition('nq.name', $name, '=');
+  $result = $query->execute();
+  $num_of_results = $result->rowCount();
+  if ($result && $num_of_results > 0 ){
+    foreach ($result as $key => $value) {
+      $data = $value->qid;
+    }
+    return $data;
+  }else{
+    return false;
+  }
+}
+
+function imx_videonota_get_nodequeue_node_nids($sqid, $backward = FALSE, $from = 0, $count = 5, $published_only = TRUE) {
+  $orderby = ($backward ? "DESC" : "ASC");
+  $query = db_select('node', 'n')
+    ->fields('n', array('nid'))
+    #->condition('nn.sqid', $sqid)
+    ->condition('nn.qid', $sqid) // Parche para salud.
+    ->orderBy('nn.position', $orderby)
+    ->addTag('node_access');
+  $query->join('nodequeue_nodes', 'nn', 'n.nid = nn.nid');
+  if ($published_only) {
+    $query->condition('n.status', 1);
+  }
+  if ($count) {
+    $result = $query->range($from, $count)->execute();
+  }
+  else {
+    $result = $query->execute();
+  }
+  $nodes = array();
+  foreach ($result as $nid) {
+    $nodes[] = $nid->nid;
+  }
+  return $nodes;
+}
+
+function imx_videonota_get_youtubeid($url) {
+  $match =  '@';
+  $match .=  '(?:https?\://)?';                           #opcional
+  $match .=   '(www\.youtube\.com|youtu.be)';                 #forzoso
+  $match .=    '(?:';                                   #agrupador inicio
+  $match .=      '/(|embed/|watch\?v=|watch\?.+&v=|v/|\?v=)';  #variación forzoso
+  $match .=    ')';                                     #agrupador fin
+  $match .=    '([\w-]{11})';                           #forzoso
+  $match .=  '@i';
+  $matches = array();
+  preg_match($match, $url, $matches);
+  return isset($matches[3])?$matches[3]:false;
+}

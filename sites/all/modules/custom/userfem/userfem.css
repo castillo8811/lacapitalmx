@@ -1,0 +1,245 @@
+.messages{display:block;}
+.error{display:block;}
+.forgot-password-content{display:none;}
+/*
+.ajax-form #edit-submit{padding:3px;color:#fff;background-color:#ff0000;right:0;margin-right:20px;position:absolute;border:0;}
+*/
+.ajax-form div.form-item{height:42px;}
+.ajax-form div.form-item label{float:left;margin-top:5px;}
+.ajax-form div.form-item .form-text{color:#6c6c6c;height:28px;float:left;border: 1px solid #ccc;}
+.ajax-form #edit-name-wrapper{clear:both;}
+.ajax-form #edit-mail-wrapper{clear:both;}
+.ajax-form #edit-pass-wrapper{clear:both;}
+.ajax-form .userfem-birthday div.form-item.ajax-form .userfem-birthday div.form-item {float:left;}
+.userfem-birthday{clear:both;}
+/*
+#fancybox-wrap{width:720px;padding:2px 0px 15px 0px;}
+#fancybox-wrap p {padding: 12px 0px 5px 0px;}
+*/
+#TB_ajaxWindowTitle{
+    background: url("/sites/www.actitudfem.com/themes/actitudfem/images/logo_bottom_gen.png") no-repeat scroll -25px -2px transparent;
+    height: 22px;
+    margin: 3px 0 0 0;
+    padding: 0;
+    width: 195px;
+    color: transparent;
+}
+#fancybox-content .registrate_login {text-align: right;padding: 5px;float: left;width: 438px;margin: 0 0 0 5px;background: url(/sites/www.actitudfem.com/themes/actitudfem/images/logo_bottom_gen.png) no-repeat -25px -3px #f3f3f3;}
+#fancybox-content .registrate_login span{margin-left: 10px;}
+/*.register,.login{font: bold 14px 'Arial' !important; }*/
+#img_registro{background: url('/sites/www.actitudfem.com/themes/actitudfem/images/img_registro.jpg');width: 448px;height: 114px;}
+#fancybox-wrap .component-select-title{width:100%;margin:0 auto 10px;}
+#fancybox-wrap .form-item label {margin:5px 10px 5px 18px;}
+#fancybox-wrap .form-item input {margin:5px 10px 5px 10px}
+.userfem-birthday legend {float: left;font-family: 'Georgia, Times, Verdana';font-size:16px;font-style:italic;color:#666;font-weight: bold;line-height: 21px;margin: 5px 27px 5px 15px;width: 105px;}
+.userfem-birthday .form-select {border: 1px solid #666666;background:transparent;text-indent: 2px;float: right;font-family: 'Georgia, Times, Verdana';font-size:16px;font-style:italic;color:#666;margin-left: 5px;text-align: center;width: 160px;}
+
+#fancybox-wrap .TB-forgot-password{float: right;margin: 20px;color: #1F59B1;}
+#fancybox-wrap .messages{display:none;}
+/*.forgot-password-content{display:none;}*/
+input.password-field,input.password-confirm{margin:0;}
+.my-cursor{cursor:pointer;}
+/*#fancybox-wrap #edit-submit-1, #fancybox-wrap #edit-submit{
+    background: url("/sites/all/themes/actitudfem/css/btn/btn_gen_rosa.jpg") repeat-x 0 0;
+    border: none;
+    border-radius: 5px;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
+    color: #FFF;
+    text-transform: uppercase;
+    cursor:pointer;
+    padding: 5px 10px;
+    height: 35px;
+    width: 115px;
+}*/
+#fancybox-wrap #edit-submit-1{
+    margin: 15px 30px 0px 0px;
+}
+#fancybox-wrap #edit-submit {
+    font-size: 18px !important;
+    float: right;
+    margin: 15px 0 0 0 !important;
+}
+/*#fancybox-wrap h3 {visibility: visible;}*/
+.form-checkboxes label{font-size:12px;color:#6c6c6c;font-style:italic;}
+.news-actitudfem, .news-glamourfem, .news-estilofem, .news-bellezafem, .news-placerfem,
+.news-geekfem, .news-guiafem, .news-hogarfem{
+    width: 165px;
+    height: 12px;
+    background: url("/sites/all/themes/actitudfem/css/logos/logo_minis_registro.png") no-repeat scroll 0 0 transparent;
+    margin: 12px auto;
+}
+.news-actitudfem{background-position: 25px 0px;}
+.news-glamourfem{background-position: 25px -13px;}
+.news-bellezafem{background-position: 25px -38px;}
+.news-estilofem{background-position: 25px -24px;}
+.news-placerfem{background-position: 25px -49px;}
+.news-geekfem{background-position: 25px -63px;}
+.news-guiafem{background-position: 25px -74px;}
+.news-hogarfem{background-position: 25px -88px;}
+.newsfem{margin: 0 0 0 150px;}
+#news-options{width:95%;float:right;margin-right: 20px;}
+.message-site{width:375px !important;float:left;}
+.message-site p{padding:0;line-height:15px;margin:10px 0;}
+#newsfem-container .center{padding-bottom:15px;}
+#newsfem-container ul{margin:0;padding:0;}
+#newsfem-container ul li{margin:10px 0;padding:0;list-style-type: none;}
+.news-container{clear:both;}
+.no-border{border:none;}
+.chk-politics{border:1px solid #e8e8e8;background:none;}
+#news-enviar,#btn-terminar,#btn-mis-favoritos, .fem_ventana_confirmacion .button-ventana {
+    float: left;
+    background: url(/sites/www.actitudfem.com/themes/actitudfem/images/Spritegenerico.png) -1px -2548px;
+    cursor: pointer;
+    padding: 13px 0;
+    width: 124px;
+    font-family: Tinos,Verdana,Geneva, sans-serif;
+    font-size: 20px;
+    color: #ff0000;
+    font-style: italic;
+    text-align: center;
+    margin: 0 5px 0 0;
+}
+.flota-derecho{float:right;}
+.margen-tb-5{margin: 5px 0;}
+.margen-10{margin: 10px 0;}
+.alto-20{height:20px;}
+.d1{color: #1F59B1;}
+#message-sucess {margin: 60px 30px;text-align: center;}
+#message-form > input{height:30px;}
+#message-form > div{float:left;margin-right: 30px;}
+
+.forgot-title-password-pleca{    
+    background: url("/sites/www.actitudfem.com/themes/actitudfem/images/img_iniciarsesion.jpg") repeat scroll 0 0 transparent;
+    height: 114px;
+    margin: 15px 5px;
+    width: 448px;}
+#edit-name-1-wrapper{margin: 30px 0 15px 0;}
+#edit-name-1-wrapper label{width: 95px !important;}
+#edit-name-1-wrapper input{width: 250px !important;}
+#edit-submit-1{float: right !important;}
+/*.forgot-title-password-pleca .component-select-line-left, .forgot-title-password-pleca .component-select-line-right{width:84px;}*/
+/*#title-paso-1-2 .component-select-line-left, #title-paso-1-2 .component-select-line-left,
+#title-paso-1-2 .component-select-line-right, #title-paso-1-2 .component-select-line-right{width:161px;}
+#login-title .component-select-line-left,#login-title .component-select-line-right{width:130px;}*/
+#login-title {
+    background: url("/sites/www.actitudfem.com/themes/actitudfem/images/img_iniciarsesion.jpg") repeat scroll 0 0 transparent;
+    height: 114px;
+    width: 448px;
+    margin: 30px 5px 0 5px;
+}
+
+#edit-day{width:75px;}
+#edit-year{width:90px;}
+
+
+/*Nuevo registro campana*/
+#fancybox-wrap #edit-name,#fancybox-wrap #edit-mail, #fancybox-wrap #edit-pass-pass1,#fancybox-wrap #edit-pass-pass2{width:190px;}
+#fancybox-wrap #edit-day, #fancybox-wrap #edit-month, #fancybox-wrap #edit-year{width:62px;}
+#fancybox-wrap #edit-day-wrapper,#fancybox-wrap #edit-month-wrapper,#fancybox-wrap #edit-year-wrapper{height:25px;float:left;margin-top: 20px;}
+#fancybox-wrap .form-item label, #fancybox-wrap .form-item input{float: left;}
+#fancybox-wrap .form-item label{font: 18px 'Georgia Italic' !important;font-weight: normal !important;font-style:italic;color:#666;clear:both;width: 175px;}
+.form-item{margin-top:5px;margin-bottom:5px;}
+#title-paso-1-2{border-bottom: solid 1px #666;width: 96%;margin: 0px auto;}
+
+#fancybox-wrap #title-pink{margin: 5px 0;text-align: center;color: #F52490;font: 18px Georgia;height: 114px;}
+#fancybox-wrap #user-register{float:left;margin: 35px 0 0 10px;}
+.si-decoration{text-decoration: underline;}
+
+.opc-reg{width: 210px;float: left;}
+#fancybox-wrap .box-wrapper-gray{width: 210px;background-color:#e3e3e3;float: right;padding:5px;-moz-border-radius:5px;-webkit-border-radius:5px;border-radius:5px;margin:15px;}
+#fancybox-wrap #news-title{margin:10px 0px 5px 0;display: none;}
+
+#fancybox-wrap .form-item .description{
+    text-align: right;
+    font: 12px 'Arial';
+    color: #8E0000;
+    margin: 0px 30px 0px 0px;
+    clear: both;
+    display: none;
+}
+
+#fancybox-wrap #container-error-messages {
+    clear: both;
+    color: #8E0000;
+    float: left;
+    font: 12px 'Arial';
+    margin: 0 0 0 15px;
+    width: 250px;
+}
+#user-register .form-required,#user-login .form-required{left: 15px; position: absolute;}
+#fancybox-wrap #campos-obligatorios{right: 15px;position: absolute;top: 180px;}
+#ver-politicas{cursor:pointer;}
+.bienvenida-reg{font: 24px 'Georgia'; font-style: normal; color: #000;}
+#user-login{margin: 10px 15px;}
+
+#redes-sociales-FEM{
+    background: url('/sites/www.actitudfem.com/themes/actitudfem/images/redes_sociales.jpg');
+    width: 430px;
+    height: 120px;
+    margin: 0px;
+    padding: 140px 0 0 30px;
+}
+#redes-sociales-FEM .redes-sociales{width: 100%;margin: 20px 5px;}
+
+#new-reg-fb #campos-obligatorios{font-size: 13px;top: 310px !important;left: 65px !important; color: #fff !important;}
+#new-reg-fb .form-item label{color: #fff !important;}
+#new-reg-fb #news-options{margin-bottom: 18px;}
+#new-reg-fb #edit-submit {top: 365px !important;}
+#new-reg-fb #user-register{margin: 5px 0 0 10px !important;}  
+#new-reg-fb .form-item{margin-top:0px !important;margin-bottom:0px !important;}   
+#new-reg-fb{    
+    background: url("/sites/www.actitudfem.com/themes/actitudfem/images/fondo_fem.jpg") repeat scroll 0 0 transparent;
+    display: inline-block;
+    color: #fff !important;
+}
+.title-reg-fb{font-family: georgia; font-size: 30px; text-align: center;margin: 10px 0;}
+
+#concurso-fem,#concurso-fem-exito{background: url("/sites/www.actitudfem.com/themes/actitudfem/images/img_fondo_ipad.jpg");width: 100%;height: 100%;}
+#concurso-fem #opc-newsletter{display: none;}
+#concurso-fem #news-title{display: none;}
+#concurso-fem-left, #concurso-fem-right{height:435px; width: 370px;float: left;position: relative;padding: 15px 5px;}
+/*#concurso-fem-right{background-color: #CCC;-moz-box-shadow: 0px 0px 25px #CCC;-webkit-box-shadow: 0px 0px 25px #CCC;box-shadow: 0px 0px 25px #CCC;}*/
+#concurso-fem-left{text-align: center;}
+.concurso-fem-text1{font: 24px arial;color:#E10D85;font-weight: bold;display: inline-block;margin: 0 15px 290px 15px;}
+
+.concurso-fem-text2{font: 12px arial;color:#000;font-weight: bold;}
+/*#concurso-fem-img{width: 320px;height: 260px;margin: 15px auto;background: url("/sites/www.actitudfem.com/themes/actitudfem/images/img_ipad.jpg");}*/
+#concurso-fem-left a{font: 18px arial;color: #6B8DBA;text-transform: uppercase;}
+.concurso-fem-op {margin: 0px 5px;float: left;width: 98%;}
+.concurso-fem-num {width: 39px;height: 65px;background: url("/sites/www.actitudfem.com/themes/actitudfem/images/img_icono_flor.png")no-repeat;float: left;font: 32px arial;color: white;font-weight: bold;text-align: center;margin: 5px 5px 0 0;}
+#concurso-fem .concurso-fem-txt {font: 14px Georgia;}
+#concurso-fem .concurso-fem-txt span {font-size: 18px;}
+#concurso-fem #user-register {margin:10px 0 0 !important;}
+#concurso-fem .form-item {margin: 0 !important;}
+#concurso-fem .concurso-fem-op a,.concurso-fem-op .fb-like{margin-left: 65px !important;}
+#concurso-fem #ver-politicas {margin: 0!important;}
+#concurso-fem .form-item label {font-size: 16px!important;text-align:right;color: #000!important;width: 110px !important;margin: 0 5px 0 25px !important;}
+#concurso-fem .form-item input {margin: 0 5px 0 0px !important;height: 25px!important;}
+#concurso-fem .ajax-form div.form-item {height: 40px !important;}
+#concurso-fem .box-wrapper-gray {margin:0px !important;padding: 0px !important;background-color: transparent !important;}
+#concurso-fem #edit-submit {right: 35px !important;bottom: 20px !important; z-index: 1000001;}
+
+#concurso-fem-exito #concurso-fem-exito-txt{font: 26px Georgia;margin: 5px 20px;text-align: center;}
+/*#concurso-fem-exito #concurso-fem-left,#concurso-fem-exito #concurso-fem-right{float: left;height: 365px;padding: 0 5px;position: relative;width: 360px;}*/
+#concurso-fem-exito .concurso-fem-img{background: url("/sites/www.actitudfem.com/themes/actitudfem/images/img_ipad.jpg");width: 360px;height: 304px;margin: 0px auto;}
+#concurso-fem-exito .concurso-fem-txt{float: left;font: 18px Georgia;margin: 5px 0 5px 5px;width: 300px;}
+#concurso-fem-exito .concurso-fem-txt a{color: #6B8DBA;}
+#concurso-fem-exito .concurso-fem-op{margin: 10px 5px !important;}
+#concurso-fem-exito #edit-submit {right: 30px !important; bottom: 25px !important;}
+
+
+#fancybox-wrap legend{display:none!important; }
+/*#fancybox-wrap .form-required{display:none; }*/
+#fancybox-wrap .form-item .description{display:none!important;}
+#fancybox-wrap .warning{ display:none!important; }
+#fancybox-wrap .password-strength{ display:none!important; }
+#fancybox-wrap .password-description{ display:none!important; }
+
+
+#user-login .form-item input {border: 1px solid #ccc;width: 190px;padding: 5px;}
+.forgot-password h3 {float: right;margin: 20px 20px 5px 0;clear: both;}
+#TB_closeWindowButton {background: url(/sites/www.actitudfem.com/themes/actitudfem/images/close-icon.png);position: absolute;width: 30px;height: 30px;top: -9px;right: -9px;}
+.fem_ventana_confirmacion {padding: 30px;}
+.fem_msj {font-family: Tinos,Verdana,Geneva, sans-serif;font-size: 24px;margin: 0 0 30px 0;}
+#fancybox-wrap #edit-submit-1, #fancybox-wrap #edit-submit{ width: 128px; height: 40px; border: 0; background: url(/sites/www.actitudfem.com/themes/actitudfem/images/Spritegenerico.png) -1px -2548px; font-family:Tinos,Verdana,Geneva, sans-serif; font-size:24px; color:#ff0000; font-style:italic; margin: 0 5px 0 0;}

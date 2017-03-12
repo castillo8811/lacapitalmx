@@ -1,0 +1,7 @@
+; $Id$ 
+name = "Carrusel Home y Subcanal"
+description = "Devuelve el HTML del carrusel de los canales y del home (full version)"
+package = "FEM"
+version = 1.0
+core = 7.x
+files[] = imx_carouselHomeSub.module

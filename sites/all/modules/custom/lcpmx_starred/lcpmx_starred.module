@@ -1,0 +1,43 @@
+<?php
+
+function lcpmx_starred_help($path, $arg) {
+    if ($path == 'admin/help#lcpmx_starred') {
+        return t('Muestra el bloque de notas principales top Home');
+    }
+}
+
+function lcpmx_starred_block_info() {
+    $blocks['lcpmx_starred'] = array(
+        'info' => t('LaCapitalMX Starred')
+    );
+    return $blocks;
+}
+
+function lcpmx_starred_block_view($delta = '') {
+    $block = array(
+        'subject' => t(''),
+        'content' => '',
+    );
+
+    if ($delta == 'lcpmx_starred') {
+        $block['content'] = array(
+            '#theme' => 'lcpmx_starred'
+        );
+    };
+    return $block;
+}
+
+function lcpmx_starred_theme($existing, $type, $theme, $path) {
+    return array(
+        'lcpmx_starred' => array(
+            'variables' => array(
+                'items_lcpmx_starred' => NULL,
+            ),
+            'template' => 'lcpmx_starred',
+        ),
+    );
+}
+
+function template_preprocess_lcpmx_starred(&$variables) {
+    $variables['items_lcpmx_starred'] = array();
+}

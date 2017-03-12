@@ -1,0 +1,33 @@
+#imx-video-nota-recomendados-jcxense-wrapper {
+	clear: both;
+	width: 100%;
+	float: left;
+	display: inline-block;
+}
+.imx-video-nota-recomendados-jcxense-content ul li {
+	display: inline-block;
+	width: 48%
+}
+.imx-video-nota-recomendados-jcxense-content ul li span{
+	display: inline-block;
+	width: 100%;
+	height: 163px;
+	overflow: hidden;
+}
+.imx-video-nota-recomendados-jcxense-content ul li span img{
+	width: 100%;
+	height: 100%;
+}
+.imx-video-nota-recomendados-jcxense-content ul li:nth-child(odd){
+	margin-right: 15px;
+}
+.imx-video-nota-recomendados-jcxense-content ul li span.title{
+	color: #000;
+	font-family: "Droid Sans";
+	font-size: 20px;
+	width: 100%;
+	height: 42px;
+	overflow: hidden;
+	margin-bottom: 26px;
+	margin-top: 5px;
+}

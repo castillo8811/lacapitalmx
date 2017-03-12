@@ -1,0 +1,12 @@
+; $Id: helpers.info$
+name = Helpers
+description = Funciones auxiliares
+package = FEM
+core = 7.x
+
+; Information added by drupal.org packaging script on 2010-01-16
+version = "7.x-1"
+core = "7.x"
+project = "helpers"
+
+

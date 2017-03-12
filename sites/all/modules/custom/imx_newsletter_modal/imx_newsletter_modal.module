@@ -1,0 +1,647 @@
+<?php
+require_once 'includes/mailchimp/src/Mailchimp.php';
+
+function imx_newsletter_modal_permission()
+{
+    $permissions['administer newsletter-modal settings'] = array(
+        'title'           => t('Administer newsletter-modal settings.'),
+        'restrict access' => TRUE,
+    );
+    return $permissions;
+}
+
+function imx_newsletter_modal_menu()
+{
+    $items                                         = array();
+    $items['admin/config/system/newsletter-modal'] = array(
+        'title'            => t('Newsletter-modal settings'),
+        'description'      => t('Configuración y visibilidad newsletter-modal'),
+        'page callback'    => 'drupal_get_form',
+        'page arguments'   => array('imx_newsletter_modal_admin_settings_form'),
+        'access arguments' => array('administer ebuzz settings'),
+        'type'             => MENU_NORMAL_ITEM,
+        'file'             => 'imx_newsletter_modal.admin.inc',
+    );
+
+    $items['newsletter-modal/open'] = array(
+        'title'           => t('Newsletter Modal Open'),
+        'description'     => t('Load Newsletter Modal'),
+        'page callback'   => 'loadNewsletterModal',
+        'access callback' => TRUE,
+        'type'            => MENU_CALLBACK,
+    );
+
+    $items['newsletter-modal/close'] = array(
+        'title'           => t('Newsletter Modal close'),
+        'description'     => t('Confirmación Newsletter Modal'),
+        'page callback'   => 'loadConfirmNewsletterModal',
+        'access callback' => TRUE,
+        'type'            => MENU_CALLBACK,
+    );
+
+    $items['newsletter-modal/email-exists'] = array(
+        'title'           => t('Newsletter Modal User Exists'),
+        'description'     => t('Confirmación Newsletter Modal'),
+        'page callback'   => 'imx_newsletter_modal_email_exists',
+        'access callback' => TRUE,
+        'type'            => MENU_CALLBACK,
+    );
+
+    $items['thanks-register'] = array(
+        'type' => MENU_CALLBACK,
+        'title' => 'Registro',
+        'page callback' => 'imx_newsletter_register_thanks',
+        'access callback' => TRUE,
+        'access arguments' => array('access content'),
+    );
+
+    return $items;
+}
+
+function addAssets(){
+    drupal_add_css(drupal_get_path('module', 'imx_newsletter_modal') . '/css/imx_newsletter_modal.css');
+    drupal_add_css(drupal_get_path('module', 'imx_newsletter_modal') . '/js/colorbox-master/example2/colorbox.css');
+
+    drupal_add_js(drupal_get_path('module', 'imx_newsletter_modal') . '/js/validation/jquery.validate.min.js');
+    drupal_add_js(drupal_get_path('module', 'imx_newsletter_modal') . '/js/jquery.cookie.js');
+
+    drupal_add_js(drupal_get_path('module', 'imx_newsletter_modal') . '/js/colorbox-master/jquery.colorbox-min.js');
+    drupal_add_js(drupal_get_path('module', 'imx_newsletter_modal') . '/js/imx_newsletter_modal.js');
+}
+
+function imx_newsletter_modal_init()
+{
+    $items = variable_get('imx_newsleter_modal_info', array());
+    if ($items['status']) {
+        foreach ($items['places'] as $place) {
+            if ($place) {
+                switch ($place) {
+                    case 'Todo':
+                        addAssets();
+                    case 'Home':
+                        if (drupal_is_front_page()) {
+                            addAssets();
+                        }
+                    case 'Notas':
+                        if (arg(0) == 'node' && is_numeric(arg(1)) && !arg(2) && !drupal_is_front_page()) {
+                            addAssets();
+                        }
+                        break;
+                    case 'Canales':
+                        if (arg(0) == 'taxonomy' && is_numeric(arg(2))) {
+                            addAssets();
+                        }
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+    }
+}
+
+function imx_newsletter_modal_block_info() {
+    $blocks['lcpmx_newsletter_block'] = array(
+        'info' => t('LaCapitalMX Newsletter Block')
+    );
+    return $blocks;
+}
+
+function imx_newsletter_modal_block_view($delta = '') {
+    $block = array(
+        'subject' => t(''),
+        'content' => '',
+    );
+
+    if ($delta == 'lcpmx_newsletter_block') {
+        addAssets();
+        $block['content'] = array(
+            '#theme' => 'lcpmx_newsletter_block'
+        );
+    }
+
+    return $block;
+}
+
+
+
+/**
+ * Implements hook_theme().
+ */
+function imx_newsletter_modal_theme($existing, $type, $theme, $path)
+{
+    return array(
+        'imx_newsletter_modal'         => array(
+            'variables' => array(
+                'imx_newsletter_modal_load' => NULL,
+            ),
+            'template'  => 'templates/imx_newsletter_modal',
+        ),
+        'imx_confirm_newsletter_modal' => array(
+            'variables' => array(
+                'imx_confirm_newsletter_modal' => NULL,
+            ),
+            'template'  => 'templates/imx_confirm_newsletter_modal',
+        ),
+        'imx_newsletter_register_thanks' => array(
+            'variables' => array(
+                'imx_newsletter_register_thanks' => NULL,
+            ),
+            'template' => 'templates/imx_newsletter_register_thanks',
+        ),
+        'lcpmx_newsletter_block'         => array(
+            'variables' => array(
+                'lcpmx_newsletter_block' => NULL,
+            ),
+            'template'  => 'templates/lcpmx_newsletter_block',
+        ),
+    );
+}
+
+function loadNewsletterModal() {
+    print  theme('imx_newsletter_modal', array("data" => array()));
+}
+
+function imx_newsletter_register_thanks(){
+    module_load_include('pages.inc', 'user');
+    return  theme('imx_newsletter_register_thanks', array("data" => array()));
+}
+
+function loadConfirmNewsletterModal() {
+    global $theme;
+    $list="f8210450c7";
+    $items = variable_get('imx_newsleter_modal_info', array());
+    $imx_name = $_REQUEST["imx_name"];
+    $imx_mail = $_REQUEST["imx_mail"];
+
+    $merge_vars=array("NAME"=>$imx_name);
+    if($theme=='elqueretano'){
+      $list="f8210450c7";
+    }
+    sendUserToMailchimp($imx_mail,$merge_vars,$list);
+
+
+    print theme('imx_confirm_newsletter_modal', array("data" => array()));
+}
+
+
+function sendUserToMailchimp($email,$data,$list) {
+    try {
+        if ($email) {
+            $mc = new Mailchimp("305b488018a60dbe0e9691c7175a3163-us13");
+            try {
+                $mc->lists->subscribe($list,array('email' => $email), $data, NULL, TRUE, TRUE,TRUE,TRUE);
+            }
+            catch (Mailchimp_Error $e) {
+                $mc->lists->subscribe($list,array('email' => $email), $data, NULL, TRUE, TRUE,TRUE,TRUE);
+            }
+        }else{
+            $error = 'An unknown error occurred';
+            print $error;
+            exit;
+        }
+    }
+    catch (Mailchimp_Error $e) {
+        if ($e->getMessage()) {
+            $error = $e->getMessage();
+        } else {
+            $error = 'An unknown error occurred';
+        }
+        print $error;
+        exit;
+    }
+}
+
+function imx_newsletter_modal_user_insert(&$edit, $account, $category)
+{
+    //$myuser = module_invoke('user', 'load', $account->id);
+    //$myuserroles = $myuser->roles[];
+    //$myuserroles[]  = 'newrole';
+    //module_invoke('user', 'save', $myuser, array('roles' => $myuserroles));
+
+    $check = TRUE;
+    //_check_hybridauth_mail($check, $edit);
+    if ($check) {
+        //agregar el email a la lista de mailchimp
+        $apikey = "305b488018a60dbe0e9691c7175a3163-us13";
+        $listId = "f8210450c7";
+
+        if ($apikey && $listId) {
+            //verificamos que las variables tengan valor
+            $email      = $account->mail;
+            $nombre     = $account->name;
+            $merge_vars = array(
+                'NAME' => $nombre,
+            );
+
+            $groupid = variable_get('imx_mailchimplist_groupid', FALSE);
+            $groups  = array(variable_get('imx_mailchimplist_groupopt', FALSE));
+            if ($groupid && variable_get('imx_mailchimplist_groupopt', FALSE)) {
+                $merge_vars["GROUPINGS"] = array("id" => $groupid, "groups" => $groups);
+            }
+
+            $extra_email =false;
+            try {
+                $api = new Mailchimp($apikey);
+
+
+                /*Primera ronda mail cuenta social*/
+                $retval = imx_newsletter_modal_check_if_exist_mail_mailchimp_list($api, $email, $listId);
+                if ($retval == FALSE) {
+                    $add = imx_newsletter_modal_add_user_to_mailchimp_list($api, $email, $listId, $merge_vars);
+                    if ($add == TRUE) {
+                        //drupal_set_message(t('Has sido suscrito al boletín del sitio'));
+                    }
+                }
+
+                /*Segunda ronda extra mail */
+                $extra_email = false;
+                if ($extra_email) {
+                    if ($extra_email != $account->mail) {
+                        $retval = imx_newsletter_modal_check_if_exist_mail_mailchimp_list($api, $extra_email, $listId);
+                        if ($retval == FALSE) {
+                            $add = imx_newsletter_modal_add_user_to_mailchimp_list($api, $extra_email, $listId, $merge_vars);
+                            if ($add == TRUE) {
+                                //drupal_set_message(t('Has sido suscrito al boletín del sitio'));
+                            }
+                        }
+                    }
+                }
+
+            }
+            catch (Mailchimp_Error $e) {
+                //this excepcion capcth all errors
+            }
+        }
+    }
+}
+
+/**
+ * Implement of hook_user_update
+ * actualiza o registra los datos del usuario en una lista de mailchimp
+ * @param type $edit
+ * @param type $account
+ * @param type $category
+ */
+function imx_newsletter_modal_user_update(&$edit, $account, $category)
+{
+    $check = TRUE;
+    //_check_hybridauth_mail($check,$edit);
+    if ($check) {
+        //datos api
+        $apikey = "305b488018a60dbe0e9691c7175a3163-us13";
+        $listId = "f8210450c7";
+        //$groupid = variable_get('imx_mailchimp_groupid', NULL);
+
+
+
+        if ($apikey && $listId) {
+            //datos user
+            $mail      = $account->mail;
+            $init_mail = $account->init;
+
+            //Campo de nombre completo del usuario
+            $complete_name = $account->name;
+            //Campo de categorias o preferencias
+            //$groups = get_selected_groups_mailchimp($edit['field_boletin']['und']);
+            //datos a actualizar en mailchimp
+            $mailchimp_name = ($complete_name) ? $complete_name : $edit['name'];
+            $merge_vars     = array(
+                'NAME' => $mailchimp_name,
+            );
+
+            $groupid = variable_get('imx_mailchimplist_groupid', FALSE);
+            $groups  = array(variable_get('imx_mailchimplist_groupopt', FALSE));
+            if ($groupid && variable_get('imx_mailchimplist_groupopt', FALSE)) {
+                $merge_vars["GROUPINGS"] = array("id" => $groupid, "groups" => $groups);
+            }
+
+            try {
+                $api = new Mailchimp($apikey);
+                if ($init_mail == $mail) {
+                    //Actualizar o agregar el email en mailchimp
+                    $update = imx_newsletter_modal_update_or_suscribe_account_of_user_mailchimp($api, $mail, $listId, $merge_vars);
+                } else {
+                    //el usuario cambio de email regsitrar cambio en mailchimp
+                    $update = imx_newsletter_modal_update_or_register_changes_of_email_mailchimp($api, $init_mail, $listId, $mail, $merge_vars);
+                }
+                if ($update == TRUE) {
+                    //drupal_set_message(t('Los datos se actualizaron de forma correcta'));
+                }
+
+                $extra_email = false;
+                if ($extra_email) {
+                    if ($extra_email != $account->mail) {
+                        $retval = imx_newsletter_modal_check_if_exist_mail_mailchimp_list($api, $extra_email, $listId);
+                        if ($retval == FALSE) {
+                            $add = imx_newsletter_modal_add_user_to_mailchimp_list($api, $extra_email, $listId, $merge_vars);
+                            if ($add == TRUE) {
+                                //drupal_set_message(t('Has sido suscrito al boletín del sitio'));
+                            }
+                        }
+                    }
+                }
+
+            }
+            catch (Mailchimp_Error $e) {
+                //this excepcion capcth all errors
+            }
+        }
+    }
+}
+
+/**
+ * Implement of Hook_user_cancel
+ *
+ * elimina a un usuario de la lista cuando su cuenta es cancelada
+ * @param type $edit
+ * @param type $account
+ * @param type $method
+ */
+function imx_newsletter_modal_user_cancel($edit, $account, $method)
+{
+    $email  = $account->mail;
+    $apikey = "305b488018a60dbe0e9691c7175a3163-us13";
+    $listId = "f8210450c7";
+    if ($apikey && $listId) {
+        try {
+            $api    = new Mailchimp($apikey);
+            $retval = imx_newsletter_modal_update_check_if_exist_mail_mailchimp_list($api, $email, $listId);
+            if ($retval['value'] == TRUE) {
+                // el usuario existe por lo tanto validar si esta subscrito
+                if ($retval['status'] == 'subscribed') {
+                    //unsubscribe member
+                    $unsubscribe = imx_newsletter_modal_unsubcribe_member_of_mailchimp_list($api, $email, $listId);
+                    if ($unsubscribe == TRUE) {
+                        drupal_set_message(t('El usuario ha sido removido de la lista de subscritores de forma correcta'));
+                    }
+                }
+            }
+        }
+        catch (Mailchimp_Error $e) {
+            //this excepcion capcth all errors
+        }
+    }
+}
+
+function imx_newsletter_modal_check_if_exist_mail_mailchimp_list($api = NULL, $email = '', $listId = NULL) {
+    if (!$api || !$listId) {
+        return NULL;
+    }
+    $mail[] = array('email' => $email);
+    try {
+        $retval = $api->lists->memberInfo($listId, $mail);
+        if ($retval['success_count'] == 1) {
+            //el email existe
+            $return_val = TRUE;
+        } else {
+            //no existe el email
+            $return_val = FALSE;
+        }
+    } catch (Mailchimp_Error $e) {
+        //this excepcion capcth all errors
+        return 'error';
+    }
+    return $return_val;
+}
+
+/**
+ *
+ * @param type $api
+ * @param type $email
+ * @param type $listId
+ * @return null|string|boolean
+ */
+function imx_newsletter_modal_update_check_if_exist_mail_mailchimp_list($api = NULL, $email = '', $listId = NULL) {
+    $return_val = array();
+    if (!$api || !$listId) {
+        //no enviaron ni el api ni la lista
+        $return_val['value'] = NULL;
+    } else {
+        $mail[] = array('email' => $email);
+        try {
+            $retval = $api->lists->memberInfo($listId, $mail);
+            if ($retval['success_count'] == 1) {
+                //si existe el email
+                $return_val['value'] = TRUE;
+                // agregamos el status del usuario para validar si esta activo o no
+                $return_val['status'] = $retval['data'][0]['status'];
+            } else {
+                //no existe el email registrado
+                $return_val['value'] = FALSE;
+            }
+        } catch (Mailchimp_Error $e) {
+            //this excepcion capcth all errors
+            $return_val['value'] = 'error';
+        }
+    }
+    return $return_val;
+}
+
+/**
+ *
+ * @param type $api
+ * @param type $mail
+ * @param type $listId
+ * @param type $merge_vars
+ */
+function imx_newsletter_modal_update_or_suscribe_account_of_user_mailchimp($api = NULL, $mail = '', $listId = NULL, $merge_vars = array()) {
+    if (!$api || !$listId) {
+        return NULL;
+    }
+    $update = false;
+    $retval = imx_newsletter_modal_update_check_if_exist_mail_mailchimp_list($api, $mail, $listId); //validamos existencia
+    if ($retval['value'] == TRUE) {
+        // el usuario existe por lo tanto validar el status para actualizar
+        if ($retval['status'] == 'subscribed') {
+            //actualizar datos del usuario
+            $update = imx_newsletter_modal_update_user_in_mailchimp_list_master($api, $mail, $listId, $merge_vars);
+        }
+    } else if ($retval['value'] == FALSE) {
+        //no existe por lo tanto suscribirlo a la lista
+        $update = imx_newsletter_modal_add_user_to_mailchimp_list($api, $mail, $listId, $merge_vars);
+    }
+    return $update;
+}
+
+/**
+ *
+ * @param type $api
+ * @param type $init_mail
+ * @param type $listId
+ * @param type $new_email
+ * @param type $merge_vars
+ */
+function imx_newsletter_modal_update_or_register_changes_of_email_mailchimp($api = NULL, $init_mail = '', $listId = NULL, $new_email = '', $merge_vars = array()) {
+    if (!$api || !$listId) {
+        return NULL;
+    }
+    $update = false;
+    $retval = imx_newsletter_modal_update_check_if_exist_mail_mailchimp_list($api, $init_mail, $listId);
+    if ($retval['value'] == TRUE) {
+        if ($retval['status'] == 'subscribed') {
+            //actualizar la cuenta del usuario cambiando el email
+            $update = imx_newsletter_modal_update_member_changing_email_list($api, $init_mail, $listId, $merge_vars, $new_email);
+        }
+    } else if ($retval['value'] == FALSE) {
+        //verificar que el nuevo email exista o no en la lista
+        $update = imx_newsletter_modal_update_or_suscribe_account_of_user_mailchimp($api, $new_email, $listId, $merge_vars);
+    }
+    return $update;
+}
+
+/**
+ * Funciones para agregar, actualizar o eliminar
+ * usuarios en listas de mailchimp
+ */
+
+/**
+ * Agrega a un usuario (email) a una lista de mailchimp, retorna True si fue exitosa,
+ * retorna false si no se pudo agregar el usuario
+ * Si el email ya existe en la lista lo actualizara
+ * Se reciben los datos para setear la configuracion del suscriptor en la lista
+ * en la variable $merge_vars ejemplo (nombre,grupos)
+ * @param object $api
+ *   El objeto del api de mailchimp para peticiones
+ * @param string $email
+ *   El email que se desea agregar a una lista de maiclhimp
+ * @param string $listId
+ *   El id de una lista de mailchimp
+ * @param mixed $merge_vars
+ *   valores para setear la configuracion de inicio de la cuenta ejemplo(FNAME, GROUPING, etc)
+ * @return boolean
+ */
+function imx_newsletter_modal_add_user_to_mailchimp_list($api = NULL, $email = '', $listId = NULL, $merge_vars = array()) {
+    if ($api == NULL || $email == '' || $listId == NULL) {
+        return FALSE;
+    }
+    $double_optin = FALSE; //FALSE si se pone como false no envia correo de confirmacion pero por default es true y si envia correo de confirmacion
+    $update_existing = TRUE;
+    $replace_interests = TRUE;
+    $send_welcome = false;
+    try {
+        $add = $api->lists->subscribe($listId, array('email' => $email), $merge_vars, 'html', $double_optin, $update_existing, $replace_interests, $send_welcome);
+        if (!empty($add)) {
+            $retval = TRUE;
+        } else {
+            $retval = FALSE;
+        }
+    } catch (Mailchimp_Error $e) {
+        //this excepcion capcth all errors
+        return FALSE;
+    }
+    return $retval;
+}
+
+/**
+ *
+ * @param type $api
+ * @param type $email
+ * @param type $listId
+ * @param type $merge_vars
+ * @return boolean
+ */
+function imx_newsletter_modal_update_user_in_mailchimp_list_master($api = NULL, $email = '', $listId = NULL, $merge_vars = array()) {
+    if ($api == NULL || $email == '' || $listId == NULL) {
+        return FALSE;
+    }
+    //actualizamos preferencias del usuario en la lista de mailchimp
+    // a esta funcion se le manda como usltimo parametro true para que sobrescriba las preferencias del usaurio
+    try {
+        $update = $api->lists->updateMember($listId, array('email' => $email), $merge_vars, 'html', TRUE);
+        if (!empty($update)) {
+            $retval = TRUE;
+        } else {
+            $retval = FALSE;
+        }
+    } catch (Mailchimp_Error $e) {
+        //this excepcion capcth all errors
+        return FALSE;
+    }
+    return $retval;
+}
+
+/**
+ *
+ * @param type $api
+ * @param type $email
+ * @param type $listId
+ * @param type $merge_vars
+ * @param type $new_email
+ * @return boolean
+ */
+function imx_newsletter_modal_update_member_changing_email_list($api = NULL, $email = '', $listId = NULL, $merge_vars = array(), $new_email = '') {
+    if ($api == NULL || $email == '' || $listId == NULL) {
+        return FALSE;
+    }
+    $var_push = array('NEW-EMAIL' => $new_email);
+    $merge = array_merge($var_push, $merge_vars);
+    //actualizamos preferencias del usuario en la lista de mailchimp
+    // a esta funcion se le manda como usltimo parametro true para que sobrescriba las preferencias del usaurio
+    try {
+        $update = $api->lists->updateMember($listId, array('email' => $email), $merge, 'html', TRUE);
+        if (!empty($update)) {
+            $retval = TRUE;
+        } else {
+            $retval = FALSE;
+        }
+    } catch (Mailchimp_Error $e) {
+        //this excepcion capcth all errors
+        return FALSE;
+    }
+    return $retval;
+}
+
+/**
+ *
+ * @param type $api
+ * @param type $email
+ * @param type $listId
+ * @return boolean
+ */
+function imx_newsletter_modal_unsubcribe_member_of_mailchimp_list($api = NULL, $email = '', $listId = NULL) {
+    if ($api == NULL || $email == '' || $listId == NULL) {
+        return FALSE;
+    }
+    try {
+        $unsubscribe = $api->lists->unsubscribe($listId, array('email' => $email), true, false, false);
+        if ($unsubscribe['complete'] == TRUE) {
+            $retval = TRUE;
+        } else {
+            $retval = FALSE;
+        }
+    } catch (Mailchimp_Error $e) {
+        //this excepcion capcth all errors
+        return FALSE;
+    }
+    return $retval;
+}
+
+function imx_newsletter_modal_form_alter(&$form, &$form_state, $form_id) {
+    drupal_add_js(drupal_get_path('module', 'imx_newsletter_modal') . '/js/validation/jquery.validate.min.js');
+    drupal_add_js(drupal_get_path('module', 'imx_newsletter_modal') . '/js/jquery.cookie.js');
+
+    $function = "imx_newsletter_modal_{$form_id}_submit";
+    if (function_exists($function))
+        $form['#submit'][] = $function;
+}
+
+function imx_newsletter_modal_user_register_form_submit($form, &$form_state) {
+    $_GET['destination'] = "/thanks-register";
+    module_load_include('pages.inc', 'user');
+    user_logout();
+    $form_state['redirect'] = 'thanks-register';
+}
+
+function imx_newsletter_modal_email_exists() {
+    $result = db_select('users', 'u');
+    $result ->fields('u',array("mail"));
+    $result ->condition('mail',$_REQUEST["mail"],'=');
+
+    $q=$result->execute()->fetchAll();;
+    if($q) {
+        print "false";
+    }else{
+        print "true";
+    }
+}

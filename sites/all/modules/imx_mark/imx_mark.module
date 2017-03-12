@@ -1,0 +1,284 @@
+<?php
+
+  /**
+   * @file
+   * The imx_mark module allows users to bookmark any path within a site.
+   *
+   * jQuery.ajax({
+   *     method: "POST",
+   *     url: "/imx_mark/js/add",
+   *     data:{uid:1,nid:135799,type:1,status:0},
+   *     sucess: function(result){
+   *       console.log(result)
+   *      }
+   *   });
+   *
+   *
+   */
+
+  /**
+   * Implements hook_permission().
+   */
+  function imx_mark_permission() {
+    return array(
+      'manage own imx_mark' => array(
+        'title' => t('Manage own imx_mark'),
+      ),
+    );
+  }
+
+  /**
+   * Implements hook_menu().
+   */
+  function imx_mark_menu() {
+    $items['imx_mark/remove/%imx_mark'] = array(
+      'page callback' => 'imx_mark_remove_mark',
+      'page arguments' => array(2),
+      'access arguments' => array('manage own imx_mark'),
+      'title' => 'Remove imx_mark',
+      'type' => MENU_CALLBACK,
+    );
+    $items['imx_mark/js/add'] = array(
+      'page callback' => 'imx_mark_add_mark_js',
+      'access arguments' => array('manage own imx_mark'),
+      'title' => 'Add imx_mark via js',
+      'type' => MENU_CALLBACK,
+      'access callback' => TRUE,
+    );
+
+    $items['imx_mark/js/remove'] = array(
+      'page callback' => 'imx_mark_remove_mark_js',
+      'access arguments' => array('manage own imx_mark'),
+      'title' => 'remove imx_mark via js',
+      'type' => MENU_CALLBACK,
+      'access callback' => TRUE,
+    );
+    return $items;
+  }
+
+  function imx_mark_init() {
+    drupal_add_js(drupal_get_path('module', 'imx_mark') . '/imx_mark.js');
+
+    if (user_is_logged_in()) {
+      global $user;
+      if($_COOKIE["favorite_nid"]){
+        $f_uid=  json_decode($_COOKIE["favorite_nid"],true);
+        imx_mark_add_mark($f_uid);
+      }
+      $favorites = imx_mark_load_uid($user->uid, 1);
+      $readlater = imx_mark_load_uid($user->uid, 2);
+
+      drupal_add_js(array('uid' => $user->uid, 'imx_mark' => array('user_favorites' => $favorites)), array('type' => 'setting'));
+      drupal_add_js(array('uid' => $user->uid, 'imx_mark' => array('user_readlater' => $readlater)), array('type' => 'setting'));
+    }
+  }
+
+  /**
+   * Helper function to load a imx_mark.
+   *
+   * @param int $fid
+   *   The DB ID of the imx_mark
+   *
+   * @return object
+   *   The DB row from the imx_mark table.
+   */
+  function imx_mark_load_uid($uid, $type = 1, $cache = false) {
+    if ($cache) {
+      if ($type = 1) {
+        $data_cache = cache_get("imx_mark_{$uid}_favorites");
+      }
+      else if ($type = 2) {
+        $data_cache = cache_get("imx_mark_{$uid}_readlater");
+      }
+
+      if ($data_cache) {
+        return $data_cache->data;
+      }
+      else {
+        return get_query_load_by_uid($uid, $type);
+      }
+    }
+    else {
+      return get_query_load_by_uid($uid, $type);
+    }
+  }
+
+  function get_query_load_by_uid($uid, $type) {
+    return db_select('imx_mark', 'f')
+            ->fields('f')
+            ->condition('uid', $uid, '=')
+            ->condition('type', $type, '=')
+            ->execute()
+            ->fetchAll();
+  }
+
+  /**
+   * Implements hook_theme().
+   */
+  function imx_mark_theme() {
+    return array(
+      'imx_mark' => array(
+        'variables' => array(
+          'imx_mark' => array(),
+        ),
+      ),
+    );
+  }
+
+  /**
+   * Deletes a imx_mark.
+   */
+  function imx_mark_remove_mark($imx_mark) {
+    global $user;
+    $access = user_access('manage own imx_mark'); // no admin page implemented yet! || user_access('manage all imx_mark');
+    if (
+        $access
+    ) {
+      db_delete('imx_mark')
+          ->condition('nid', $imx_mark['nid'], '=')
+          ->condition('uid', $user->uid, '=')
+          ->condition('type', $imx_mark['type'], '=')
+          ->execute();
+
+      if ($imx_mark['type'] == 1) {
+        cache_clear_all("imx_mark_{$user->uid}_favorites", 'cache');
+      }
+      else {
+        cache_clear_all("imx_mark_{$user->uid}_readleater", 'cache');
+      }
+    }
+    else {
+      drupal_set_message(
+          t('You do not have permission to remove this imx_mark.'), 'error'
+      );
+    }
+  }
+
+  /**
+   * Generate the "My imx_mark" list.
+   */
+  function imx_mark_list() {
+    global $user;
+    $imx_mark = imx_mark_load_uid($user->uid);
+    return $imx_mark;
+  }
+
+  /**
+   * Theme callback.
+   *
+   * Return a themed item list of imx_mark with title, link and link to delete.
+   */
+  function theme_imx_mark($imx_mark = array()) {
+    $items = array();
+    $destination = drupal_get_destination();
+    $destination = explode('=', $destination['destination'], 2);
+    foreach ($imx_mark['imx_mark'] as $imx_mark) {
+      $items[] = l(
+              $imx_mark->title, $imx_mark->path, array('query' => unserialize($imx_mark->query))
+          ) . ' ' . l(
+              'x', 'imx_mark/remove/' . $imx_mark->fid, array(
+            'query' => array(
+              'token' => $imx_mark->token,
+              'destination' => $destination[0],
+            ),
+            'attributes' => array(
+              'class' => 'imx_mark-remove',
+              'title' => t('delete this item'),
+            ),
+              )
+      );
+    }
+    return theme('item_list', array('items' => $items, 'type' => 'ul'));
+  }
+
+  /**
+   * Add a imx_mark.
+   */
+  function imx_mark_add_mark($values) {
+    global $user;
+    if (empty($user->uid)) {
+      return;
+    }
+    // Delete an existing entry with the same link to avoid duplicates.
+    db_delete('imx_mark')
+        ->condition('uid', $user->uid, '=')
+        ->condition('nid', $values['nid'], '=')
+        ->condition('type', $values['type'], '=')
+        ->execute();
+
+    db_insert('imx_mark')
+        ->fields(array(
+          'uid' => $user->uid,
+          'nid' => $values['nid'],
+          'type' => $values['type'],
+          'status' => $values['status'],
+          'timestamp' => REQUEST_TIME,
+        ))
+        ->execute();
+
+    if ($values['type'] == 1) {
+      cache_clear_all("imx_mark_{$user->uid}_favorites", 'cache');
+    }
+    else {
+      cache_clear_all("imx_mark_{$user->uid}_readleater", 'cache');
+    }
+  }
+
+  /**
+   * callback for add imx_mark form.
+   */
+  function imx_mark_add_mark_js() {
+    imx_mark_add_mark($_POST);
+    echo json_encode(imx_mark_list());
+  }
+
+  /**
+   * callback for remove imx_mark form.
+   */
+  function imx_mark_remove_mark_js() {
+    imx_mark_remove_mark($_POST);
+    echo json_encode(imx_mark_list());
+  }
+
+  function imx_mark_user_login(&$edit, $account) {
+    $uid = $account->uid;
+    $favorites = imx_mark_load_uid($uid, 1);
+    $readlater = imx_mark_load_uid($uid, 2);
+
+    drupal_add_js(array('imx_mark' => array('user_favorites' => $favorites)), array('type' => 'setting'));
+    drupal_add_js(array('imx_mark' => array('user_readlater' => $readlater)), array('type' => 'setting'));
+
+
+    cache_set("imx_mark_{$uid}_favorites", $favorites, 'cache', CACHE_PERMANENT);
+    cache_set("imx_mark_{$uid}_readlater", $readlater, 'cache', CACHE_PERMANENT);
+  }
+
+  function imx_mark_content_is_marked($uid, $nid, $type) {
+    $marked = false;
+    if ($type == 1) {
+      $data = imx_mark_load_uid($uid, 1);
+    }
+    else {
+      $data = imx_mark_load_uid($uid, 2);
+    }
+
+    $nids_markeds = array();
+    foreach ($data as $item) {
+      $nids_markeds[] = $item->nid;
+    }
+
+    if (count($nids_markeds)) {
+      $marked = in_array($nid, $nids_markeds);
+    }
+    return $marked;
+  }
+
+  function load_imx_mark_settings() {
+    global $user;
+    $favorites = imx_mark_load_uid($user->uid, 1);
+    $readlater = imx_mark_load_uid($user->uid, 2);
+
+    drupal_add_js(array('uid' => $user->uid, 'imx_mark' => array('user_favorites' => $favorites)), array('type' => 'setting'));
+    drupal_add_js(array('uid' => $user->uid, 'imx_mark' => array('user_readlater' => $readlater)), array('type' => 'setting'));
+  }
+  

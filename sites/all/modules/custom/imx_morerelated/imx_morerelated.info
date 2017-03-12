@@ -1,0 +1,7 @@
+; $Id$
+name = "Más relacionados"
+description = "Muestra más contenido relacionado al nodo en el cual se muestra el bloque"
+package = "FEM"
+version = 7.x
+core = 7.x
+files[]="imx_morerelated.module"

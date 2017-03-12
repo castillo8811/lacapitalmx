@@ -1,0 +1,154 @@
+<?php
+
+/**
+ * Módulo Carrusel Home/Canales
+ * Genera el carrusel del Home y los Canales
+ * @author Betsabé Ortegón <betsabe@inventmx.com>
+ */
+
+/**
+ * Devuelve el pintado de los botones de redes sociales
+ */
+function imx_carouselHomeSub_help($path, $arg) {
+    if ($path == 'admin/help#imx_carouselHomeSub') {
+        return t('Módulo que devuelve el HTML del carrusel de los canales y del home (full version)');
+    }
+}
+
+function imx_carouselHomeSub_block_info() {
+    $blocks['imx_carouselHomeSub_home'] = array(
+        'info' => t('Carrusel FULL Home')
+    );
+    $blocks['imx_carouselHomeSub_sub'] = array(
+        'info' => t('Carrusel FULL Sub')
+    );
+    return $blocks;
+}
+
+function imx_carouselHomeSub_block_view($delta = '') {
+    $block = array(
+        'subject' => t(''),
+        'content' => '',
+    );
+    if ($delta == 'imx_carouselHomeSub_home') {
+        $currentblocks = variable_get('customhome', getDefaultBlocks());
+        $block['subject'] = t('Carrusel FULL Home');
+        $block['content'] =  $currentblocks[0]['tipo'] == 0 ? get_gallery_sub(FALSE) : NULL;
+    };
+    if ($delta == 'imx_carouselHomeSub_sub') {
+        $shortcarouseltaxonomy = variable_get('carruselcortoSub');
+        $block['subject'] = t('Carrusel FULL Sub');
+        $block['content'] =  !$shortcarouseltaxonomy ? get_gallery_sub(TRUE) : NULL;
+    };
+    return $block;
+}
+
+function gallery_sub_list($view = null, $template = 'default', $tid = NULL) {
+    if (!$view)
+        return NULL;
+    $tid = $tid ? $tid : 0;
+    $vocabulary = taxonomy_term_load($tid);
+    if ($vocabulary->vid <= 2) {
+        $args = array($tid);
+        $view = views_get_view($view, $template);
+        $view->preview($template, $args);
+        $view = $view->result;
+        $items = array();
+        foreach ($view as $notas) {
+            $items[] = array(
+                'nid' => $notas->nid,
+                'field_title_carrusel_value' => $notas->node_title,
+                'url' => drupal_get_path_alias('node/' . $notas->nid),
+                'imagecarrusel' => getCarouselImage($notas->nid),
+                'image' => _get_image($notas->nid)
+            );
+        }
+        return $items;
+    }
+}
+
+function galeriasubcanal_render_html($items) {
+    $html = '';
+    $notas = '';
+    $thumbs = '';
+    foreach ($items as $id => $row) {
+        $notas.='<li class="prelative">
+                    <a href="/' . $row['url'] . '">
+                        <img src="' . $row['imagecarrusel'] . '" title="' . $row['field_title_carrusel_value'] . '" />
+                    </a>
+                 </li>';
+        $thumbs.='<a data-slide-index="' . $id . '" href="" class="prelative"><span class="lay"></span><img src="' . $row['imagecarrusel'] . '" width="155" /></a>';
+    }
+
+    $html.= '<div id="carrusel-content">
+                <!-- Slider-->
+                <div id="slider">
+                    <ul class="slider-list" id="pikame">
+                        ' . $notas . '
+                    </ul>
+                </div>
+                <div id="slider-thumbs">
+                    ' . $thumbs . '
+                </div>
+                <!-- /Slider-->
+                <!-- Captions-->
+                <div id="slider_right">
+                    <div id="like_actitudfem">
+                        <div id="like_af">
+                            <div class="fb-like" data-href="https://www.facebook.com/ActitudFEM" data-send="false" data-layout="button_count" data-width="90" data-show-faces="false"></div>
+                        </div>
+                    </div>
+                </div>
+                <!-- /Captios-->
+                <div class="clear"></div>
+                <!-- Se rompe la linea-->
+            </div>';
+    return $html;
+}
+
+function get_gallery_sub($issub = false) {
+    if ($issub) {
+        $items = gallery_sub_list('taxonomy_term', 'block_2', (int) arg(2));
+    } else {
+        $file = '/srv/data/files/cache/fem/homeFEM.json';
+        $data = json_decode(file_get_contents($file), true);
+        $items = $data['carrusel'];
+    }
+    if ($items) {
+        drupal_add_css(drupal_get_path('theme', 'actitudfem') . '/js/bxslider/jquery.bxslider.css');
+        drupal_add_js(drupal_get_path('theme', 'actitudfem') . '/js/bxslider/jquery.bxslider.min.js');
+        drupal_add_js(drupal_get_path('theme', 'actitudfem') . '/galeriasubcanal.js');
+        return galeriasubcanal_render_html($items);
+    }
+}
+
+
+function imx_carouselHomeSub_render_html($items) {
+    $html = '';
+    $notas = '';
+    $thumbs = '';
+    foreach ($items as $id => $row) {
+        $notas.='<li class="prelative">
+                    <a href="/' . $row['url'] . '">
+                        <img src="' . $row['imagecarrusel'] . '" title="' . $row['field_title_carrusel_value'] . '" />
+                    </a>
+                 </li>';
+        $thumbs.='<a data-slide-index="' . $id . '" href="" class="prelative"><span class="lay"></span><img src="' . $row['imagecarrusel'] . '" width="155" /></a>';
+    }
+
+    $html.= '<div id="carrusel-small-content" class="mb20">
+                <!-- Slider-->
+                <div id="slider-small">
+                    <ul class="slider-list" id="pikame">
+                        ' . $notas . '
+                    </ul>
+                </div>
+                <div id="slider-thumbs" class="slider-thumbs-small">
+                    ' . $thumbs . '
+                </div>
+                <!-- /Slider-->
+                <div class="clear"></div>
+                <!-- Se rompe la linea-->
+            </div>';
+    return $html;
+}

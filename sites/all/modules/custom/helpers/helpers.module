@@ -1,0 +1,4565 @@
+<?php
+
+// $Id: helpers.module$
+
+function _get_node_url_canonical($nid = 0, $format = 'subdomain') {
+    if (!$nid)
+        return variable_get('site_slogan', 'ActitudFEM');
+
+    $query = "select canonical from {url_canonical} where nid=%d";
+    $result = db_fetch_array(db_query($query, $nid));
+    $urlCanonical = $result['canonical'];
+    $siteName = _get_former_site_from_node($nid);
+    switch ($format) {
+        case 'domain':
+            $urlCanonical = 'http://' . $siteName['site'] . '/' . $urlCanonical;
+            break;
+        case 'subdomain':
+            $urlCanonical = 'http://' . $siteName['subdomain'] . '/' . $urlCanonical;
+            break;
+    }
+    return $urlCanonical;
+}
+
+function _get_former_site_from_node($nid = 0) {
+    if (!$nid)
+        return null;
+
+    $query = "SELECT td.tid, td.name, s.idsite, s.site, s.subdomain
+          FROM {node} n
+          INNER JOIN {term_node} tn ON tn.vid=n.vid
+          INNER JOIN {term_data} td ON td.tid=tn.tid AND td.vid=2
+          INNER JOIN {sites} s ON s.term=td.tid AND s.status=1
+          WHERE n.nid=%d";
+    $result = db_fetch_array(db_query($query, $nid));
+    return $result;
+}
+
+/**
+ *
+ */
+function _get_metatags_opengraph($node = NULL) {
+    //Requiere agregar el XMLNS de opengraph en el tag HTML del page.tpl [xmlns:og="http://opengraphprotocol.org/schema/"]
+    if (!$node) {
+        return $node;
+    }
+
+    $image = '/sites/all/theme/actitudfem/css/avatares/av1.jpg';
+
+    //Image selection cases
+    switch ($node->type) {
+        case 'story':
+        case 'gallerie':
+        case 'videos':
+            $imagen = $node->field_image_social[0]['filepath'] ? url($node->field_image_social[0]['filepath'], array('absolute' => true)) : url($node->image_attach['0']->images['preview'], array('absolute' => true));
+            break;
+        case 'advpoll_binary':
+            if ($node->field_imgvs1['0']['filepath'])
+                $imagen = 'http://' . $_SERVER["HTTP_HOST"];
+            $imagen = '/' . $node->field_imgvs1['0']['filepath'];
+            break;
+        case 'poll':
+            if ($node->field_img1['0']['filepath'])
+                $imagen = 'http://' . $_SERVER["HTTP_HOST"];
+            $imagen = '/' . $node->field_img1['0']['filepath'];
+            break;
+    }
+
+    /*
+      Articulo     -> 150 chars from body OR SEO Description
+      Fotogaleria  -> SEO Description OR Titulo Nota
+      Video        -> 150 chars from body OR SEO Description
+      Versus       -> SEO Description OR Titulo Versus
+      Encuesta     -> SEO Description OR Titulo Encuesta
+     */
+    //OG Description selection cases
+    switch ($node->type) {
+        case 'story':
+        case 'videos':
+            $ogDescription = isset($node->content['body']['#value']) && !empty($node->content['body']['#value']) ? _clear_string(strip_tags($node->content['body']['#value']), 150) : (strlen($node->nodewords['description']['value']) > 0 ? $node->nodewords['description']['value'] : $node->title);
+            break;
+        case 'gallerie':
+        case 'advpoll_binary':
+        case 'poll':
+            $ogDescription = strlen($node->nodewords['description']['value']) > 0 ? $node->nodewords['description']['value'] : $node->title;
+            break;
+    }
+
+    $url_canonical = (int) $node->created < variable_get('fem_migrate_timestamp', 0) ? _get_node_url_canonical($node->nid) : url(drupal_get_path_alias('node/' . $node->nid), array('absolute' => true));
+
+    $metaFields = array(
+        'app_id' => '101808743247360',
+        'title' => $node->title,
+        'type' => 'article',
+        'url' => $url_canonical,
+        'image' => $imagen,
+        'site_name' => variable_get('site_name', 'ActitudFem.com'),
+        'description' => $ogDescription,
+    );
+
+    /*
+      'latitude' => '19.434707',
+      'longitude' => '-99.150273',
+      'street-address' => 'Bucareli 1',
+      'locality' => 'Centro',
+      'region' => 'Distrito Federal',
+      'postal-code' => '06000',
+      'country-name' => 'México',
+      'email' => 'contacto@actitudfem.com',
+      'phone_number' => '+52 55 51283000',
+     */
+
+    $metaOpen = array();
+    foreach ($metaFields as $field => $value) {
+        if ($field && $value) {
+            if ($field === 'app_id')
+                $metaOpen[] = '<meta property="fb:' . $field . '" content="' . $value . '" />';
+            else
+                $metaOpen[] = '<meta property="og:' . $field . '" content="' . $value . '" />';
+        }
+    }
+
+    if (count($metaOpen) > 0) {
+//      drupal_add_html_head
+//    drupal_set_html_head(implode("\n", $metaOpen));
+    }
+}
+
+/**
+ *
+ */
+function _get_metatags_opengraph_home() {
+
+    $site_name = site_name();
+    $short_sitename = explode('.', $site_name);
+    $short_sitename = strtolower($short_sitename[0]);
+
+
+    switch ($short_sitename) {
+        case 'actitudfem':
+            $descripcion = 'ActitudFEM te trae lo más hot de la moda y los famosos. Consejos de belleza, sexualidad, tecnología, hogar y familia. ActitudFEM es el portal para la mujer contemporánea.';
+            break;
+        case 'glamourfem':
+            $descripcion = 'ActitudFEM te trae los últimos chismes de la farándula. Entérate de los últimos escándalos de los famosos y las noticias de tus celebridades favoritas con ActitudFEM.';
+            break;
+        case 'estilofem':
+            $descripcion = 'Descubre las últimas tendencias de la moda del 2012 y la moda para la mujar contemporánea con nuestra sección de Moda en ActitudFEM.';
+            break;
+        case 'bellezafem':
+            $descripcion = 'Consejos de Belleza para la mujer contemporánea en ActitudFEM. Mantente bella con nuestros consejos de nutrición, piel, cabello y maquillaje. Consiéntete con ActitudFEM.';
+            break;
+        case 'placerfem':
+            $descripcion = 'Consejos para tener mejor sexo y orgasmos en ActitudFEM. Experimenta con nuestros consejos de sexo y juegos sexuales para tu placer sexual y mejorar tu sexualidad. ';
+            break;
+        case 'geekfem':
+            $descripcion = 'Descubre los últimos avances tecnológicos y de la ciencia en ActitudFEM. Los avances tecnológicos más recientes, lo nuevo en gadgets, aplicaciones y redes sociales en ActitudFEM.  ';
+            break;
+        case 'guiafem':
+            $descripcion = 'ActitudFEM tiene la mejor guía de entretenimiento para que no te aburras. Entrenimiento con lo mejor del cine, música, libros, arte, cultura y televisión en ActitudFEM.';
+            break;
+        case 'hogarfem':
+            $descripcion = 'Consejos y noticias sobre el hogar y cómo mantener tu casa en armonía. Mejora tu vida en familia y tu matrimonio con nuestros consejos y deliciosas recetas de cocina en ActitudFEM. ';
+            break;
+        default :
+            $descripcion = 'ActitudFEM te trae lo más hot de la moda y los famosos. Consejos de belleza, sexualidad, tecnología, hogar y familia. ActitudFEM es el portal para la mujer contemporánea.';
+            break;
+    }
+
+
+    $metaOpen = '<meta name="description" content="' . $descripcion . '" />';
+    return $metaOpen;
+
+//	if(isset($descripcion))
+//		drupal_set_html_head($metaOpen);
+}
+
+/**
+ * Tag de codigo para search marketing
+ */
+function searchmarketing_users_userfem() {
+    $html = '<!-- Google Code for REGISTRO Conversion Page -->';
+    $html.='<script type="text/javascript">';
+    $html.='/* <![CDATA[ */';
+    $html.='var google_conversion_id = 1013830674;';
+    $html.='var google_conversion_language = "ar";';
+    $html.='var google_conversion_format = "2";';
+    $html.='var google_conversion_color = "ffffff";';
+    $html.='var google_conversion_label = "RjkmCIaApwIQkqi34wM";';
+    $html.='var google_conversion_value = 0;';
+    $html.='/* ]]> */';
+    $html.='</script>';
+    $html.='<script type="text/javascript" src="http://www.googleadservices.com/pagead/conversion.js">';
+    $html.='</script>';
+    $html.='<noscript>';
+    $html.='<div style="display:inline;">';
+    $html.='<img height="1" width="1" style="border-style:none;" alt="" src="http://www.googleadservices.com/pagead/conversion/1013830674/?label=RjkmCIaApwIQkqi34wM&amp;guid=ON&amp;script=0"/>';
+    $html.='</div>';
+    $html.='</noscript>';
+
+    return $html;
+}
+
+/**
+ * Devuelve el dominio al que fue clasificado un node
+ * @param $nid NODE ID del contenido
+ * @return array
+ */
+function get_domain_by_node($nid = null) {
+    if (!$nid)
+        return $nid;
+    $query = "select tn.nid, td.tid, td.name as term, s.idsite as sid, s.site as domain
+          from {term_data} td
+          inner join {sites} s on s.term = td.tid and s.status=1
+          inner join {term_node} tn on tn.tid=td.tid and tn.nid=%d
+          where td.vid=2
+          order by td.weight";
+    $result = db_query($query, $nid);
+    if (!$result)
+        return $nid;
+    $item = array();
+    while ($row = db_fetch_object($result)) {
+        $item = array(
+            'nid' => $row->nid,
+            'tid' => $row->tid,
+            'sid' => $row->sid,
+            'term' => $row->term,
+            'site' => $row->domain
+        );
+    }
+
+    $item['site'] = isset($item['site']) ? $item['site'] : 'www.actitudfem.com';
+
+    return $item;
+}
+
+/**
+ * Devuelve contenidom de un archivo de texto
+ * @param string $filename
+ * @return resource
+ */
+function file_load_contents_json($filename = null) {
+    if (!$filename)
+        return false;
+    $filename = $filename;
+    $contents = file_get_contents($filename);
+    return json_decode($contents, TRUE);
+}
+
+/**
+ * Devuelve el directorio de archivos de configuracion del home
+ * @param void
+ * @return string
+ */
+#function get_directory_homes_config() {
+#   return getcwd() . '/cache/';
+#}
+function get_directory_homes_config() {
+    return getcwd() . '/' . file_directory_path() . '/homes/';
+}
+
+/**
+ * Devuelve nombre de dominio a parte del dominio primario www.example.com -> example.com
+ * Esta pensado para que pueda devolver siempre un nombre correcto, sin importar el subdominio de que se trate
+ * @param array $info_host
+ * @return string
+ */
+function get_domain_name($info_host = array()) {
+    if (!$info_host)
+        return false;
+    $name_host = array();
+    $domain_name = explode('.', $info_host['host']);
+
+    return $domain_name[1];
+}
+
+/**
+ * Devuelve un corte de cadena limpio hasta por el numero de caracteres indicado
+ * @param string $teaser
+ * @param integer $length
+ * @return string
+ */
+function chunk_split_teaser($teaser = null, $length = 255) {
+    if (!$teaser)
+        return $teaser;
+    $teaser = strip_tags($teaser);
+    $teaser = str_replace('\\n', ' ', $teaser);
+    $teaser = str_replace('\n\r', ' ', $teaser);
+    $teaser = wordwrap($teaser, $length, '|', true);
+    $teaser = explode('|', $teaser);
+    $teaser = $teaser[0];
+    return $teaser;
+}
+
+/**
+ * Devuelve la información que identifica a un sitio desde la tabla de sites
+ * @param mixed|integer|string $host El hostname o dominio que se conecta o el id del sitio de la tabla de sites
+ * @return array Devuelve arreglo con los datos de información de un sitio, vacio en caso de no encontrarlo en la tabla
+ */
+function get_info_site($host = null) {
+    $items = array();
+    //Patch prep
+    if ($_SERVER['HTTP_HOST'] === 'prep.actitudfem.com' || $_SERVER['HTTP_HOST'] === 'local.actitudfem.com' || $_SERVER['HTTP_HOST'] === 'sandbox.actitudfem.com') {
+        $host = 'www.actitudfem.com';
+    }
+
+    if (!isset($host))
+        return $items;
+
+    if (is_integer($host)) {
+        $field = "idsite='%d'";
+    } else {
+        $field = "subdomain='%s'";
+        //$field="(site='%s' or subdomain='%s')";
+    }
+    //$query = "lower(replace(name,'Fem','')) as ";
+
+    $query = "select * from {sites} where status=1 and {$field}";
+    $result = db_query($query, $host);
+    if (!$result)
+        return $items;
+
+    while ($row = db_fetch_object($result)) {
+        $items = array(
+            'id' => $row->idsite,
+            'name' => $row->name,
+            'subdomain' => $row->subdomain,
+            'host' => $row->site,
+            'filter' => $row->filter,
+            'term' => $row->term
+        );
+    }
+    return $items;
+}
+
+/**
+ * Crea imagenes de fotos originales a las medidas indicadas en cada preset
+ * @param string $preset El tamaño que se desea de la imagen (Los presets ya estan predefinidos
+ * @param string $image La url donde se encuentra la imagen que se desea procesar
+ * @param string $alt El titulo o texto explicativo del origen o destino de la imagen para SEO
+ * @param string $title El titulo o texto explicativo del origen o destino de la imagen para SEO
+ * @param array $attributes Atributos adicionales para el tag IMG que va a generar el theme img
+ * @return string Devuelve tag IMG en HTML para pintado, el theme se encarga de crear la imagen en caso de que no exista
+ */
+function _create_imagecache($preset = 'mini', $image = null, $alt = null, $title = null, $attributes = null) {
+    return theme('imagecache', $preset, $image, $alt, $title, $attributes);
+}
+
+/**
+ * Crea imagenes de fotos originales a las medidas indicadas en cada preset
+ * @param string $preset El tamaño que se desea de la imagen (Los presets ya estan predefinidos)
+ * @param string $image La url donde se encuentra la imagen que se desea procesar
+ * @return string Devuelve La url de la imagen de cache creada
+ */
+function _create_url_imagecache($preset = 'mini', $image = null) {
+    //Validating params
+    if (!$preset)
+        return false;
+    if (!$image)
+        return false;
+
+    //Check for cache directory
+    imagecache_create_path($preset, $image);
+
+    //Create image cache and return url
+    return imagecache_create_url($preset, $image);
+}
+
+/**
+ * Verifica en que nivel esta el term
+ * @param integer $tid	| ID del term_data
+ * @return boolean
+ */
+function _get_level_terms($tid = false) {
+    $x = '';
+    if ($tid) {
+        $x = "tid IN ( " . ( (is_array($tid) ) ? implode(',', $tid) : $tid ) . ")";
+    }
+    else
+        $x = "tid=" . (!get_page_tid()) ? arg(2) : get_page_tid();
+
+//	$tid=$tid*1;
+
+    if ($x == '')
+        return false;
+
+    $sql = "select case
+			when vid=2 then 'canal'
+			when vid=3 then 'subcanal'
+			end as level, name, tid from {term_data} where " . $x . ";";
+    $result = db_query($sql);
+    if (!db_affected_rows())
+        return false;
+
+//            $canal=db_fetch_object($result);
+    while ($term = db_fetch_object($result)) {
+        $terms[$term->tid]['tid'] = $term->tid;
+        $terms[$term->tid]['name'] = $term->name;
+        $terms[$term->tid]['level'] = $term->level;
+    }
+    return $terms;
+}
+
+/**
+ * Devuelve terminos de taxonomía por nivel segun el node ID pasado
+ * @param integer $nid	| ID del Node del tema, valido para books y storys
+ * @param array $levels	| Arreglo de nombres de niveles de términos, valores posibles array('canales','subcanales','tags')
+ * @return array
+ */
+function _get_level_nid_terms($nid = 0, $levels = array('canales', 'subcanales', 'tags')) {
+    $nid = $nid * 1;
+    $terms = array();
+
+    if ($nid == 0)
+        return array();
+
+    if (!is_array($levels))
+        return array();
+
+    $vid = array();
+    foreach ($levels as $level) {
+        switch ($level) {
+            case 'canales':
+                $vid[] = 2;
+                break;
+            case 'subcanales':
+                $vid[] = 3;
+                break;
+            case 'tags':
+                $vid[] = 1;
+                break;
+        }
+    }
+
+    $sql = db_query("SELECT
+                        CASE
+                            WHEN ttd.vid=2 THEN 'canales'
+                            WHEN ttd.vid=3 THEN 'subcanales'
+                            WHEN ttd.vid=1 THEN 'tags'
+                        END AS level, ti.tid, ttd.name
+                        FROM {node} n
+                        INNER JOIN {taxonomy_index} ti ON ti.nid=n.nid
+                        INNER JOIN {taxonomy_term_data} ttd ON ttd.tid=ti.tid
+                        WHERE n.nid=$nid AND ttd.vid IN(" . implode(',', $vid) . ")
+                        ORDER BY level;")->fetchAll();
+
+    if (count($sql) <= 0) {
+        return FALSE;
+    }
+
+    foreach ($sql as $row) {
+        $terms[$row->level][] = array(
+            'tid' => $row->tid,
+            'name' => $row->name
+        );
+    }
+    return $terms;
+}
+
+/**
+ * Devuelve terminos de taxonomía por nivel segun el node ID pasado
+ * @param integer $nid	| ID del Node del tema, valido para books y storys
+ * @param array $levels	| Arreglo de nombres de niveles de términos, valores posibles array('canales','subcanales')
+ * @return array
+ */
+function _get_level_node($nid = 0, $levels = array('canales')) {
+    $nid = $nid * 1;
+    $level = $level * 1;
+
+    if ($nid == 0)
+        return array();
+    if (!is_array($levels))
+        return array();
+
+    $vid = array();
+    foreach ($levels as $level) {
+        switch ($level) {
+            case 'canales':
+                $vid[] = 2;
+                break;
+            case 'subcanales':
+                $vid[] = 3;
+                break;
+        }
+    }
+
+
+    $sql = "select
+			case
+			when td.vid=2 then 'canales'
+			when td.vid=3 then 'sucanales'
+			end as level,
+			td.tid, td.name
+			from {node} n
+			inner join {term_node} tn on tn.vid=n.vid
+			inner join {term_data} td on td.tid=tn.tid and td.vid in (" . implode(',', $vid) . ")
+			where n.nid=" . $nid . "
+			order by level
+			;";
+    $result = db_query($sql);
+    if ($result->num_rows <= 0)
+        return false;
+
+    $terms = array();
+    while ($row = db_fetch_array($result)) {
+        $terms[$row['level']][] = array(
+            'tid' => $row['tid'],
+            'name' => $row['name']
+        );
+    }
+    return $terms;
+}
+
+/**
+ * Devuelve los enlaces de hacia los Thumbnails a partir de una ruta de imagen
+ * @param string $image|required
+ * @return mixed array
+ * @author inventmx
+ */
+function _get_thumbnails($image) {
+
+    global $base_url;
+    $imgType = array('thumbnail', 'preview', 'micro', 'mini', 'small', 'wide', 'social', 'king');
+
+    $imgEmpty = (trim($image) == '');
+    $image = ($imgEmpty) ? '' : $base_url . '/' . $image;
+
+    $img = pathinfo($image);
+
+    $img['filename'] = (isset($img['filename'])) ? $img['filename'] : basename($image, "." . $img['extension']);
+
+    foreach ($imgType as $type) {
+        $f = $img['dirname'] . '/' . $img['filename'] . ".$type." . $img['extension'];
+        $r["img_$type"] = ($imgEmpty) ? '' : ((file_exists($f)) ? $f : '' );
+        $r["img_$type"] = ($imgEmpty) ? '' : $f;
+    }
+
+    return $r;
+}
+
+/**
+ * Crear imagen thumbnail, en caso de no existir
+ *
+ * @author Luis Contreras <luis@inventmx.com>
+ * @param $url   required  Cadena con la direccion web de la imagen (Cuidado no deben manejarse urls de sistema
+ * @param $type  optional  Tipo de thumbnail a crear, 5 valores posibles: thumbnail, preview, mini, micro, small
+ * @return bool  Devuelve true or false
+ */
+function _create_imgthumbs($url, $type = 'preview') {
+    return false;
+}
+
+/**
+ *
+ * @return bool True-False si se encuentra en el Home
+ *
+ */
+function _is_home() {
+    return ( drupal_is_front_page() || arg(0) == 'inicio' );
+}
+
+/**
+ * Devuelve el tid de una page personalizada, del modulo de Panels
+ * @return int el tid.
+ */
+function get_page_tid() {
+    $page = arg();
+    $page = $page[count($page) - 1];
+    $pageName = str_replace('-', '_', $page);
+    $query = "SELECT *
+          FROM {page_manager_handlers}
+          WHERE task = 'page' AND subtask = '{$pageName}'";
+    $resultset = db_query($query);
+    if (mysql_affected_rows() > 0) {
+        $t = unserialize(db_fetch_object($resultset)->conf);
+    } else {
+        return null;
+    }
+    return (int) $t['contexts'][0]['context_settings']['tid'];
+}
+
+/**
+ * Funcion que regresa un array  con los nodos buscados a partir de db_query(),
+ *  agrega los campos [img_{tipo}] donde {tipo}son las imagenes en miniatura
+ *  ('thumbnail','preview','micro','mini','small') y el campo [fecha] parseado
+ *
+ *  :)
+ *
+ * @param mixed $result Result de un db_query() para procesar la salida
+ * @return array Un array vacÃ­o si no hay resulados y un array con los nodos requeridos
+ */
+function _get_result($result) {
+    $items = array();
+    $img = null;
+    if (mysql_affected_rows() > 0) {
+        while ($row = db_fetch_array($result)) {
+            //Bajo la lupa
+            $query = "SELECT f.filepath FROM {content_type_gallerie} ctg
+              INNER JOIN {files} f ON f.fid=ctg.field_image_bajo_lupa_fid
+              WHERE ctg.nid=%d AND ctg.field_bajo_lupa_value=1 AND f.status=1";
+            $resultset = db_query($query, $row['nid']);
+            if (mysql_affected_rows() > 0) {
+                $img = db_fetch_object($resultset)->filepath;
+            }
+            if (!$img) {
+                //Imagen principal
+                $query = "SELECT f.filepath from {image_attach} ia
+                INNER JOIN {image} i ON i.nid=ia.iid
+                INNER JOIN {files} f ON f.fid=i.fid
+                WHERE ia.nid=%d and f.filename='_original' AND f.status=1  ORDER BY ia.weight ASC LIMIT 1";
+                $resultset = db_query($query, $row['nid']);
+                if (mysql_affected_rows() > 0) {
+                    $img = db_fetch_object($resultset)->filepath;
+                }
+            }
+            $row['title'] = check_plain($row['title']);
+            $row['fecha'] = format_date($row['created'], 'custom', 'd/F/Y H:i');
+            $row['teaser'] = check_plain($row['teaser']);
+            $row['image'] = isset($img) && !empty($img) ? $img : '';
+            $row['url'] = drupal_get_path_alias('node/' . $row['nid']);
+            $items[] = $row;
+            $img = null;
+        }
+    }
+    return $items;
+}
+
+/**
+ * Funcion que regresa URL imagen
+ *
+ * @param int $nid
+ * @return string
+ */
+function _get_image($nid = null, $type = 'article') {
+    if (!$nid)
+        return $nid;
+
+    //Aseguramos que sea entero casteandolo
+    $nid = (int) $nid;
+
+    $item = array();
+    switch ($type) {
+        case 'article':
+        case 'catalogo':
+        case 'videos':
+        case 'gallerie':
+            $query = "SELECT fdfi.field_image_alt AS title, fdfi.field_image_title AS footprint, fm.uri as uri
+                      FROM node n
+                      INNER JOIN {field_data_field_image} fdfi ON fdfi.entity_id=n.nid
+                      INNER JOIN {file_managed} fm ON fm.fid=fdfi.field_image_fid
+                      WHERE n.status=1 AND n.nid=$nid";
+            break;
+        case 'poll':
+            $query = "SELECT fdfi.field_images_alt AS title, fdfi.field_images_title AS footprint, fm.uri as uri
+                      FROM node n
+                      INNER JOIN {field_data_field_images} fdfi ON fdfi.entity_id=n.nid and fdfi.delta=0
+                      INNER JOIN {file_managed} fm ON fm.fid=fdfi.field_images_fid
+                      WHERE n.status=1 AND n.nid=$nid";
+            break;
+        default:
+            //Aplica para Audio y otros contenidos que no tengan imagen
+//            $item = "{URL A IMAGEN DEFAULT EN CASO DE QUE NO TENGA ESTE CONTENIDO, PUEDE SER DESDE EL MISMO THEME}";
+            $query= false;
+            break;
+    }
+
+    if($query){
+        $result = db_query($query)->fetchAll();
+        foreach ($result as $row) {
+            $image_url = file_create_url($row->uri);
+            $item = array(
+                'uri' => $row->uri,
+                'url' => !empty($image_url) ? $image_url : '',
+                'title' => isset($row->title) ? $row->title : (isset($row->footprint) ? $row->footprint : (isset($row->node_title) ? $row->node_title : $_SERVER['HTTP_HOST'])),
+                'footprint' => isset($row->footprint) ? $row->footprint : (isset($row->title) ? $row->title : (isset($row->node_title) ? $row->node_title : $_SERVER['HTTP_HOST']))
+            );
+        }
+    }
+    return $item;
+}
+
+/**
+ * Limpia de una cadena de tag's html, caracteres especiales como saltos de linea, tabuladores. entre otros.
+ * Devuelve una cantidad de caracteres de acuerdo a lo especificado en la variable $width
+ * Pone al final del texto los caracteres terminales indicados en la variable $stringend
+ *
+ * @param string $string La cadena que se desea limpiar.
+ * @param int $width Cantidad de caracteres que desea obtener de la cadena. (default false, devuelve la cadena completa)
+ * @param string $stringend Caracteres con que termina la cadena. (default false)
+ * @return string $string Texto limpio.
+ */
+function _clear_string($string, $width = 0, $stringend = '...') {
+    $string = strip_tags(check_markup(nl2br($string)));
+    $string = eregi_replace("[\n|\r|\n\r]", ' ', $string);
+    $string = str_replace('&nbsp;', '', $string);
+
+    $palabras = preg_split("[\s+]", $string);
+
+    $string = "";
+    $i = 0;
+    while (strlen($string) - 1 <= $width) {
+        $string .= $palabras[$i] . ' ';
+        $i++;
+    }
+
+    $string = trim($string);
+    $string = (substr($string, -1) == ' ') ? substr($string, 0, strlen($string) - 1) : $string;
+    $string = (!$stringend) ? $string : $string . $stringend;
+
+    return $string;
+
+    $string = wordwrap(strip_tags(trim($string), '<strong><br>'), $width);
+
+    return $string . $stringend;
+}
+
+/**
+ * Devuele el primer parrafo del teaser
+ */
+function _trunk_teaser($teaser) {
+    $teaser = str_ireplace('</p>', '</p>', $teaser);
+    $teaser = explode('</p>', $teaser);
+    $teaser = $teaser[0];
+    $teaser = strip_tags($teaser, '<a><p><b><strong><br>');
+    $teaser = str_ireplace('<p>', '', $teaser);
+    $teaser = trim($teaser);
+    return $teaser;
+}
+
+/**
+ * Funcion general para obetener nodos.
+ *  agrega los campos [img_{tipo}] donde {tipo}son las imagenes en miniatura
+ *  ('thumbnail','preview','micro','mini','small') y el campo [fecha] parseado
+ *
+ *  :)
+ *
+ * @param string $type Que tipos de nodos traerÃ¡ ('sticky','promote','viewed','commented), por default devuelve los nodos normales (incluyendo sticky y promote).
+ * @param int $max NÃºmero mÃ¡ximo de nodos que traerÃ¡, por default 10 nodos.
+ * @param array $exclude Array de nid que se desean excluir de la lista.
+ * @param string $sqlExtra Array con los siguientes elementos (todos opcionales):
+ *      ['columnsExtra'] String SQL para personalizar la consulta, se ingresarÃ¡ al final de los campos a seleccionar.
+ * 	['innerExtra'] String SQL para personalizar la consulta, debe de ser como INNER JOIN por ejemplo.
+ * 	['whereExtra'] String SQL para personalizar la consulta, se ingresarÃ¡ al final del WHERE principal.
+ * @param array $nodeType El tipo de nodo, por ejemplo 'story' (valor por default), 'book', etc., se puede especificar varios tipos ingresÃ¡ndolos en un array, ejemplo array('story','image')
+ * @param mixed $byTerm Si es FALSE, no filtrarÃ¡ por terms.
+ * 	Si es TRUE filtrarÃ¡ por el term en que se encuentre (si esta en una categorÃ­a o similar), si en cuentra en un node filtrarÃ¡ por todos los terms asociados a Ã©ste, si estÃ¡ en el home no filtrarÃ¡.
+ * 	Si se requiere buscar por un tid se debe especificar, si son varios tid's se deben ingresar en un array, ejemplo: array(6,1525,23).
+ * @param string $order El orden de los nodos, debe ser 'DESC' (default) o 'ASC'
+ * @return array Array con los nodos o un array vacio en caso de no encontrar resultados.
+ *
+ */
+function get_nodes($type = false, $max = 10, $exclude = false, $sqlExtra = false, $nodeType = false, $byTerm = true, $order = false, $include = false, $orderByDefault = false) {
+    $where = '';
+    $innerTerm = '';
+    $columns = '';
+    $orderby = '';
+    $echoSQL = '';
+    $innerJoins = '';
+    $functionFrom = debug_backtrace();
+    $functionFrom = " /* Query executed from: [{$functionFrom[1]['function']}] */";
+
+    $sqlExtra['columnsExtra'] = (isset($sqlExtra['columnsExtra'])) ? $sqlExtra['columnsExtra'] : '';
+    $sqlExtra['innerExtra'] = (isset($sqlExtra['innerExtra'])) ? $sqlExtra['innerExtra'] : '';
+    $sqlExtra['whereExtra'] = (isset($sqlExtra['whereExtra'])) ? $sqlExtra['whereExtra'] : '';
+    $sqlExtra['orderbyExtra'] = (isset($sqlExtra['orderbyExtra'])) ? $sqlExtra['orderbyExtra'] : '';
+
+    if ($nodeType) {
+        if (is_array($nodeType)) {
+            foreach ($nodeType as $n) {
+                $nr[] = "'$n'";
+            }
+            $nodeType = implode(',', $nr);
+        } else {
+            $nodeType = "'$nodeType'";
+        }
+    } else {
+        $nodeType = "'story'";
+    }
+
+    $order = ($order) ? $order : 'DESC';
+    $orderByDefault = ($orderByDefault) ? $orderByDefault : 'n.created';
+    $limit = (is_int($max) && $max > 0) ? " LIMIT $max " : "";
+    $date = time();
+    switch ($type) {
+        case 'sticky':
+            $where = " AND n.sticky = 1 ";
+            break;
+        case 'promote':
+            $where = " AND n.promote = 1 ";
+            break;
+        case 'promote-sticky':
+            $where = " AND n.promote=1 AND n.sticky=1 ";
+            break;
+        case 'promote-no-sticky':
+            $where = " AND n.promote=1 AND n.sticky=0 ";
+            break;
+        case 'no-promote-sticky':
+            $where = " AND n.promote=0 AND n.sticky=1 ";
+            break;
+        case 'no-promote-no-sticky':
+            $where = " AND n.promote=0 AND n.sticky=0 ";
+            break;
+        case 'viewed':
+            $now = time();
+            $dias = (30 * 24 * 60 * 60); //5 dias
+            $transcurrido = $now - $dias;
+            $where = " AND n.created between " . $transcurrido . " and " . $now;
+            $orderby = " nc.totalcount DESC,";
+            $innerJoins = "INNER JOIN {node_counter} nc ON nc.nid = n.nid ";
+            break;
+        case 'less-viewed':
+            $orderby = " nc.totalcount ASC,";
+            $innerJoins = "LEFT JOIN {node_counter} nc ON nc.nid = n.nid ";
+            break;
+        case 'commented':
+            $orderby = " ns.comment_count DESC,";
+            $innerJoins = "INNER JOIN {node_comment_statistics} ns ON ns.nid = n.nid AND ns.comment_count > 0 ";
+            break;
+        case 'latest':
+            $orderby = "n.changed DESC";
+            $innerJoins = "";
+            break;
+        case 'lo-ultimo':
+            $where = " AND n.promote = 1 ";
+            $innerJoins = "INNER JOIN {content_field_home_principal} hp on hp.vid=nr.vid and (hp.field_home_principal_value<=0 or hp.field_home_principal_value is null)";
+            break;
+        case 'carrusel-actitud':
+            $sqlExtra['columnsExtra'] = ", ft.field_title_carrusel_value, fs.field_sinopsis_carrusel_value ";
+            $where = "AND {$date} between fi.field_fechaini_value and ff.field_fechafin_value";
+            $innerJoins = "INNER JOIN {content_field_title_carrusel} ft on ft.nid=n.nid and ft.vid=n.vid
+      INNER JOIN {content_field_sinopsis_carrusel} fs on fs.nid=n.nid and fs.vid=n.vid
+      INNER JOIN {content_field_home_principal} hp on hp.nid=n.nid and hp.vid=n.vid and hp.field_home_principal_value>0
+      INNER JOIN {content_field_fechaini} fi on fi.nid=n.nid and fi.vid=n.vid
+      INNER JOIN {content_field_fechafin} ff on ff.nid=n.nid and ff.vid=n.vid ";
+            break;
+        case 'carrusel-canal':
+            $sqlExtra['columnsExtra'] = ", ft.field_title_carrusel_value, fs.field_sinopsis_carrusel_value ";
+            $innerJoins = "INNER JOIN {content_field_title_carrusel} ft on ft.nid=n.nid and ft.vid=n.vid
+      INNER JOIN {content_field_sinopsis_carrusel} fs on fs.nid=n.nid and fs.vid=n.vid
+      INNER JOIN {content_field_subcanal} hp on hp.nid=n.nid and hp.vid=n.vid and hp.field_subcanal_value>0 ";
+            break;
+        case 'carrusel-seccion':
+            $sqlExtra['columnsExtra'] = ", ft.field_title_carrusel_value, fs.field_sinopsis_carrusel_value ";
+            $innerJoins = "INNER JOIN {content_field_title_carrusel} ft on ft.nid=n.nid and ft.vid=n.vid
+      INNER JOIN {content_field_sinopsis_carrusel} fs on fs.nid=n.nid and fs.vid=n.vid
+      INNER JOIN {content_field_subcanal} hp on hp.nid=n.nid and hp.vid=n.vid and hp.field_subcanal_value>0 ";
+            break;
+        case 'lo_in':
+            $where = " AND n.promote=0 AND n.sticky=0 ";
+            $innerJoins = "INNER JOIN {content_field_lo_in} hp on hp.nid=n.nid and hp.vid=n.vid and hp.field_lo_in_value>0 ";
+            break;
+        case 'advpoll_binary':
+            $columns = ', hf.filepath as imgversus';
+            $innerJoins = "INNER JOIN {content_type_advpoll_binary} hp on hp.nid=n.nid and hp.vid=n.vid
+      INNER JOIN {files} hf on hp.field_imgvs1_fid=hf.fid
+      ";
+            break;
+        case 'poll':
+            $columns = ', hf.filepath as imgencuesta';
+            $innerJoins = "INNER JOIN {content_type_poll} hp on hp.nid=n.nid and hp.vid=n.vid
+      INNER JOIN {files} hf on hp.field_img1_fid=hf.fid
+      ";
+            break;
+        case 'all-content':
+
+            break;
+    }
+
+    if ($byTerm) {
+        if (is_bool($byTerm) && $byTerm === true) {
+            if (defined('TERMINO')) {
+                $innerTerm = "INNER JOIN {term_node} tn ON tn.tid = " . (int) TERMINO . " AND tn.nid = n.nid AND tn.vid=n.vid";
+            } else {
+                $terms = _get_page_terms();
+
+                if (count($terms) > 0) {
+                    if (is_array($terms)) {
+                        $innerTerm = "INNER JOIN {term_node} tn ON tn.tid IN(" . implode(',', $terms) . ") AND tn.nid = n.nid AND tn.vid=n.vid ";
+                    } else {
+                        $innerTerm = '';
+                    }
+                }
+
+                if (_get_nid()) {
+                    $innerTerm = "INNER JOIN {term_node} tn ON tn.tid  IN(" . implode(',', _get_node_terms()) . ") AND tn.nid = n.nid AND tn.vid=n.vid ";
+                }
+            }
+        }
+
+        if (is_int($byTerm)) {
+            $innerTerm = "INNER JOIN {term_node} tn ON tn.tid  IN(" . $byTerm . ") AND tn.nid = n.nid AND tn.vid=n.vid ";
+        }
+        if (is_string($byTerm)) {
+            $innerTerm = "INNER JOIN {term_node} tn ON tn.tid  IN(" . $byTerm . ") AND tn.nid = n.nid AND tn.vid=n.vid ";
+        }
+        if (is_array($byTerm) && count($byTerm) > 0) {
+            $innerTerm = "INNER JOIN {term_node} tn ON tn.tid  IN(" . implode(',', $byTerm) . ") AND tn.nid = n.nid AND tn.vid=n.vid ";
+        }
+    }
+
+    $columns = isset($columns) && !empty($columns) ? $columns : '';
+    $orderby = isset($orderby) && !empty($orderby) ? $orderby : '';
+    $functionFrom = isset($functionFrom) && !empty($functionFrom) ? $functionFrom : '';
+    $innerTerm = isset($innerTerm) && !empty($innerTerm) ? $innerTerm : '';
+    $innerJoins = isset($innerJoins) && !empty($innerJoins) ? $innerJoins : '';
+    $exclude = isset($exclude) && !empty($exclude) ? " AND n.nid NOT IN ( $exclude )" : '';
+    $include = isset($include) && !empty($include) ? " AND n.nid IN ( " . ( (is_array($include) ) ? implode(',', $include) : $include ) . ")" : '';
+    $where = isset($where) && !empty($where) ? $where : '';
+    $orderByDefault = isset($orderByDefault) && !empty($orderByDefault) ? $orderByDefault : '';
+    $order = isset($order) && !empty($order) ? $order : '';
+    $limit = isset($limit) && !empty($limit) ? $limit : '';
+
+    $sql = "$functionFrom SELECT n.nid, n.title, n.promote, n.sticky, n.created, n.changed, concat('node/',n.nid) as url, trim(nr.teaser) as teaser, n.type
+          $columns {$sqlExtra['columnsExtra']}
+          FROM {node} n
+          INNER JOIN {node_revisions} nr ON nr.vid=n.vid
+          $innerTerm
+          $innerJoins
+          {$sqlExtra['innerExtra']}
+          WHERE n.type in($nodeType) AND n.status = 1  $exclude $include $where {$sqlExtra['whereExtra']}
+          GROUP BY n.nid, n.title, n.promote, n.sticky, n.created, n.changed, n.type
+          ORDER BY $orderby $orderByDefault $order $limit";
+
+    echo $sql;
+    exit;
+
+    if (isset($echoSQL)) {
+        helpers_dump("\n" . $sql, "en sitio: Actitudfem");
+    }
+
+    $result = db_query($sql);
+    return _get_result($result);
+}
+
+/**
+ * Funcion que regresa el term segun el home del sitio
+ * @return array|false.
+ */
+function _get_home_term() {
+    $term = false;
+
+    $sql = "SELECT term from {sites} where subdomain like '%" . $_SERVER['HTTP_HOST'] . "';";
+    $term = db_fetch_object(db_query($sql, array($term)))->term;
+
+    return $term;
+}
+
+/**
+ * Funcion que regresa los terms segun el menu y el term data
+ * @return array|false.
+ */
+function _get_page_terms($tid = false) {
+
+    $tid = isset($tid) ? $tid : (!get_page_tid()) ? arg(2) : get_page_tid();
+    $sql = "SELECT th1.link_path as l1, th2.link_path as l2, th3.link_path as l3
+                                from {menu_links} th3
+                                left join {menu_links} th2 on th2.mlid=th3.p2
+                                left join {menu_links} th1 on th1.mlid=th3.p1
+                                WHERE th3.menu_name = 'primary-links' and  SUBSTRING_INDEX( th3.link_path , '/', -1) =%d ";
+    $result = db_query($sql, array($tid));
+    $parent = db_fetch_object($result);
+
+//   if ($parent->l1)
+//      $terms[] = intval(end(explode("/", $parent->l1)));
+    if ($parent->l2)
+        $terms[] = intval(end(explode("/", $parent->l2)));
+    if ($parent->l3)
+        $terms[] = intval(end(explode("/", $parent->l3)));
+
+    $terms[] = $tid;
+
+    return array_unique($terms);
+}
+
+/**
+ * Funcion que regresa los terms de un nid
+ * @param int $nid	nid del que se desea obtener los terms, si se omite saca los tarms del nodo actual :)
+ * @return array|false		array en forma: [tmid]=>'vocabulary', si no es un nodo regresa false.
+ */
+function _get_node_terms($nid = false) {
+    $nid = ($nid) ? $nid : _get_nid();
+    if ($nid) {
+        $node = node_load($nid);
+        foreach ($node->taxonomy as $vid => $term) {
+            $vn = taxonomy_vocabulary_load($term->vid);
+            $t[$term->tid] = $term->name;
+        }
+        return $t;
+    }
+    return false;
+}
+
+/**
+ * Funcion que devuelve el nid (Id del nodo) activo
+ * @return int|false Devuelve el nid que se esta visitando, false si no es un nodo
+ * @author		oscar<oscar@inventmx.com>
+ */
+function _get_nid() {
+    return ( arg(0) == 'node' && is_numeric(arg(1)) && !arg(2) ) ? arg(1) : false;
+}
+
+/**
+ * Funcion que devuelve los nid (Id del nodo) segun sus terminos
+ * @param array $array_tids Array de terminos
+ * @param array $nodeType   El tipo de nodo, por ejemplo 'story' (valor por default), 'book', etc., se puede especificar varios tipos en un array, ejemplo array('story','image')
+ * @return int|false Devuelve el nid, false si no es un nodo
+ */
+function _get_nid_terms($array_tids = false, $nodeType = false) {
+//	return ( arg(0) == 'node' && is_numeric(arg(1)) && !arg(2) ) ? arg(1) : false ;
+    if ($array_tids) {
+        if ($nodeType) {
+            if (is_array($nodeType)) {
+                foreach ($nodeType as $n) {
+                    $nr[] = "'$n'";
+                }
+                $nodeType = implode(',', $nr);
+            }
+            else
+                $nodeType = "'$nodeType'";
+        }
+        else
+            $nodeType = "'story'";
+        $sql = "SELECT n.nid
+                        FROM {node} n
+                        INNER JOIN {term_node} tn ON tn.tid  IN(" . implode(',', $array_tids) . ") AND tn.nid = n.nid AND tn.vid=n.vid
+                        WHERE n.status=1 and n.type IN(" . $nodeType . ")
+                        GROUP BY n.nid ;";
+    }
+    else
+        return false;
+
+    $result = db_query($sql);
+    if ($result) {
+        while ($term = db_fetch_object($result)) {
+            $terms[] = $term->nid;
+        }
+    }
+    else
+        return false;
+
+    return $terms;
+}
+
+// <editor-fold defaultstate="collapsed" desc="Functions Helpers...">
+/**
+ * Funcion que regresa los terms hijos del term enviado
+ * @param int $tid              tid del termino del que se desea obtener los hijos
+ * @param int $includeParent	true|false si desea incluir el term padre
+ * @param boolean $allChildren	true|false si quieres traer todos los hijos de todos los niveles
+ * @return array|false		array en forma: [tid]=>tid, si no tienen hijos regresa false.
+ */
+function _helpers_get_children($tid, $includeParent = true, $allChildren = true) {
+
+    if ($tid) {
+        if (is_array($tid)) {
+            $items = array();
+            foreach ($tid as $item) {
+                if (is_int($item)) {
+                    $items[] = (int) $item;
+                }
+            }
+            $tid = count($items) > 0 ? $items : null;
+        }
+        if ($tid == NULL)
+            return false;
+
+        $x = "parent IN ( " . ( (is_array($tid) && count($tid) > 0) ? implode(',', $tid) : $tid ) . ")";
+    }else {
+        return false;
+    }
+
+    $sql = 'SELECT tid FROM {term_hierarchy}  WHERE ' . $x;
+    $result = db_query($sql);
+
+    if ($includeParent)
+        $children[$tid] = $tid;
+
+    if (db_affected_rows() > 0) {
+        while ($term = db_fetch_object($result)) {
+//            if($allChildren)
+//                foreach(_helpers_get_children($term->tid) as $tidChild){
+//                    $children[$tidChild] = $tidChild;
+//                }
+//            else
+            $children[$term->tid] = $term->tid;
+        }
+    }
+    else
+        return false;
+
+//    return $sql;
+    return array_unique($children);
+}
+
+/**
+ * Devuelve las imagenes asociadas a un nodo para pintado en carrusel
+ * @param integer $nid Node ID para recuperar imagenes
+ * @param integer $limit Limite de imagenes que se desean recuperar, default 3, 0 ilimitado o todas
+ * @param string $ntype Tipo de nodo del que se desean recuperar imagenes
+ * @param string $itype Tipo de imagen que se desea recuperar, default: _opcional
+ *   Otras opciones: micro, mini, preview, small, social, thumbnail, wide
+ * @return mixed
+ */
+function _get_images_node($nid, $limit = 3, $ntype = 'story', $itype = '_original') {
+    $nid = intval($nid);
+
+    if (!is_string($ntype) || !is_string($itype))
+        return false;
+    $strLimit = '';
+    if ($limit > 0)
+        $strLimit = "limit $limit";
+
+    $sql = "select n.nid,n.created,ia.iid, ft.field_title_carrusel_value as title,
+      fs.field_sinopsis_carrusel_value as sinopsis, nr.teaser,
+      trim(f.filepath) as filepath,
+      f.filemime
+			FROM {node} n
+			INNER JOIN {node_revisions} nr on nr.vid=n.vid
+			INNER JOIN {image_attach} ia on ia.nid=n.nid
+			INNER JOIN {image} i on i.nid=ia.iid and i.image_size='" . $itype . "'
+			INNER JOIN {node} ni on ni.nid=i.nid and ni.type='image'
+			INNER JOIN {files} f on f.fid=i.fid and f.status=1
+			INNER JOIN {content_field_title_carrusel} ft on ft.nid=n.nid and ft.vid=n.vid
+      INNER JOIN {content_field_sinopsis_carrusel} fs on fs.nid=n.nid and fs.vid=n.vid
+			WHERE n.type='" . $ntype . "' and n.nid=" . $nid . "
+			ORDER BY ia.weight desc $strLimit;";
+    $result = db_query($sql);
+    if (db_affected_rows($result) > 0) {
+        while ($img = db_fetch_array($result)) {
+            $images[$img['nid']] = array(
+                'created' => $img['created'],
+                'id' => $img['iid'],
+                'title' => $img['title'],
+                'filepath' => $img['filepath'],
+                'teaser' => $img['teaser'],
+                'sinopsis' => $img['sinopsis'],
+                'filemime' => $img['filemime'],
+            );
+        }
+    } else {
+        $images = false;
+    }
+    return $images;
+}
+
+/**
+ * Function que corta una cadena en n numeros de palabras.
+ * @param string $phrase Cadena que se desea cortar.
+ * @param int $max_words NÃºmero de palabras.
+ * @return string
+ */
+function trunc($phrase, $max_words, $finalStr = '...') {
+    $finalStr = (strlen($phrase) > 0) ? $finalStr : '';
+    $phrase_array = explode(' ', $phrase);
+    if (count($phrase_array) > $max_words && $max_words > 0)
+        $phrase = implode(' ', array_slice($phrase_array, 0, $max_words)) . $finalStr;
+    return $phrase;
+}
+
+/**
+ * Devuelve las imagenes asociadas a un nodo en forma general
+ * @param integer $nid Node ID para recuperar imagenes
+ * @param integer $limit Limite de imagenes que se desean recuperar, default 3, 0 ilimitado o todas
+ * @param string $ntype Tipo de nodo del que se desean recuperar imagenes
+ * @param string $itype Tipo de imagen que se desea recuperar, default: _opcional
+ *   Otras opciones: micro, mini, preview, small, social, thumbnail, wide
+ * @return mixed
+ */
+function _get_images_gallerie($nid, $limit = 3, $ntype = 'story', $itype = '_original') {
+    if (!is_integer($nid))
+        return false;
+    if (!is_string($ntype) || !is_string($itype))
+        return false;
+    $strLimit = '';
+    if ($limit > 0)
+        $strLimit = "limit $limit";
+
+    $sql = "select n.nid as nid, n.title as ntitle, n.created as ncreated, i.nid as iid, ni.title as ititle, ni.created as icreated, f.filepath as iurl
+			from {node} n
+			inner join {node_revisions} nr on nr.vid=n.vid
+			inner join {image_attach} ia on ia.nid=n.nid
+			inner join {image} i on i.nid=ia.iid and i.image_size='$itype'
+			inner join {files} f on f.fid=i.fid and f.status=1
+			inner join {node} ni on ni.nid=i.nid
+			where n.type='$ntype' and n.nid=$nid
+			order by ia.weight $strLimit;";
+    $result = db_query($sql);
+    if (db_affected_rows($result) > 0) {
+        $counter = 0;
+        while ($img = db_fetch_array($result)) {
+            if ($counter == 0) {
+                $images['nid'] = $img['nid'];
+                $images['ntitle'] = $img['ntitle'];
+                $images['ncreated'] = $img['ncreated'];
+                $counter++;
+            }
+            $images['images'][] = array(
+                'iid' => $img['iid'],
+                'ititle' => $img['ititle'],
+                'iurl' => $img['iurl'],
+                'icreated' => $img['icreated'],
+            );
+        }
+    } else {
+        $images = false;
+    }
+    return $images;
+}
+
+/**
+ * Devuelve contenido enviado dentro de un bloque con bordes redondeados formado con imagenes
+ * compatibilidad total con cualquier navegador
+ *
+ * @author Luis Contreras <luis@inventmx.com>
+ * @param string   $content   El contenido HTML que se desea encapsular dentro de un bloque sombreado con redondeos
+ * @param integer  $size      Radio de circunferencia, de momento solo 2 opciones disponibles 5 y 10
+ * @return string
+ */
+function _get_rounded_block($content, $size = 10) {
+    return '
+	<div class="rounded-' . $size . 'x">
+		<div class="wrap-' . $size . 'x">
+			<div class="top-' . $size . 'x"><div class="l-' . $size . 'x"></div><div class="r-' . $size . 'x"></div></div>
+			<div class="left-' . $size . 'x">
+				<div class="right-' . $size . 'x clear-block">
+					<div class="content-rounded-' . $size . 'x">' . $content . '</div>
+				</div>
+			</div>
+			<div class="bottom-' . $size . 'x"><div class="l-' . $size . 'x"></div><div class="r-' . $size . 'x"></div></div>
+		</div>
+	</div>';
+}
+
+/**
+ * Devuelve ID para filtrado de contenidos segun el $_SERVER['HTTP_HOST']
+ * @global string $base_url Cadena de base url indicada en setting.php para cada sitio
+ * @return integer Devuelve ID identificador del sitio para filtrado de terms (taxonomy)
+ */
+function _get_filter_site() {
+    global $base_url;
+    $site = $_SERVER['HTTP_HOST'];
+    if ($base_url === $site)
+        $site = $base_url;
+    $sql = "SELECT filter FROM {sites} where site='$site'";
+    $filter = db_query($sql);
+    if ($filter->num_rows <= 0)
+        return 0;
+    $row = db_fetch_array($filter);
+    return $row['filter'] * 1;
+}
+
+/**
+ * 	Regresa TRUE si el usuario actual esta loggueado.
+ */
+function helpers_user_logged() {
+    global $user;
+    return (!$user->uid == 0);
+}
+
+/**
+ * 	Regresa el rol del usuario actual.
+ */
+function helpers_user_role($role = false, $searchUser = false) {
+    if ($searchUser != false) {
+        $user = user_load($searchUser);
+    } else {
+        global $user;
+    }
+    return (is_string($role)) ? in_array($role, $user->roles) : $user->roles;
+}
+
+/**
+ *
+ * Función que regresa la ruta del avatar de usuario, se pasa como parámetro
+ * $picture, si solo se tiene el userid (uid) se pasa el uid por $picture
+ * y el segundo parámetro se pasa en TRUE ej:
+ * 		helpers_get_user_picture($uid, TRUE);
+ *
+ * @author	oscar <oscar@inventmx.com>
+ * @param	string|int $picture|$uid
+ * @param	bool $searchUser true si en lugar de $picture se pasa un $uid
+ * @return	string la ruta del avatar.
+ *
+ */
+function helpers_get_user_picture($picture, $searchUser = false) {
+    $picture = ($searchUser == true) ? user_load($picture)->picture : $picture;
+
+    $url_pred = '/sites/all/themes/actitudfem/css/avatares/';
+    $url_user = '/media/files/users/uploads/';
+
+    return (substr($picture, 0, 2) == 'av') ? $url_pred . $picture : (($picture == '') ? $url_pred . 'av1.jpg' : $url_user . $picture );
+}
+
+/**
+ *
+ * Función que envia correos
+ *
+ * @param	string $to email al que va dirigido el correo
+ * @param	string $toName nombre al que va dirigido el correo
+ * @param	string $subject asunto del correo
+ * @param	string $body cuerpo o mensaje
+ * @param	string $title [opcional] titulo que desea para el correo
+ * @param	string $from [opcional] email del cual saldra el correo
+ * @param	string $fromName [opcional] Nombre del que envia el mensaje
+ * @param	string $host [opcional] host
+ * @param       array  $file [opcional] con los siguientes elementos:
+ * 	['archivoPath'] String path del archivo adjunto.
+ * 	['archivoNombre'] String Nombre del archivo adjunto.
+ *          ej. array('archivoPath'=>$path,'archivoNombre'=>$nombre).
+ *
+ */
+function helpers_email($to, $toName, $subject, $body, $title = 'Contacto', $from = 'contacto@actitudfem.com', $fromName = 'Webmaster ActitudFem.com', $host = 'localhost', $file = false) {
+
+    if (!class_exists('PHPMailer')) {
+        include_once '././././' . drupal_get_path('module', 'phpmailer') . '/phpmailer/class.phpmailer.php';
+        include_once '././././' . drupal_get_path('module', 'phpmailer') . '/phpmailer/class.smtp.php';
+    }
+
+    //Inicia mail
+    $mail = new PHPMailer();
+    //Asunto
+    $mail->Subject = utf8_decode($subject);
+    //Remitente
+    $mail->SetFrom($from, $fromName);
+    //Background copies for monitoring
+    $mail->AddBCC('luis@inventmx.com', 'Webmaster');
+    $mail->AddBCC('yolanda@inventmx.com', 'Webmaster');
+    //$mail->AddBCC('axl75mx@gmail.com','Webmaster');
+//   $mail->AddBCC('yola_01@hotmail.com','contacto');
+    //Reply to
+    $mail->AddReplyTo($from, $fromName);
+    if (is_array($to)) {
+        foreach ($to as $name => $value) {
+            $mail->AddAddress($value, $name);
+        }
+    } else {
+        $mail->AddAddress($to, $toName);
+    }
+//   Archivo adjunto
+    if (is_array($file)) {
+        $mail->AddAttachment($file['archivoPath'], $file['archivoNombre']);
+    }
+    //Cuerpo del email
+    $body = utf8_decode(strip_tags($body, '<a><p><table><tr><th><tbody><td><br><b><strong>'));
+    $message = helpers_email_format($body, $title);
+
+    //Mensaje HTML para email
+    $mail->Body = $message['body'];
+    //Mensaje TEXT PLAIN para imal por si el destinatario del correo no admite email con formato html
+    $mail->AltBody = $message['altbody'];
+
+    //Enviando email
+    $mail->Send();
+
+    //Reseteando variables
+    $mail->ClearAddresses();
+}
+
+/**
+ * Devuelve formato de correo
+ */
+function helpers_email_format($message, $title, $link_dst = '', $links = '', $actions = '') {
+
+    if ($message === '')
+        return '';
+
+    $site_name = site_name();
+//	$site_name='actitudfem';
+//   $domain_name = $_SERVER['HTTP_HOST'];
+    $email_date = format_date(time(), 'custom', 'j / F / Y - H:i');
+    $email_date = str_replace('/', 'de', $email_date);
+    $email_date = str_replace('-', ' a las ', $email_date);
+
+    //Cuerpo del correo
+    $body = '
+	<div id="cuerpo_email" style="width: 560px; display: block;">
+	<table border="0" cellpadding="0" cellspacing="0" width="560px">
+	<tr>
+                <td width="280px" height="30px" style="background-color: #000;">
+			<span style="color: #FFF; font-weight: bold; font-family: Arial; font-size: 12px; margin-left: 15px;" >' . $title . '</span>
+                </td>
+		<td colspan="2" style="background:url(\'http://www.actitudfem.com/sites/all/themes/actitudfem/css/logos/logo_mail.jpg\');"  width="280px" height="30px" >
+		</td>
+	</tr>
+	<tr>
+		<td colspan="2" align="right">
+			<span style="color: #939393; font-family: Arial; font-size: 10px;">El ' . $email_date . '</span>
+		</td>
+		<td></td>
+	</tr>
+	<tr>
+		<td colspan="3" align="left">
+			<span style="color: #000; font-size: 14px; font-family: Arial;">
+				' . $message . '
+			</span>
+		</td>
+	</tr>
+	</table>
+	<table border="0" cellpadding="0" cellspacing="0" width="540px">
+	<tr>
+		<td height="65px" width="355px">
+			<p style="color: #000; margin-left: 15px; font-size: 12px; font-weight: bold; font-family: Arial;">
+			Gracias,
+			<br>El Equipo de ' . $site_name . '
+			</p>
+		</td>
+		<td></td>
+	</tr>
+	</table>';
+
+    if ($links != '')
+        $body.='
+	<table border="0" cellpadding="0" cellspacing="0" width="560px">
+	<tr>
+		<td style="margin-top: 5px; font-size: 10px; font-family: Arial;">
+			' . $links . '
+		</td>
+	</tr>
+	</table>';
+
+    if ($actions != '')
+        $body.='
+	<table border="0" cellpadding="0" cellspacing="0" width="560px">
+	<tr>
+		<td style="margin-top: 5px; font-size: 10px; font-family: Arial;">
+			' . $actions . '
+		</td>
+	</tr>
+	</table>';
+
+    $body.='
+	<table border="0" cellpadding="0" cellspacing="0" width="560px">
+	<tr>
+		<td style="margin-top: 5px; font-size: 10px; font-family: Arial;">
+			<b>Aviso Legal:</b>&nbsp;' . $site_name . ' es un portal perteneciente a Inventmx. Las oficinas de Inventmx se encuentran en: Bucareli 1 3er. Piso, en la colonia Centro, Delegaci&oacute;n Cuauht&e
+                            acute;moc, M&eacute;xico D.F., C.P. 06000.
+		</td>
+	</tr>
+	</table>
+	</div>';
+
+    $message = str_replace("<br>", "\n", $message);
+    $message = strip_tags($message);
+
+    $altbody = "
+		" . $site_name . "\n\n
+		" . $message . "\n\n";
+    if ($link_dst !== '')
+        $altbody.="
+		Para visitarlo copia y pega la siguiente direcci&oacute;n en tu navegador: " . $link_dst . "\n\n";
+
+    $altbody.="
+		Gracias,\n
+		El Equipo de " . $site_name . "\n\n
+		Aviso Legal: " . $site_name . " es un portal perteneciente a Inventmx.\n\n
+		Las oficinas de Inventmx se encuentran en:\n\n
+		Homero 203, despacho 801, en la colonia Chapultepec Morales, Delegaci&oacute;n Miguel Hidalgo, M&eacute;xico D.F., C.P. 11570.
+	";
+
+    return array(
+        'body' => $body,
+        'altbody' => $altbody
+    );
+}
+
+/**
+ * Devuelve el nombre del sitio almacenado en la tabla {variable}
+ */
+function site_name() {
+    $sql = "select value from {variable} where name='site_name'";
+    $result = db_query($sql);
+    while ($row = db_fetch_array($result)) {
+        $sitename = $row['value'];
+    }
+    if ($sitename !== null || $sitename !== '')
+        return unserialize($sitename);
+    return false;
+}
+
+/**
+ * Devuelve el podcast de un articulo en caso de existir
+ */
+function _node_podcast($nid = 0) {
+    if ($nid <= 0)
+        return false;
+
+    $query = "select f.filepath, cts.field_podcast_desc_value as description
+          from {node} n
+          inner join {content_type_story} cts on cts.vid=n.vid and cts.field_podcast_value=1
+          inner join {files} f on f.fid=cts.field_file_podcast_fid and f.filemime='audio/mpeg'
+          where n.nid={$nid}";
+    $result = db_query($query);
+    if (mysql_affected_rows() > 0) {
+        while ($row = db_fetch_array($result)) {
+            $url = $row['filepath'];
+            $description = $row['description'];
+        }
+    } else {
+        return false;
+    }
+    if (strlen($url) <= 0)
+        return false;
+
+    if (strlen($description) <= 0)
+        $description = '';
+
+    $html = '
+<div class="node-podcast">
+  <div class="node-podcast-title">Podcast</div>
+  <div class="node-podcast-description">' . $description . '</div>
+  <div class="node-podcast-media">
+    <object classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000" width="290" height="24" id="swf12853501661">
+    <param name="movie" value="/sites/all/modules/swftools/shared/1pixelout/player.swf" />
+    <param name="allowScriptAccess" value="sameDomain" />
+    <param name="wmode"             value="opaque" />
+    <param name="bgcolor"           value="#FFFFFF" />
+    <param name="scale"             value="showall" />
+    <param name="quality"           value="autohigh" />
+    <param name="align"             value="l" />
+    <param name="allowfullscreen"   value="true" />
+    <param name="base" value="http://' . $_SERVER['HTTP_HOST'] . '/sites/' . $_SERVER['HTTP_HOST'] . '/files/">
+    <param name="play"              value="true" />
+    <param name="menu"              value="false" />
+    <param name="loop"              value="true" />
+    <param name="flashvars" value="playerID=12853074341&amp;autostart=no&amp;loop=no&amp;bg=0xDCEDFD&amp;leftbg=0x00699A&amp;rightbg=0x00699A&amp;rightbghover=0xe75200&amp;lefticon=0xFFFFFF&amp;righticon=0xFFFFFF&amp;righticonhover=0xFFFFFF&amp;text=0x00699A&amp;slider=0x00699A&amp;loader=0x00699A&amp;track=0xFFFFFF&amp;border=0x00699A&amp;soundFile=/' . $url . '">
+    <!--[if gte IE 7]>-->
+    <object type="application/x-shockwave-flash" data="/sites/all/modules/swftools/shared/1pixelout/player.swf" width="290" height="24">
+    <param name="allowScriptAccess" value="sameDomain" />
+    <param name="wmode"             value="opaque" />
+    <param name="bgcolor"           value="#FFFFFF" />
+    <param name="scale"             value="showall" />
+    <param name="quality"           value="autohigh" />
+    <param name="align"             value="l" />
+    <param name="allowfullscreen"   value="true" />
+    <param name="base" value="http://' . $_SERVER['HTTP_HOST'] . '/sites/' . $_SERVER['HTTP_HOST'] . '/files/">
+    <param name="play"              value="true" />
+    <param name="menu"              value="false" />
+    <param name="loop"              value="true" />
+    <param name="flashvars" value="playerID=12853074341&amp;autostart=no&amp;loop=no&amp;bg=0xDCEDFD&amp;leftbg=0x00699A&amp;rightbg=0x00699A&amp;rightbghover=0xe75200&amp;lefticon=0xFFFFFF&amp;righticon=0xFFFFFF&amp;righticonhover=0xFFFFFF&amp;text=0x00699A&amp;slider=0x00699A&amp;loader=0x00699A&amp;track=0xFFFFFF&amp;border=0x00699A&amp;soundFile=/' . $url . '">
+    <!--<![endif]-->
+    <p>You are missing some Flash content that should appear here! Perhaps your browser cannot display it, or maybe it did not initialize correctly.</p>
+    <!--[if gte IE 7]>-->
+    </object>
+    <!--<![endif]-->
+    </object>
+  </div>
+</div>';
+
+    return $html;
+}
+
+/**
+ *
+ * Función que regresa un array multidimensional con la siguiente estructura :
+ * <code>
+ *  Array
+ *  [1] => Array
+ *      (
+ *          [0] => qw1
+ *          [1] => qw2
+ *          [2] => qw3
+ *      )
+ *  [2] => Array
+ *      (
+ *          [0] => qw4
+ *          [1] => qw5
+ *          [2] => qw6
+ *      )
+ * </code>
+ * Es decir, crea un array que por cada índice es una página a mostrar.
+ * @author Oscar Sánchez <oscar@inventmx.com>
+ * @method
+ * @param array $arr Array que se usará para acondicionar para el pager.
+ * @param int $perPage Número de elementos que se mostraán por página.
+ * @return array Regresa el
+ */
+function helpers_pager($arr, $perPage = 20) {
+    $cn = count($arr);
+    $pags = ceil($cn / $perPage);
+    for ($p = 1; $p <= $pags; $p++) {
+        $magicNum = ($p - 1) * $perPage;
+        for ($i = $magicNum; $i <= $magicNum + $perPage - 1; $i++) {
+            if (isset($arr[$i])) {
+                $results[$p][] = $arr[$i];
+            }
+        }
+    }
+    return $results;
+}
+
+/**
+ *
+ *  Función que a partir de un array multidimensional con la siguiente estructura :
+ *  [1] => Array
+ *      (
+ *          [0] => qw2
+ *          [1] => qw3
+ *          [2] => qw4
+ *      )
+ *  [2] => Array
+ *      (
+ *          [0] => qw5
+ *          [1] => qw6
+ *          [2] => qw7
+ *      )
+ *
+ *
+ * @param <type> $arr
+ * @param <type> $perPage
+ * @return <type>
+ */
+function helpers_pager_implode($arr, $perPage = 20) {
+    $arr = helpers_pager($arr, $perPage);
+    foreach ($arr as $k => $v) {
+        foreach ($v as $e) {
+            $tmpOut[$k] .= $e;
+        }
+        $out[$k] = $tmpOut[$k];
+    }
+    return $out;
+}
+
+function helpers_pager_get_js($arr, $idUpdate, $idPager, $totalPagesToShow = 5) {
+    $out = json_encode($arr, JSON_HEX_TAG);
+    $totalPagesToShow = (int) $totalPagesToShow;
+    $ret = "<script type='text/javascript'>
+					var config = {
+						total_pages_show: $totalPagesToShow,
+						update_element: '$idUpdate'
+					  }
+					var data = {$out};
+					$('#$idPager').pager(config,data);
+			</script>";
+    return $ret;
+}
+
+function helpers_dump($data, $options = '') {
+    $functionFrom = debug_backtrace();
+    if (is_string($options)) {
+        $opt['title'] = $options;
+    }
+    $out = "\n" . date("M j, Y, g:i:a | ") . $functionFrom[(($opt['levelBackTrace']) ? $opt['levelBackTrace'] : 3)]['function'] . " >" .
+        (($opt['title'] != '') ? "\n----- " . $opt['title'] . "-----\n" : '') .
+        ((is_array($data)) ? "\n" : "") . print_r($data, 1) . "\n";
+    file_put_contents('/tmp/' . (($opt['filename']) ? $opt['filename'] : 'dump-inventMX'), $out, FILE_APPEND);
+    return $out;
+}
+
+// </editor-fold>
+
+/**
+ * Devuelve html de shares twietter y fb
+ * @param string $button Opcion de share(tw o fb)
+ * @param array $meta Array con los principales dates de share [url] [text]
+ * @return html string
+ */
+function _get_share($button = 'fb', $meta = array()) {
+    if ($button === '' || is_null($button))
+        return false;
+    if (!is_array($meta))
+        return false;
+
+    //Sharing button TW - FB
+    switch ($button) {
+        case 'fb':
+            $share_url = '';
+            if (count($meta) > 0)
+                $share_url = 'share_url="' . $meta['url'] . '"';
+
+            return '<a name="fb_share" type="box_count" ' . $share_url . '>Share</a>';
+            break;
+        case 'tw':
+            $share_url = '';
+            if (count($meta) > 0 && ($meta['url'] !== '' || !is_null($meta['url'])))
+                $share_url = 'data-url="' . urldecode($meta['url']) . '"';
+
+            $share_text = '';
+            if (count($meta) > 0 && ($meta['text'] !== '' || !is_null($meta['text'])))
+                $share_text = 'data-text="' . $meta['text'] . '"';
+
+            return '<a href="http://twitter.com/share" class="twitter-share-button" ' . $share_url . ' ' . $share_text . ' data-count="vertical" data-lang="es">Tweet</a>';
+            break;
+    }
+}
+
+/**
+ * Devuelve html de me gusta - no me gusta
+ * @param int $nid  nid del node
+ * @return html string
+ */
+function _get_like_node($nid) {
+    $filename = 'likes_' . $nid;
+    $items = _search_cache($filename);
+    if (!$items) {
+        //Container
+        $items = array();
+        $items['num_like'] = _get_count_saved('like', $nid);
+        $items['num_nolike'] = _get_count_saved('no-like', $nid);
+
+        if (count($items) > 0) {
+            _create_cache($filename, $items);
+            unset($result, $row);
+        }
+    }
+    $html = '<div class="tools like" title="like">
+          <div class="txt-like lik" name="1" id="l' . $nid . '" nid="' . $nid . '">' . $items['num_like'] . '</div>
+          <div class="txt-like no-like" name="0" id="nl' . $nid . '" nid="' . $nid . '">' . $items['num_nolike'] . '</div>
+         </div>';
+
+    return $html;
+}
+
+/**
+ * Devuelve array con los dias (numerico) de un mes
+ * @return $days array
+ */
+function _get_userfem_days() {
+    $days = array();
+    $days[0] = "Día";
+    for ($i = 1; $i < 32; $i++) {
+        $days[$i] = $i;
+    }
+    return $days;
+}
+
+/**
+ * Devuelve array con los meses (string) del anio
+ * @return $months array
+ */
+function _get_userfem_months() {
+    $months = array();
+    $months[0] = "Mes";
+    for ($i = 1; $i < 13; $i++) {
+        $months[$i] = format_date(mktime(1, 1, 1, $i, 1, 1), 'custom', 'F');
+    }
+    return $months;
+}
+
+/**
+ * Devuelve array con los anios (numerico) (mayores de 12 anios y menores de 70 anios)
+ * @return $years array
+ */
+function _get_userfem_years() {
+    $years = array();
+    $years[0] = 'Año';
+    $startyear = (int) date('Y') - 12;
+    for ($i = $startyear; $i >= ($startyear - 70); $i--) {
+        $years[$i] = $i;
+    }
+    return $years;
+}
+
+function get_url_image_from_node($iids = array(), $module = null) {
+    $url_image = null;
+    if (count($iids) <= 0 || !$module)
+        return $url_image;
+
+    $items = get_images_from_node($iids, $module);
+    if (count($items) > 0) {
+        foreach ($items as $nid => $image) {
+            $sql_bajolupa = "SELECT f.filepath FROM {content_type_gallerie} ctg
+      INNER JOIN {files} f ON f.fid=ctg.field_image_bajo_lupa_fid
+      WHERE ctg.nid=%d AND ctg.field_bajo_lupa_value=1 AND f.status=1";
+            $result = db_query($sql_bajolupa, $nid);
+            if (mysql_affected_rows() > 0) {
+                $url_image = db_fetch_object($result)->filepath;
+            }
+            if ($url_image) //Imagen de bajo la lupa
+                break;
+
+            foreach ($image as $iid => $item)
+                if ($item['weight'] == 0)
+                    $url_image = $item['url'];
+        }
+    }
+    return $url_image;
+}
+
+function get_tags_from_node($terms = array(), $type = 'tags') {
+    if (count($terms) <= 0)
+        return $terms;
+    $items = array();
+    switch ($type) {
+        case 'tags':
+            $vid = 6;
+            break;
+        case 'subcanales':
+            $vid = 2;
+            break;
+        case 'canales':
+            $vid = 3;
+            break;
+    }
+    foreach ($terms as $term) {
+        if ($term->vid == $vid)
+            $items[$term->tid] = strtolower($term->name);
+    }
+    return $items;
+}
+
+function get_images_from_node($iids = array(), $module = null) {
+    $items = array();
+    if (count($iids) <= 0 || !$module)
+        return $items;
+
+    $iids = implode(',', $iids);
+    switch ($module) {
+        case 'img_texto':
+        case 'texto_img':
+        case 'bgimg_texto':
+        case 'texto_bgimg':
+        case 'img2_texto':
+        case 'texto_img2':
+            $query = "select ia.nid, ia.iid as iid, f.filepath,  ia.weight
+							from {image_attach} ia
+							inner join {image} i on i.nid=ia.iid and i.image_size='_original'
+							inner join {files} f on f.fid=i.fid and f.status=1
+							where ia.iid in (%s);";
+            break;
+        default:
+            $query = "select ia.nid, ia.iid as iid, f.filepath,  ia.weight
+							from {image_attach} ia
+							inner join {image} i on i.nid=ia.iid and i.image_size='_original'
+							inner join {files} f on f.fid=i.fid and f.status=1
+							where ia.iid in (%s);";
+            break;
+    }
+    $result = db_query($query, $iids);
+
+    if ($result)
+        while ($row = db_fetch_object($result)) {
+            $items[$row->nid][$row->iid] = array(
+                'url' => $row->filepath,
+                'weight' => $row->weight
+            );
+        }
+    return $items;
+}
+
+function get_nodes_by_term($types = NULL, $tid = NULL, $limit = 20, $exclude = false, $conditions = null) {
+    if (is_array($types)) {
+        if (count($types) > 1) {
+            $types = "'" . implode("','", $types) . "'";
+        } else {
+            $types = "'{$types[0]}'";
+        }
+    } else {
+        $types = "'{$types}'";
+    }
+
+    $exclude = ($exclude) ? " AND n.nid NOT IN ( $exclude )" : '';
+    $query = "select n.nid, n.vid, n.title, n.type, td.name as seccion
+			from {node} n
+			inner join {term_node} tn on tn.vid=n.vid
+                        INNER JOIN {term_data} td ON td.tid = tn.tid
+			where tn.tid in ({$tid}) and n.type in ({$types}) and n.status=1 {$exclude} {$conditions}
+			group by n.nid, n.title
+			order by n.created desc
+			limit {$limit};";
+    $result = db_query($query);
+    if (!$result)
+        return NULL;
+    $items = array();
+    $count = 0;
+    while ($row = db_fetch_object($result)) {
+        $snippet = _get_snippet_name($row->nid, $row->vid, $row->type);
+        //Si devuelve nombre de bloque se envia ese, de lo contrario evaluar indices pares y nones y selecciona bloques de default
+        $snippet = $snippet ? $snippet : (is_par($count) ? 'texto_img' : 'img_texto');
+        //$snippet=is_par($count) ? 'texto_img' : 'img_texto';
+        $items[$count] = array(
+            'nid' => $row->nid,
+            'title' => $row->title,
+            'seccion' => $row->seccion,
+            'module' => $snippet,
+        );
+        $count++;
+    }
+    return $items;
+}
+
+function _get_snippet_name($nid = NULL, $vid = NULL, $type = 'story') {
+    if (!$nid || !$vid)
+        return $nid;
+
+    //Solo para 1 tipo, campo en table global, si varios content types comparten el field, se arma table unica
+    //$type=trim($type);
+    //$query="select c.snippet from {content_type_{$type}} ct inner join {components} c on c.cid=ct.field_bloques_value where ct.nid={$nid}";
+    $query = "select c.snippet
+			from {content_field_bloques} ct
+			inner join {components} c on c.cid=ct.field_bloques_value
+			where ct.nid={$nid} and ct.vid={$vid}";
+    $result = db_query($query);
+    $item = NULL;
+    if ($result) {
+        while ($row = db_fetch_object($result)) {
+            $item = $row->snippet;
+        }
+    }
+    return $item;
+}
+
+function is_par($num) {
+    $par = (int) $num % 2;
+    if ($par == 0)
+        return true;
+    return false;
+}
+
+function get_children_terms_ids_from_node($tid = NULL) {
+    $childrens = taxonomy_get_children($tid);
+    $items = array();
+    foreach ($childrens as $term) {
+        $items[] = $term->tid;
+    }
+    return $items;
+}
+
+function userfem_get_news_items($sites = null) {
+    if ($sites) {
+        $actitud = (ereg('all', $sites)) ? 'checked="checked"' : '';
+    } else {
+        $sites = '';
+        $actitud = 'checked="checked"';
+    }
+
+
+    $glamour = (ereg('6', $sites)) ? 'checked="checked"' : '';
+    $belleza = (ereg('4', $sites)) ? 'checked="checked"' : '';
+    $estilo = (ereg('1', $sites)) ? 'checked="checked"' : '';
+    $geek = (ereg('3', $sites)) ? 'checked="checked"' : '';
+    $hogar = (ereg('7', $sites)) ? 'checked="checked"' : '';
+    $placer = (ereg('2', $sites)) ? 'checked="checked"' : '';
+    $guia = (ereg('5', $sites)) ? 'checked="checked"' : '';
+
+
+    $form = '';
+    $form.='<div class="news-container news-container-login">';
+    $form.='<div class="news-actitudfem image-site"><input id="actitud" value="all" ' . $actitud . ' class="newsfem" value="" name="news[]" type="checkbox" ></div>';
+    $form.='<div class="news-glamourfem image-site"><input id="glamour" value="6" ' . $glamour . ' class="newsfem" name="news[]" type="checkbox"></div>';
+    $form.='<div class="news-bellezafem image-site"><input id="belleza" value="4" ' . $belleza . ' class="newsfem" name="news[]" type="checkbox"></div>';
+    $form.='<div class="news-estilofem image-site"><input id="estilo" value="1" ' . $estilo . ' class="newsfem" name="news[]" type="checkbox"></div>';
+    $form.='<div class="news-geekfem image-site"><input id="geek" value="3" ' . $geek . ' class="newsfem" name="news[]" type="checkbox"></div>';
+    $form.='<div class="news-hogarfem image-site"><input id="hogar" value="7" ' . $hogar . ' class="newsfem" name="news[]" type="checkbox"></div>';
+    $form.='<div class="news-placerfem image-site"><input id="placer" value="2" ' . $placer . ' class="newsfem" name="news[]" type="checkbox"></div>';
+    $form.='<div class="news-guiafem image-site"><input id="guia" value="5" ' . $guia . ' class="newsfem" name="news[]" type="checkbox"></div>';
+    $form.='</div>';
+    return $form;
+}
+
+//<editor-fold defaultstate="collapsed" desc="Functions Helpers General for Search Product">
+/**
+ * Devuelve imagenes asociadas de un nodo producto
+ * @param integer $nid Valor entero representativo del ID de un producto capturado
+ * @return array Devuelve arreglo de datos con las imagenes asociadas a un producto
+ */
+function search_product_node_images($nid = NULL) {
+    if (!$nid)
+        return $nid;
+
+
+    $file_directory = file_directory_path();
+    $query = "select f.fid, f.filename, concat('{$file_directory}/images/prodfem/',trim(f.filename)) as filepath, filesize
+                        from {file} f
+                        where nid=%d";
+    $result = db_query($query, (int) $nid);
+    $items = array();
+    while ($row = db_fetch_object($result)) {
+        $items[] = array(
+            'fid' => $row->fid,
+            'filename' => $row->filename,
+            'filepath' => $row->filepath,
+            'filesize' => $row->filesize
+        );
+    }
+
+    //Return results
+    return $items;
+}
+
+/**
+ * Devuelve la term asociadas de un nodo producto
+ * @param integer $nid Valor entero representativo del ID de un producto capturado
+ * @param integer $cid Valor entero representativo del ID de la categoria del term (1=categoria,2=ocasion,3=temporada,4=anio,5=marca)
+ * @return string Devuelve la temporada
+ */
+function search_product_node_term_cid($nid = NULL, $cid = 3) {
+    if (!$nid)
+        return $nid;
+
+    $dbactive = connect_db('prodfem');
+    $query = "select td.name, td.tid
+                    from  term_node tn
+                    inner join term_data td on td.tid=tn.tid and td.cid=%d
+                    where tn.nid=%d";
+    $tem_name['name'] = db_fetch_object(db_query($query, array($cid, $nid)))->name;
+    $tem_name['name'] = ($tem_name['name']) ? $tem_name['name'] : null;
+    $tem_name['tid'] = db_fetch_object(db_query($query, array($cid, $nid)))->tid;
+    $tem_name['tid'] = ($tem_name['tid']) ? $tem_name['tid'] : null;
+
+    $dbactive = connect_db();
+    return $tem_name;
+}
+
+/**
+ * Devuelve arreglo de datos de las principales categorias relacionadas a Productos
+ * @param mixed|string|integer|null $category ID o NAME de la categoria principal en productos
+ * @return array Devuelve datos sobre la (s) categoria (s) de productos
+ */
+function search_product_categories($category = NULL) {
+    //Container
+    $items = array();
+    //Query, same rules Drupal defaults
+    $category = check_plain($category);
+    if (!$category)
+        $query = "select cid, name, sysname, description from {category} order by cid;";
+    elseif (is_string($category))
+        $query = "select cid, name, sysname, description from {category} where name like '%{$category}%' order by cid;";
+    elseif (is_int($category))
+        $query = "select cid, name, sysname, description from {category} where cid={$category} order by cid;";
+
+    $result = db_query($query);
+
+    while ($row = db_fetch_object($result)) {
+        $items[$row->cid] = array(
+            'name' => $row->name,
+            'sysname' => $row->sysname,
+            'description' => $row->description
+        );
+    }
+    //Return results
+    return $items;
+}
+
+/**
+ * Devuelve arreglo de datos de las principales categorias relacionadas a Productos SOLO TOP
+ * @return array Devuelve datos sobre la (s) categoria (s) de productos
+ */
+function search_product_categories_top() {
+    $filename = 'prodfem_categoriestop';
+    $items = _search_cache($filename);
+    if (!$items) {
+        //Container
+        $items = array();
+        $query = "select tid, name from {term_data} where cid=1 and weight>0 order by weight limit 6;";
+        $result = db_query($query);
+        while ($row = db_fetch_object($result)) {
+            $items[$row->tid] = $row->name;
+        }
+        if (count($items) > 0) {
+            _create_cache($filename, $items);
+            unset($result, $row);
+        }
+    }
+    //Return results
+    return $items;
+}
+
+/**
+ * Funcion para seleccionar o deseleccionar una base de datos distinta a la de DEFAULT
+ * @param string' $dbname El Alias Name registrado en settings para esta conexion a otra DB
+ * @return string Devuelve el nombre de la BD previamente seleccionada antes de hacer el cambio, NULL en caso de que no pueda setearla
+ */
+function connect_db($dbname = NULL) {
+    if (!$dbname)
+        $dbActive = @db_set_active("default");
+    else
+        $dbActive = @db_set_active($dbname);
+
+    if ($dbActive)
+        return TRUE;
+
+    return FALSE;
+}
+
+// </editor-fold>
+//<editor-fold defaultstate="collapsed" desc="Temporal Functions for Building HTML of Search Product">
+function set_html_search_product_categories($categories = NULL) {
+    if (!$categories)
+        return $categories;
+    $html = array();
+    $html[] = '<div id="gallery_breadcrumbs">';
+    $html[] = '<div id="gallery_breadcontainer">';
+    $html[] = '<ul class="gal_categories">';
+    foreach ($categories as $cid => $item) {
+        $html[] = '<li id="' . $cid . '" title="' . check_plain($item) . '">
+                      <a href="/buscar/catalogo/' . $item . '">' . $item . '</a>
+                   </li>';
+    }
+    $html[] = '</ul>';
+    $html[] = '<div class="gal_more"><a href="/buscar/catalogo">M&aacute;s productos</a></div>';
+    $html[] = '</div>';
+    $html[] = '</div>';
+    return implode(' ', $html);
+}
+
+function set_html_search_product_table_results($items = NULL) {
+    if (!$items)
+        return $items;
+
+    //armado table
+    $html[] = '<div class="search-product-table-results">';
+    $html[] = '<ul class="item-product">';
+    foreach ($items as $item) {
+        $html[] = '<li>';
+        $html[] = '<h2><a href="/product/' . $item['nid'] . '">' . $item['title'] . '</a><h2>';
+        $html[] = '<img src="' . $item['images'][0]['filepath'] . '" width="110" height="90">';
+        $html[] = '</li>';
+    }
+    $html[] = '</ul>';
+    $html[] = '</div>';
+
+    return implode(' ', $html);
+}
+
+// </editor-fold>
+//<editor-fold defaultstate="collapsed" desc="Functions SET HTML MiKe for Search Product">
+
+/**
+ * Devuelve el HTML del catologo de productos de FEM
+ * @param array $items
+ * @param string $items[nid]
+ * @param string $items[images]
+ * @param array $items[0][filepath]
+ * @param string $items[title]
+ * @param array $items[subcategoria]
+ */
+function set_html_search_product($items = array()) {
+    global $base_url;
+    if (!$items)
+        return $items;
+//    $html = set_html_filtro_product();
+    //armado html
+    $html = '<div class="content-listado-filtros">';
+    foreach ($items as $item) {
+        $like = _get_like_node($item['nid']);
+        //Checking if image exists
+        $urlImagen = $item['images'][0]['filepath'];
+        $imageFile = utf8_decode($item['images'][0]['filepath']);
+        if (!file_exists($item['images'][0]['filepath'])) {
+            $imageFile = 'sites/all/themes/actitudfem/css/img/imagennodisponible.jpg';
+        }
+        //$imageFile = _create_imagecache('product', $imageFile, $item['title'], $item['title'], '');
+        $imageFile = _create_imagecache('product', $imageFile, $item['title'], $item['title']);
+        //$imageFile = '<img src="/'. $imageFile .'" width="200" height="150" />';
+        $html .='<div class="catalog_item" url="' . $urlImagen . '">
+                    <div class="catalog_title">' . $item['subcategoria'] . '</div>
+                    <a href="/catalogo/' . $item['nid'] . '">
+                       <span class="bg-purple">VER CAT&Aacute;LOGO<br/>' . $item['temporada'] . '</span>
+                       ' . $imageFile . '
+                    </a>
+                    <span class="C4 catalog_name">' . _clear_string($item['title'], 40) . '</span>
+                    <div class="catalog_social">
+                        <a class="fb" target="_blank" href="http://www.facebook.com/sharer.php?u=' . $base_url . '/catalogo/' . $item['nid'] . '"></a>
+                        <div class="s_detail">Compartir en Facebook</div>
+                        <div class="clear"></div>
+                    </div>
+                 </div>';
+    }
+    $html .= '</div>';
+    return $html;
+}
+
+// </editor-fold>
+//<editor-fold defaultstate="collapsed" desc="Functions SET FILTROS for Search Product">
+//Codigo de filtros (yolanda)
+
+/**
+ * Devuelve el html para pintar los filtros de busqueda
+ * @author Yolanda Escalante <yolanda@inventmx.com>
+ * @version 0.1.2.3
+ * @method set_html_filtro_product(void)
+ * @see drupal_get_form(string);
+ * @return string
+ */
+function set_html_filtro_product($filters = null) {
+    $form_filtros = drupal_get_form('filtros_product');
+
+    $html = '<div id="catalog">
+                <div id="catalog_filters">
+                    ' . $form_filtros . '
+                </div>
+             </div>';
+
+    return $html;
+}
+
+/**
+ * Devuelve la forma de los filtros de busqueda
+ * @author Yolanda Escalante <yolanda@inventmx.com>
+ * @version 0.1.2.3
+ * @method filtros_product_form(void)
+ * @see _get_items_filtros(integer);
+ * @return array
+ */
+function filtros_product() {
+    $form = array();
+    //Select Categorias
+    $form['fcategoria'] = array(
+        '#title' => t('Producto'),
+        '#type' => 'select',
+        '#attributes' => array('class' => 'catalogo-fem-filter', 'idfilter' => '1'),
+        '#prefix' => '<div class="catalog_filter left">',
+        '#suffix' => '</div>'
+        //'#options' => array('-1' => 'Elige una opción...'),
+    );
+
+    //Select Temporada
+    $form['ftemporada'] = array(
+        '#title' => t('Temporada'),
+        '#type' => 'select',
+        '#attributes' => array('disabled' => 'disabled', 'class' => 'catalogo-fem-filter', 'idfilter' => '3'),
+        '#prefix' => '<div class="catalog_filter left">',
+        '#suffix' => '</div>'
+        //'#options' => array('-1' => 'Elige una opción...'),
+    );
+
+    //Select Marca
+    $form['fmarca'] = array(
+        '#title' => t('Marca'),
+        '#type' => 'select',
+        '#attributes' => array('disabled' => 'disabled', 'class' => 'catalogo-fem-filter', 'idfilter' => '5'),
+        '#prefix' => '<div class="catalog_filter left">',
+        '#suffix' => '</div>'
+        //'#options' => array('-1' => 'Elige una opción...'),
+    );
+
+    //Boton Submit
+    $form['enviar-filtros-submit'] = array(
+        '#type' => 'button',
+        '#value' => 'Filtrar',
+        '#attributes' => array('class' => 'btn-submit-form'),
+        '#prefix' => '<div class="catalog_filter left">',
+        '#suffix' => '</div>'
+    );
+
+    //Configuracion de formulario
+    $form['#attributes']['enctype'] = 'multipart/form-data';
+    //  $form['#action'] = '/buscar/catalogo';
+    $form['#method'] = 'post';
+
+    return $form;
+}
+
+/**
+ * Devuelve los items de para llenado de cada filtro
+ * @author Yolanda Escalante <yolanda@inventmx.com>
+ * @version 0.1.2.3
+ * @method _get_items_filtros(integer)
+ * @param $filtro integer |cid del term_data
+ * @return array
+ */
+function _get_items_filtros($filtro = 1, $options = array()) {
+
+    //Container
+    $items = array();
+    //if($filtro!=1)
+    #$items[-1]='Elige una opción...';
+    $items[0] = 'Todos';
+
+    //Query, same rules Drupal defaults
+    //$query="select tid, name from term_data where cid=".$filtro.";";
+    $filtro = intval($filtro);
+
+    $parent = taxonomy_get_term_by_name($options['type']);
+    $parent = $parent[0];
+    $config = array();
+    $config['cid'] = $filtro;
+    switch ($filtro) {
+        case 1:
+            $config['default'] = 0;
+            break;
+        case 3:
+            $config['product'] = (int) $options['args']['categorias']['tid'];
+            break;
+        case 5:
+            $config['product'] = (int) $options['args']['categorias']['tid'];
+            $config['season'] = (int) $options['args']['temporada']['tid'];
+            break;
+    }
+
+    $query = _get_items_filtros_perform_query($filtro, $config, $options);
+
+    $result = db_query($query);
+
+    $controlFiltro = '';
+    while ($row = db_fetch_object($result)) {
+        //Group options solo para filtro=1 (productos)
+        if ($filtro == 1) {
+            if ($controlFiltro !== $row->parentname) {
+                if ($row->name) {
+                    $items[ucfirst(trim($row->parentname))][$row->tid] = ucfirst(trim($row->name));
+                }
+            }
+        } else {
+            //Options generales
+            if ($row->name) {
+                $items[$row->tid] = ucfirst(trim($row->name));
+            }
+        }
+    }
+    //Return results
+    return $items;
+}
+
+function _get_category_id_by_name($type = NULL) {
+    if (!$type) {
+        return $type;
+    }
+    $query = "select tid from {term_data} td inner join {term_hierarchy} th on th.tid=td.tid and parent=0 where name='{$type}'";
+    $result = db_query($query);
+    if ($result)
+        $result = db_fetch_array($result);
+
+    $result = (int) $result['tid'] > 0 ? (int) $result['tid'] : 0;
+
+    return $result;
+}
+
+function _get_items_filtros_perform_query($filtro = NULL, $options = array(), $args = array()) {
+    if (!$filtro)
+        return $filtro;
+
+    $parent = '';
+    if ($args['type'])
+        $parent = _get_category_id_by_name($args['type']);
+
+    $parent = $parent > 0 ? $parent = "INNER JOIN {term_hierarchy} th ON th.tid=td.tid AND th.parent={$parent}" : '';
+
+    $field = 'vnt.product';
+    $inners = array();
+    $productUnique = '';
+    $seasonUnique = '';
+    $fields = '';
+    $orders = '';
+    switch ($filtro) {
+        case 1:
+            $fields = ', th.parent, tdp.name as parentname';
+            $field = 'vnt.product';
+            $inners[] = "INNER JOIN {term_data} td ON td.tid={$field}";
+            $inners[] = "INNER JOIN {term_hierarchy} th ON th.tid=td.tid";
+            $inners[] = "INNER JOIN {term_data} tdp on tdp.tid=th.parent";
+            $orders = 'th.parent,';
+            break;
+        case 3:
+            $field = 'vnt.season';
+            if ((int) $options['product'] > 0) {
+                $inners[] = "INNER JOIN {term_data} td1 ON td1.tid=vnt.product AND vnt.product={$options['product']} ";
+            }
+            $inners[] = "INNER JOIN {term_data} td ON td.tid={$field}";
+            break;
+        case 5:
+            $field = 'vnt.brand';
+            if ((int) $options['product'] > 0) {
+                $inners[] = "INNER JOIN {term_data} td1 ON td1.tid=vnt.product AND vnt.product={$options['product']}";
+            }
+            if ((int) $options['season'] > 0) {
+                $inners[] = "INNER JOIN {term_data} td2 ON td2.tid=vnt.season AND vnt.season={$options['season']} ";
+            }
+            $inners[] = "INNER JOIN {term_data} td ON td.tid={$field}";
+            break;
+    }
+
+    $query = "SELECT {$field} as tid, td.name {$fields}
+            FROM {view_node_terms} vnt
+             " . implode(' ', $inners) . "
+            {$parent}
+            GROUP BY {$field}, td.name
+            ORDER BY {$orders} td.name";
+    return $query;
+}
+
+// </editor-fold>
+//<editor-fold defaultstate="collapsed" desc="Main Functions for Product">
+
+/**
+ * Load a product object from the database prodFem
+ *
+ * @return A fully-populated node object.
+ */
+function product_load($product) {
+    global $base_url;
+
+    $filename = 'profem_' . $product;
+    $items = _search_cache($filename);
+    if (!$items) {
+
+        $dbactive = connect_db('prodfem');
+        $query = "select n.nid, n.type, n.title, n.body, n.status, n.created, n.comment, n.promote, n.sticky, username as cortesia
+                from node n
+                left join sf_guard_user us on us.id=n.courtesy
+                where n.nid=%d";
+        $result = db_query($query, $product);
+        connect_db();
+
+        if (!$result) {
+            return false;
+        }
+        $product = array();
+        while ($row = db_fetch_object($result)) {
+            $temporada_ = search_product_node_term_cid($row->nid, 3);
+            $categoria_ = search_product_node_term_cid($row->nid, 1);
+            $dbactive = connect_db('prodfem');
+            $like = _get_count_saved('like', $row->nid);
+            $no_like = _get_count_saved('no-like', $row->nid);
+            $node_saved = _get_count_saved('node', $row->nid);
+            //$comment= _get_count_saved('comment',$row->nid);
+            $images = search_product_node_images($row->nid);
+            $url = $base_url . '/catalogo/' . $row->nid;
+            connect_db();
+            $product = array(
+                'nid' => $row->nid,
+                'title' => $row->title,
+                'body' => $row->body,
+                'images' => $images,
+                'status' => $row->status,
+                'created' => $row->created,
+                'comment' => $row->comment,
+                'promote' => $row->promote,
+                'sticky' => $row->sticky,
+                'cortesia' => $row->cortesia,
+                'favoritos' => $node_saved,
+                'comments' => '<fb:comments-count href="' . $url . '"></fb:comments-count>',
+                'temporada' => $temporada_,
+                'categoria' => $categoria_,
+                'stats' => array(
+                    'like' => $like,
+                    'no-like' => $no_like,
+                ),
+                'terms' => array(
+                    'main' => get_terms_product($row->nid),
+                    'tags' => get_node_tags_product($row->nid)
+                ),
+                'navigation' => get_node_navigation_prevnext($row->nid, $temporada_['tid'], $categoria_['tid']),
+            );
+        }
+        if (count($product) > 0) {
+            _create_cache($filename, $product);
+            $items = $product;
+            unset($product, $result, $row);
+        }
+    }
+
+    return (object) $items;
+}
+
+/**
+ *
+ */
+function get_terms_product($nid = NULL) {
+    if (!$nid)
+        return NULL;
+    $dbactive = connect_db('prodfem');
+
+    $query = "select tn.nid, tn.tid, td.name as term, td.cid, c.name, c.sysname
+			from {term_node} tn
+			inner join {term_data} td on td.tid=tn.tid
+			inner join {category} c on c.cid=td.cid
+			where tn.nid=%d
+			order by c.cid";
+    $result = db_query($query, $nid);
+
+    if (!$result)
+        return NULL;
+
+    $items = array();
+    while ($row = db_fetch_object($result)) {
+        $items[$row->sysname] = array(
+            'tid' => $row->tid,
+            'name' => $row->term,
+            'hierarchy' => get_terms_hierarchy_product((int) $row->tid),
+        );
+    }
+    connect_db();
+    return $items;
+}
+
+/**
+ * Devuelve arbol de jerarquias para un TID's de productos
+ * @param integer $tid | required
+ * @return mixed array|boolean
+ */
+function get_terms_hierarchy_product($tid) {
+    if (!$tid)
+        return NULL;
+
+    $query = "select th.tid, td.name, th.parent, td2.name as nameParent
+			from {term_hierarchy} th
+			inner join {term_data} td on td.tid=th.tid
+      inner join {term_data} td2 on td2.tid=th.parent
+			where th.tid=%d;";
+    $result = db_query($query, (int) $tid);
+
+    if (mysql_num_rows($result) > 0) {
+        while ($row = db_fetch_object($result)) {
+            if ((int) $row->parent > 0) {
+                $terms = get_terms_hierarchy_product((int) $row->parent);
+            }
+            $terms[] = array(
+                'tid' => (int) $row->tid,
+                'name' => $row->name,
+                'parent' => (int) $row->parent,
+                'nameParent' => (int) $row->nameParent,
+            );
+        }
+    } else {
+        $terms = NULL;
+    }
+    return $terms;
+    unset($query);
+    unset($result);
+}
+
+/**
+ * Devuelve arbol de jerarquias para un nombre o tag
+ * @param string $name | required
+ * @return mixed array|boolean
+ */
+function get_terms_hierarchy_product_by_name($name = NULL) {
+    if (!$name)
+        return $name;
+
+    $terms = array();
+    $name = strtolower($name);
+    $query = "select td.tid, td.name, td2.tid as parent, td2.name as nameParent
+          from {term_data} td
+          inner join {term_hierarchy} th on th.tid=td.tid
+          inner join {term_data} td2 on td2.tid=th.parent
+          where td.name=%s";
+
+    $result = db_query($query, $name);
+    while ($row = db_fetch_object($result)) {
+        $terms[] = array(
+            'tid' => (int) $row->tid,
+            'name' => (string) $row->name,
+            'parent' => (int) $row->parent,
+            'nameParent' => (string) $row->nameParent,
+        );
+    }
+
+    unset($query);
+    unset($result);
+
+    return $terms;
+}
+
+function _get_parentType($type = NULL) {
+    if (!$type)
+        return $type;
+
+    $result = get_terms_hierarchy_product_by_name($type);
+
+    if ($result['parent'] > 0)
+        return $result['nameParent'];
+    return $type;
+}
+
+/**
+ * Devuelve tags (libres - relacionados) asociados a un node (caracteristicas adicionales no previstas en clasificacion)
+ * @param integer $nid
+ * @return string
+ */
+function get_node_tags_product($nid = NULL) {
+    if (!$nid)
+        return NULL;
+    $dbactive = connect_db('prodfem');
+    $query = "select nt.taid, t.name
+			from {node} n
+			inner join {node_tags} nt on nt.nid=n.nid
+			inner join {tags} t on t.taid=nt.taid
+			where n.nid=%d;";
+    $result = db_query($query, (int) $nid);
+
+    if (mysql_num_rows($result) > 0) {
+        while ($row = db_fetch_object($result)) {
+            $terms[] = array(
+                'taid' => (int) $row->taid,
+                'name' => $row->name,
+            );
+        }
+    } else {
+        $terms = NULL;
+    }
+
+    connect_db();
+
+    return $terms;
+}
+
+/**
+ * Navegacion
+ */
+function get_node_navigation_prevnext($nid = NULL, $temporada = NULL, $categoria = NULL) {
+    $item = NULL;
+    $parametros = array();
+    if (!$nid)
+        return $item;
+//	$query="select
+//			(select nid from {node} np where np.nid<%d order by np.nid desc limit 1) as node_prev,
+//			(select nid from {node} nn where nn.nid>%d order by nn.nid asc limit 1) as node_next
+//			from {node} n
+//			where n.nid=%d;";
+    $dbactive = connect_db('prodfem');
+    $query = "select
+                    (select np.nid from {node} np ";
+    if ($temporada) {
+        $query.= "  inner join {term_node} tn on np.nid=tn.nid
+                        inner join {term_data} td on td.tid=tn.tid and td.tid=%d";
+        $parametros[] = $temporada;
+    }
+    if ($categoria) {
+        $query.= "  inner join {term_node} tn1 on np.nid=tn1.nid
+                        inner join {term_data} td1 on td1.tid=tn1.tid and td1.tid=%d ";
+        $parametros[] = $categoria;
+    }
+    $query.= " where np.nid<%d order by np.nid desc limit 1) as node_prev,
+                    (select nn.nid from {node} nn ";
+    $parametros[] = $nid;
+    if ($temporada) {
+        $query.= "  inner join {term_node} tnn on nn.nid=tnn.nid
+                        inner join {term_data} tdn on tdn.tid=tnn.tid and tdn.tid=%d ";
+        $parametros[] = $temporada;
+    }
+    if ($categoria) {
+        $query.= "  inner join {term_node} tn2 on nn.nid=tn2.nid
+                        inner join {term_data} td2 on td2.tid=tn2.tid and td2.tid=%d ";
+        $parametros[] = $categoria;
+    }
+    $parametros[] = $nid;
+    $parametros[] = $nid;
+
+    $query.= "  where nn.nid>%d order by nn.nid asc limit 1) as node_next from {node} n
+                where n.nid=%d;";
+
+    $result = db_query($query, $parametros);
+    if (!$result)
+        return $item;
+
+    while ($row = db_fetch_object($result)) {
+        $item[] = array(
+            'prev' => $row->node_prev,
+            'next' => $row->node_next
+        );
+    }
+    connect_db();
+    return $item;
+}
+
+/**
+ * Navegacion del carrusel
+ */
+function get_product_terms($temporada = NULL, $categoria = NULL) {
+    $item = NULL;
+    $parametros = array();
+    if (!$temporada && !$categoria)
+        return $item;
+
+//        $temporada= strtolower($temporada);
+//        $categoria= strtolower($categoria);
+    $dbactive = connect_db('prodfem');
+    $query = "select np.nid from {node} np ";
+    if ($temporada) {
+        $query.= "  inner join {term_node} tn on np.nid=tn.nid
+                        inner join {term_data} td on td.tid=tn.tid and td.tid=%d";
+        $parametros[] = intval($temporada);
+    }
+    if ($categoria) {
+        $query.= "  inner join {term_node} tn1 on np.nid=tn1.nid
+                        inner join {term_data} td1 on td1.tid=tn1.tid and td1.tid=%d ";
+        $parametros[] = intval($categoria);
+    }
+    $query.= " order by np.nid asc ;";
+
+    $result = db_query($query, $parametros);
+    if (!$result)
+        return $item;
+
+    while ($row = db_fetch_object($result)) {
+        $item[] = $row->nid;
+    }
+
+    connect_db();
+
+    return $item;
+}
+
+/**
+ * Navegacion del carrusel
+ */
+function get_product_temporada($temporada = NULL, $categoria = NULL, $opc = '>', $limit = 3, $index = 0) {
+    $item = NULL;
+    if (!$categoria && !$temporada)
+        return $item;
+
+    $dbactive = connect_db('prodfem');
+
+    $temporada = intval($temporada);
+    $sql_weight = "SELECT weight FROM term_data WHERE tid=%d";
+    $weight = db_fetch_object(db_query($sql_weight, $temporada))->weight;
+
+    $weight = intval($weight);
+
+
+    $query = "SELECT min(tn.nid) as nid, td.tid, td.name, td.weight, td1.name categoria, td1.tid tidcategoria
+                FROM node n
+                INNER JOIN term_node tn on tn.nid=n.nid
+                INNER JOIN term_data td on td.tid=tn.tid
+                INNER JOIN term_node tn1 on n.nid=tn1.nid
+                INNER JOIN term_data td1 on td1.tid=tn1.tid and td1.tid=%d";
+    if ($opc == '>')
+        $query.="  WHERE td.weight > %d AND td.cid=%d
+                        GROUP BY td.tid, td.name, td.weight, td1.name, td1.tid
+                        ORDER BY td.weight ASC LIMIT %d;";
+    else if ($opc == '<')
+        $query.="  WHERE td.weight < %d AND td.cid=%d
+                        GROUP BY td.tid, td.name, td.weight, td1.name, td1.tid
+                        ORDER BY td.weight DESC LIMIT %d;";
+    else
+        $query.="  WHERE td.weight = %d AND td.cid=%d
+                        GROUP BY td.tid, td.name, td.weight, td1.name,td1.tid
+                        ORDER BY td.weight DESC LIMIT %d;";
+
+    $result = db_query($query, array($categoria, $weight, 3, $limit));
+
+    if (!$result)
+        return $item;
+
+    while ($row = db_fetch_object($result)) {
+        $item[$index] = array(
+            'tid_temporada' => $row->tid,
+            'name_temporada' => $row->name,
+            'tid_categoria' => $row->tidcategoria,
+            'name_categoria' => $row->categoria,
+            'nid' => $row->nid,
+            'weight' => $row->weight);
+        $index++;
+    }
+
+    connect_db();
+
+    return $item;
+}
+
+// </editor-fold>
+//Funciones de caching para resultset de queries en carrusel, lomashot, quizasteinterese, viveconlujo
+//Buscar
+function _search_cache($filename = NULL) {
+    if (!$filename)
+        return false;
+    $filename = $_SERVER['DOCUMENT_ROOT'] . '/cache/' . $filename . '.cache';
+    if (file_exists($filename)) {
+        //return json_decode(file_get_contents($filename));
+        return unserialize(file_get_contents($filename));
+    }
+    return false;
+}
+
+//Borrar cache
+function _flush_cache($filename = NULL) {
+    if (!$filename)
+        return false;
+
+    $filename = $_SERVER['DOCUMENT_ROOT'] . '/cache/' . $filename . '.cache';
+    if (file_exists($filename)) {
+        return unlink($filename);
+    }
+    return false;
+}
+
+//Crear
+function _create_cache($filename = NULL, $content = array(), $lifetime = '24') {
+    if (!$filename)
+        return false;
+
+    //Convertir contenido, debe recibirse un array
+    #$content=json_encode($content); //Me esta pasando a objeto, probar serialize
+    $content = serialize($content); //Me esta pasando a objeto, probar serialize
+    //Validar tipo de cache, vigencia
+    //Aqui voy a validar por tiempo de vida de la cache, luego
+    switch ($filename) {
+        case 'carrusel':
+            break;
+        case 'lomashot':
+            break;
+        case 'quizasteinterese':
+            break;
+        case 'viveconlujo':
+            break;
+        default:
+            break;
+    }
+
+    $statusFile = TRUE;
+    $filename = $_SERVER['DOCUMENT_ROOT'] . '/cache/' . $filename . '.cache';
+    /*
+      if(file_exists($filename)){
+      $statusFile=unlink($filename);
+      }
+     */
+    #if($statusFile){
+    $statusFile = file_put_contents($filename, $content);
+    #}
+
+    return $statusFile;
+}
+
+/**
+ * Hace push de status de usuario a listas de MailChimp (subscribe, unsubscribe)
+ * @param string $mail
+ * @param string $name
+ * @param string $type
+ * @return mixed Devuelve TRUE en caso de un push correcto, FALSE o NULL en caso contrario
+ */
+//API Key - see http://admin.mailchimp.com/account/api
+
+//require_once DRUPAL_ROOT . '/' . drupal_get_path('module', 'helpers') . '/' . 'MCAPI.class.php';
+
+function pushMailchimp($email = NULL, $name = NULL, $type = 'subscribe') {
+    //Generic configuration
+    $configMC = array(
+        'apikey' => 'b601d9603ba5ded3e4ec155087474bb6-us2',
+        'apiurl' => 'http://api.mailchimp.com/1.3/',
+        'listid' => '0cc47497d0',
+        'listwebid' => '713545',
+        'listname' => 'ActitudFEM',
+        'emailtype' => 'html',
+        'doubleconf' => FALSE,
+        'updateifex' => TRUE,
+        'interests' => TRUE,
+        'welcome' => FALSE,
+        'deleteuser' => FALSE,
+        'send_goodbye' => FALSE,
+        'send_notify' => FALSE,
+    );
+
+    //Retrieve API Object;
+    $api = new MCAPI($configMC['apikey']);
+
+    //Retrieve Lists
+    $lists = $api->lists();
+
+
+    //Prepare MERGE FIELDS *|EMAIL|*, *|NAME|*
+    $mergeFields = array(
+        'EMAIL' => $email,
+        'NAME' => $name,
+    );
+
+    //Operation Type, Two possibles only
+    switch ($type) {
+        case 'subscribe':
+            //Push suscriber
+            if (isset($email) && !empty($email)) {
+                $result = $api->listSubscribe($configMC['listid'], $email, $mergeFields, $configMC['emailtype'], $configMC['doubleconf'], $configMC['updateifex'], $configMC['interests'], $configMC['welcome']);
+            } else {
+                $result = NULL;
+            }
+            break;
+        case 'unsubscribe':
+            //Push unSuscribe
+            if (isset($email) && !empty($email)) {
+                $result = $api->listUnsubscribe($configMC['listid'], $email, $configMC['deleteuser'], $configMC['send_goodbye'], $configMC['send_notify']);
+            } else {
+                $result = NULL;
+            }
+            break;
+        default:
+            $result = array(
+                'message' => 'La petición falló',
+                'status' => 400,
+                'response' => null,
+            );
+            return $result;
+            exit;
+            break;
+    }
+
+    if ($api->errorCode || empty($result)) {
+        $result = array(
+            'message' => 'No se pudo registrar el newsletter, intenta de nuevo más tarde desde Mis Datos',
+            'status' => 500,
+            'response' => array(
+                'code' => $api->errorCode,
+                'message' => $api->errorMessage,
+                'result' => $result,
+            ),
+            'list' => $lists,
+        );
+    } else {
+        $result = array(
+            'message' => 'Usuario registrado',
+            'status' => 200,
+            'response' => array(
+                'code' => $api->errorCode,
+                'message' => $api->errorMessage,
+                'result' => $result,
+            ),
+            'list' => $lists,
+        );
+    }
+    return $result;
+}
+
+/**
+ * Devuelve TRUE si es el sitio para las publicidaddes
+ * @param string $site
+ * @return mixed Devuelve TRUE en caso del sitio correcto, FALSE o NULL en caso contrario
+ */
+function get_site_ads($site = 'actitudfem') {
+    $short_sitename = explode('.', $_SERVER['HTTP_HOST']);
+    $short_sitename = ($short_sitename[0] == 'www' ? strtolower($short_sitename[1]) : strtolower($short_sitename[0]) . 'fem');
+
+    $result = ($short_sitename === $site) ? true : false;
+
+    return $result;
+}
+
+/*
+ * Funcion que retorna la fecha en Espanol.
+ * @param $time - timestamp, si el parametro es 0, toma el timestamp actual
+ * @param $format - El formato en que deseas la fecha, soporta los parametros de la funcion date()
+ * @param $tostring - El regresa el valor en string
+ *
+ */
+
+function date_translate($time = NULL, $format = 'l d F Y', $tostring = TRUE) {
+
+    if ($time == NULL || $time == 0) {
+        $time = time();
+    }
+
+    $format = strip_tags(nl2br($format));
+    $format = explode(" ", $format);
+
+    for ($i = 0; $i < count($format); $i++) {
+        switch ($format[$i]) {
+            case 'l':
+                $date[$format[$i]] = translateDoW($time);
+                break;
+            case 'F':
+                $date[$format[$i]] = translateMonth($time);
+                break;
+            default:
+                $date[$format[$i]] = date($format[$i], $time);
+        }
+    }
+
+    if ($tostring) {
+        $date = implode(' ', $date);
+    }
+
+    return $date;
+}
+
+function translateDoW($time) {
+
+    $d = date('w', $time);
+
+    $date = array(
+        0 => "Domingo",
+        1 => "Lunes",
+        2 => "Martes",
+        3 => "Miercoles",
+        4 => "Jueves",
+        5 => "Viernes",
+        6 => "Sabado"
+    );
+
+    return $date[$d];
+}
+
+function translateMonth($time) {
+
+    $m = date('n', $time);
+
+    $date = array(
+        1 => "Enero",
+        2 => "Febrero",
+        3 => "Marzo",
+        4 => "Abril",
+        5 => "Mayo",
+        6 => "Junio",
+        7 => "Julio",
+        8 => "Agosto",
+        9 => "Septiembre",
+        10 => "Octubre",
+        11 => "Noviembre",
+        12 => "Diciembre",
+    );
+
+    return $date[$m];
+}
+
+/**
+ * Guarda un archivo en cache. Todos los archivos de cache terminan con .cache y se guardan en /cache
+ * Recibe cualquier tipo de string
+ * @param string Nombre del archivo a guardar como cache - ID
+ * @param string Contenido a guardar
+ * @return boolean Regresa falso, en caso de que no reciba parametros.
+ */
+function set_file_cache($filename, $html) {
+    if (!$filename || !$html) {
+        return false;
+    }
+    $file = $_SERVER['DOCUMENT_ROOT'] . '/cache/' . $filename . '.cache';
+    $statusFile = file_put_contents($file, $html);
+    return $statusFile;
+}
+
+/**
+ * Recupera un archivo de cache. Todos los archivos de cache terminan con .cache y se guardan en /cache
+ * @param string Nombre del archivo a recuperar - ID
+ * @return boolean|string Regresa falso en caso de que no reciba el identificador o el archivo no exista.
+ */
+function get_file_cache($filename) {
+    if (!$filename) {
+        return false;
+    }
+    $file = $_SERVER['DOCUMENT_ROOT'] . '/cache/' . $filename . '.cache';
+    if (file_exists($file)) {
+        return file_get_contents($file);
+    } else {
+        return false;
+    }
+}
+
+/**
+ * Obtiene los canales del sitio
+ * @return array() Devuelve los canales del sitio en array()
+ */
+function get_canales() {
+    $sql = 'select * from term_data where vid=2 limit 20;';
+    $result = db_query($sql);
+    if (count($result) <= 0) {
+        return false;
+    }
+    $terms = array();
+    while ($row = db_fetch_array($result)) {
+        $terms[] = array(
+            'tid' => $row['tid'],
+            'vid' => $row['vid'],
+            'name' => $row['name']
+        );
+    }
+    return $terms;
+}
+
+/**
+ * Valida si el componente se debe mostrar en los tipos de contenidos recibidos como parametros
+ * @param array Array con los tipos de contenido a validada
+ * @return boolean Regresa Verdadero en caso de que se si se encuentre el tipo de contenido pasado.
+ */
+function valida_nodo($items = array()) {
+    if (!empty($items)) {
+        $where = arg();
+        if ($where[0] == 'node') {
+            $node = node_load($where[1]);
+            foreach ($items as $item) {
+                if ($node->type == $item) {
+                    return true;
+                }
+            }
+        } elseif (in_array('inicio', $items) || in_array('buscar', $items) || in_array('ver-mas', $items)) {
+            return true;
+        } elseif (in_array('catalogo', $items) || in_array('mas-bajolupa', $items) || in_array('quizas-te-interese', $items)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function get_nota_final_tags($nid, $edit = false, $class = '') {
+    global $user;
+    $tags_array = _get_level_nid_terms($nid);
+    $tags_array = $tags_array['tags'];
+    $site = $_SERVER['HTTP_HOST'];
+    $tag_name_edit = array();
+    $tag_name = array();
+    $style = '';
+    $html_aux = '';
+
+    if (count($tags_array) >= 1) {
+        foreach ($tags_array as $tag) {
+            $tag_name_edit[] = '<div class="checks-tags-item"><input type="checkbox" class="checks-tags" value="' . $tag['tid'] . '" name="' . $tag['name'] . '"><div class="check-tags-item d1">' . $tag['name'] . '</div></div>';
+            $tag_name[] = '<a class="tags-nota-final-a" href="http://' . $site . '/search/node/' . $tag['name'] . '">' . $tag['name'] . '</a>';
+        }
+        $tag_name = implode(" | ", $tag_name);
+        $tag_name_edit = implode("  ", $tag_name_edit);
+        $tag_htmt = implode(" <br> ", $html);
+        if ($edit) {
+            if ($user->uid > 0) {
+                $html_aux = '<div id="tags-relacionados-list-edit" style="display:none;">' . $tag_name_edit . '
+                            <div id="tags-relacionados-msj-edit">
+                                Te informamos de lo que te gusta en tu correo electr&oacute;nico
+                                <input type="submit" class="submit" value="Guardar temas" id="submit-edit-tags">
+                            </div>
+                        </div>
+                        <div id="tags-relacionados-msj" style="display:none;">
+                            Los temas de inter&eacute;s han sido guardados en tu perfil exitosamente
+                        </div>';
+            } else {
+                $style = ' style="display:none;"';
+            }
+            $tag_name = $tag_htmt . '
+                <div class="tags-relacionados-nota-final tags-relacionados-todo b1 ' . $class . '">
+                    <div id="tags-relacionados-title"><h3>Temas de inter&eacute;s</h3>
+                        <input type="submit" class="submit" value="Guardar temas" id="submit-mostrar-tags" ' . $style . '>
+                    </div>
+                    <div id="tags-relacionados-list"><p class="d1">' . $tag_name . '</p></div>
+                    ' . $html_aux . '
+                </div>';
+        } else {
+            $tag_name = '
+                <div class="tags-relacionados-nota-final b1 ' . $class . '">
+                <h3>TEMAS RELACIONADOS:</h3>
+                <p class="d1">' . $tag_name . '</p>
+                </div>';
+        }
+    } else {
+        $tag_name = '';
+    }
+
+    return $tag_name;
+}
+
+function get_autor_uid($nid) {
+    $sql = "select uid from {node} where nid=$nid";
+    $result = db_query($sql)->fetchAll();
+    return $result[0]->uid;
+}
+
+function get_name_autor_uid($name) {
+    $qry = db_select('users', 'u');
+    $qry->fields('u', array('uid'));
+    $qry->condition('u.name', '%' . $name . '%', 'LIKE');
+    $qry->range(0, 1);
+    $result = $qry->execute()->fetchAll();
+    return $result[0]->uid;
+}
+
+function get_node_body($nid, $pag = true) {
+
+    $sql = "SELECT * FROM {node_revision} where nid = $nid order by vid desc limit 1";
+    $result = db_query($sql, array($nid));
+    $body = db_fetch_object($result)->body;
+
+    if ($pag == false) {
+        return $body;
+    }
+
+    $body = preg_replace('#<h3[^>]*(?:/>|>(?:\s|&nbsp;)*</h3>)#im', '', $body);
+
+    $bodies = explode('<!--break-->', $body);
+    if (count($bodies) <= 1) {
+        $bodies = explode('<!--pagebreak-->', $body);
+    }
+
+    preg_match_all($h3Pattern, $body, $h3s);
+
+    $h3s = $h3s[0];
+    $h3s = array_unique($h3s);
+    $countBodies = count($bodies);
+    $countH3s = count($h3s);
+
+    for ($r = 0; $r <= $countH3s; $r++) {
+        $h3s[$r] = trim(strip_tags(str_replace('&nbsp;', ' ', $h3s[$r])));
+        if (trim($h3s[$r]) == '') {
+            unset($h3s[$r]);
+        }
+    }
+
+    $countH3s = count($h3s);
+
+    for ($r = 0; $r <= $countH3s - 1; $r++) {
+        $h3s[$r] = "<h3 class='cabeza-nodo'>" . $h3s[$r] . "</h3>";
+    }
+
+    $q = ($countBodies === $countH3s);
+
+    for ($i = 0; $i <= $countBodies - 1; $i++) {
+
+        $h3Guilty = ($q) ? $i : $i - 1;
+
+        if (strlen($bodies[$i]) < 5) {
+            unset($bodies[$i]);
+            unset($h3s[$h3Guilty]);
+        } else {
+            $pags[] = $h3s[$h3Guilty] . $bodies[$i];
+            $h3sJson[] = strip_tags($h3s[$h3Guilty]);
+        }
+    }
+
+    return $pags;
+}
+
+function paginado_nodos($nid, $image = false) {
+    $tags_array = _get_level_nid_terms($nid);
+    $tags_array = $tags_array['canales'];
+
+    foreach ($tags_array as $tag) {
+        $terms[] = $tag['tid'];
+    }
+
+
+    $array_sig = get_nodes('all-content', 1, false, array('whereExtra' => 'AND n.nid > ' . $nid), 'story', false, 'ASC', false, false);
+    $array_ant = get_nodes('all-content', 1, false, array('whereExtra' => 'AND n.nid < ' . $nid), 'story', false, 'DESC', false, false);
+    $domain_sig = get_domain_by_node($array_sig[0]['nid']);
+    $domain_ant = get_domain_by_node($array_ant[0]['nid']);
+    $title_ant = ($array_ant[0]['title']) ? l('' . $array_ant[0]['title'] . '', 'http://' . $domain_ant['site'] . '/' . $array_ant[0]['url'], array('attributes' => array('title' => $array_ant[0]['title']), 'html' => true)) : '';
+    $title_sig = ($array_sig[0]['title']) ? l('' . $array_sig[0]['title'] . '', 'http://' . $domain_sig['site'] . '/' . $array_sig[0]['url'], array('attributes' => array('title' => $array_sig[0]['title']), 'html' => true)) : '';
+    $img_ant = ($image && $array_ant[0]['image']) ? _create_imagecache('micro', $array_ant[0]['image'], $array_ant[0]['title'], $array_ant[0]['title'], array('class' => "paginado_node_img")) : "";
+    $img_sig = ($image && $array_sig[0]['image']) ? _create_imagecache('micro', $array_sig[0]['image'], $array_sig[0]['title'], $array_sig[0]['title'], array('class' => "paginado_node_img")) : "";
+
+
+//    Verifica si existe para mostrar o no las flechas
+    $display_sig = ($array_sig) ? 'block' : 'none';
+    $display_ant = ($array_ant) ? 'block' : 'none';
+
+    $html = "<div class='nota_final_paginado'>
+                     <div class='paginado_ant'>
+                            <div class='paginado_flecha' style='display:" . $display_ant . ";'>
+                            </div>
+                            <div class='paginado_title' style='display:" . $display_ant . ";'>
+                                " . $title_ant . "
+                            </div>
+                            <div class='paginado_img' style='display:" . $display_ant . ";'>
+                                " . $img_ant . "
+                            </div>
+                     </div>
+                     <div class='paginado_sig'>
+                            <div class='paginado_img' style='display:" . $display_sig . ";'>
+                                " . $img_sig . "
+                            </div>
+                            <div class='paginado_title' style='display:" . $display_sig . ";'>
+                                " . $title_sig . "
+                            </div>
+                            <div class='paginado_flecha' style='display:" . $display_sig . ";'>
+                            </div>
+                     </div>
+            </div>";
+    return $html;
+}
+
+function nota_final_subtitles($node) {
+    $html = "<div id='nota_final_subtitles'>
+                 <div class='sharethis_nota_final'>
+                     <div class='contenido_sharethis'>
+                        <div class='sharethis_fb'>" . _get_share('fb') . "</div>
+                        <div class='sharethis_twitter'>" . _get_share('tw') . " </div>
+                     </div>
+                 </div>
+            </div>";
+
+    return $html;
+}
+
+function nota_final_edit() {
+    $html = "<div class='tamano_texto_nota_final'>
+                 <div class='contenido_texto_nota_final'>
+                    <div class='text-editor'>Aumentar tama&ntilde;o </div><div class='icon' id='aplus'></div>
+                    <div class='text-editor'>Disminuir tama&ntilde;o </div><div class='icon' id='aminus'></div>
+                 </div>
+             </div>";
+    return $html;
+}
+
+/**
+ * Optiene nombre del usuario con rol colaborador
+ * @return Array
+ */
+function _get_colaborador($uid) {
+    $uid = (int) $uid;
+    if ($uid) {
+        $query = "SELECT u.uid, u.name, u.mail, fm.uri, fdfd.field_user_description_value as descripcion
+                  FROM users u
+                  INNER JOIN file_managed fm ON fm.fid = u.picture
+                  INNER JOIN field_data_field_user_description fdfd ON fdfd.entity_id = u.uid
+                  WHERE u.uid = $uid;";
+        $result = db_query($query)->fetchAll();
+        if (!count($result) || !$result)
+            return false;
+
+        $colaborador['uid'] = $uid;
+        $colaborador['name'] = $result[0]->name;
+        $colaborador['rol'] = get_user_roles($uid);
+        $colaborador['picture'] = $result[0]->uri;
+        $colaborador['description'] = trim($result[0]->descripcion);
+        $colaborador['tw'] = getSocialAccount($uid, 'twitter');
+        $colaborador['fb'] = getSocialAccount($uid);
+        return $colaborador;
+    } else {
+        return false;
+    }
+}
+
+function getSocialAccount($uid, $type = 'facebook') {
+    if(!$uid)
+        return NULL;
+    $table = 'field_data_field_' . $type . '_username';
+    $field = 'field_' . $type . '_username_value';
+    $qry = db_select($table, 'sun');
+    $qry->join('profile', 'p', 'p.pid=sun.entity_id');
+    $qry->addField('sun', $field, 'cuenta');
+    $qry->condition('p.uid', $uid, '=');
+    $qry->range(0,1);
+    $result = $qry->execute()->fetchAll();
+    $cuenta = $result[0]->cuenta ? $result[0]->cuenta : NULL;
+    if($type=='twitter' && !$cuenta){
+        $query = "SELECT field_cuenta_social_value as tw FROM field_data_field_cuenta_social WHERE entity_id=$uid limit 1";
+        $result = db_query($query)->fetchAll();
+        $cuenta = str_replace('@', '', $result[0]->tw);
+    }
+    return $cuenta;
+}
+
+function _get_imagen_notafinal($nid) {
+    $result = _get_images_node($nid, 1);
+
+    $teaser = (trim($result[$nid]['sinopsis']) == "") ? $result[$nid]['teaser'] : $result[$nid]['sinopsis'];
+    $puntos = (trim($result[$nid]['sinopsis']) == "") ? '...' : '.';
+    $desc = _clear_string($teaser, 80, $puntos);
+    $thumb = _create_imagecache('large', $result[$nid]['filepath'], $desc, $desc);
+    if ($result) {
+        $html = '<div style="float:left;">
+                            <div id="GaleriaNotaFinal">
+                                <div id="galeria-imagen">
+                                    <div class="galeria-background" id="bgd-0" rel="node/' . $result[$nid]['id'] . '" style="width: 678px;height: 510px;">
+                                            ' . $thumb . '
+                                            <div class="tamano_texto_nota_final">
+                                                    <div class="txt" id="txt">Tama&ntilde;o de texto</div>
+                                                    <div class="icon" id="aplus"></div>
+                                                    <div class="icon" id="aminus"></div>
+                                             </div>
+                                    </div>
+                                </div>
+                            </div>
+                </div>';
+    } else {
+        $html = '<div style="float:left;">
+                    <div class="tamano_texto_nota_final" style="display:none;">
+                            <div class="txt" id="txt">Tama&ntilde;o de texto</div>
+                            <div class="icon" id="aplus"></div>
+                            <div class="icon" id="aminus"></div>
+                 </div>
+             </div>';
+    }
+    return $html;
+}
+
+/*
+ * Función que valida si el user agent proviene de un Tablet Android
+ */
+
+function androidTablet($ua) { //Find out if it is a tablet
+    if (strstr(strtolower($ua), 'android')) {//Search for android in user-agent
+        if (!strstr(strtolower($ua), 'mobile')) { //If there is no ''mobile' in user-agent (Android have that on their phones, but not tablets)
+            return true;
+        }
+    }
+}
+
+/*
+ * Función que valida si nos visitan de mobile device
+ */
+
+function userAgent($ua) {
+## This credit must stay intact (Unless you have a deal with @lukasmig or frimerlukas@gmail.com
+## Made by Lukas Frimer Tholander from Made In Osted Webdesign.
+## Price will be $2
+    $iphone = strstr(strtolower($ua), 'mobile'); //Search for 'mobile' in user-agent (iPhone have that)
+    $android = strstr(strtolower($ua), 'android'); //Search for 'android' in user-agent
+    $windowsPhone = strstr(strtolower($ua), 'phone'); //Search for 'phone' in user-agent (Windows Phone uses that)
+    $androidTablet = androidTablet($ua); //Do androidTablet function
+    $ipad = strstr(strtolower($ua), 'ipad'); //Search for iPad in user-agent
+
+    if ($androidTablet || $ipad) { //If it's a tablet (iPad / Android)
+        return 'tablet';
+    } elseif ($iphone && !$ipad || $android && !$androidTablet || $windowsPhone) { //If it's a phone and NOT a tablet
+        return 'mobile';
+    } else { //If it's not a mobile device
+        return 'desktop';
+    }
+}
+
+/**
+ * Función que busca un elemento en un arreglo y devuelve su padre
+ * @param $needle recibe el elemento a buscar
+ * @param $haystack el arreglo muntidimensional donde se buscará
+ * @return array($i, $x), donde $i es el índice del padre, y $x el array del padre completo
+ * Recibir como list($key, $val)
+ */
+function find($needle, array $haystack) {
+    foreach ($haystack as $i => $x) {
+        if (is_array($x)) {
+            $b = find($needle, $x);
+            if ($b)
+//                return count($haystack) > 1 ? array($i, $x) : $b;
+                return count($haystack) > 1 ? $i : $b;
+        }
+        else if ($x == $needle) {
+            return array($i, $x);
+        }
+    }
+    return false;
+}
+
+/**
+ * Función que ordena cualquier array multidimensional
+ * @param $array Array Recibe el array desordenado
+ * @param $field String recibe el nombre del campo por el cual se quiere ordenar (entre comillas)
+ * @param $inverse Booleano false para ordenar descendentemente, true para ordenar ascendentemente
+ * @return $returnArray Array ordenado
+ */
+function arrayCustomOrder($array, $field, $inverse = false) {
+    $position = array();
+    $newRow = array();
+    foreach ($array as $key => $row) {
+        $position[$key] = $row[$field];
+        $newRow[$key] = $row;
+    }
+    if ($inverse) {
+        arsort($position);
+    } else {
+        asort($position);
+    }
+    $returnArray = array();
+    foreach ($position as $key => $pos) {
+        $returnArray[] = $newRow[$key];
+    }
+    return $returnArray;
+}
+
+/**
+ * Crea archivo de caché en JSON
+ * @param string $filename Nombre del archivo de caché a crear
+ * @param mixed  $content  El contenido que se desea guardar en cache, se usa un soporte serializado.
+ *                         Preferentemente debe ser un array, pero también soporta string, numeric u object
+ * @param string $module   El nombre del modulo que invoca este método, usar la constante __FUNCTION__
+ *                         O para mayor efectividad el nombre del module
+ * @param integer $expire  Valor en segundo del tiempo que se desea mantener la cache viva
+ * @return boolean Devuelve TRUE si pudo crear el archivo de caché o FALSE en caso contrario
+ */
+function _create_json_cache($filename = NULL, $content = array(), $module = 'helpers_expire', $expire = 3600) {
+    if (!$filename = _set_filename_json_cache($filename)) {
+        return false;
+    }
+    if (file_exists($filename)) {
+        return TRUE;
+    } elseif (file_put_contents($filename, serialize($content)) > 0) {
+        //Set time for expire cache
+        //Search previous variable, if set not recreate
+        $timeExpire = variable_get($module . '_cache_expire', NULL);
+        $momentum = time();
+        if (!$timeExpire) {
+            variable_set($module . '_cache_expire', $momentum + $expire);
+        } elseif ($momentum > $timeExpire) {
+            variable_set($module . '_cache_expire', $momentum + $expire);
+        }
+        return TRUE;
+    }
+    return FALSE;
+}
+
+/**
+ * Borra archivo de cache de JSON
+ * @param string $filename Nombre del archivo de caché buscado
+ * @return boolean Devuelve TRUE si pudo borrar archivo de caché o FALSE en caso contrario
+ */
+function _flush_json_cache($filename = NULL) {
+    if (!$filename = _set_filename_json_cache($filename)) {
+        return false;
+    }
+    if (file_exists($filename)) {
+        return unlink($filename);
+    }
+    return false;
+}
+
+/**
+ * Buscar archivo de cache en JSON
+ * @param string $filename Nombre del archivo de caché en JSON serializado
+ * @return mixed Devuelve FALSE si no se encontró el archivo de caché o el contenido del archivo en caso contrario
+ */
+function _search_json_cache($filename = NULL) {
+    if (!$filename = _set_filename_json_cache($filename)) {
+        return false;
+    }
+    if (file_exists($filename)) {
+        return unserialize(file_get_contents($filename));
+    }
+    return false;
+}
+
+/**
+ * Establece el nombre de archivo para JSON Cache
+ * @param string $filename Nombre del archivo de caché
+ * @return string Ruta completa al archivo de cache
+ */
+function _set_filename_json_cache($filename = NULL) {
+    if (!$filename) {
+        return false;
+    }
+    return '/var/www/html/femv2/cache/' . $filename . '.json';
+}
+
+/**
+ * Devuelve nombre seteado para guardar cache de JSON
+ * @param string $functionName El nombre de la function de ejecución que se puede recuperar
+ *        con la constante de PHP :: __FUNCTION__
+ * @return string Nombre del archivo para cache de JSON
+ */
+function _get_filename_json_cache($functionName = NULL) {
+    return _get_sitename_from_domain() . '_' . _get_related_view_place() . '_' . $functionName;
+}
+
+/**
+ * Devuelve nombre del sitio a partir del nombre de dominio
+ * @param void
+ * @return string Nombre de dominio sin www o com,mx, etc etc
+ */
+function _get_sitename_from_domain() {
+    $domain = $_SERVER['HTTP_HOST'];
+    $domain = explode('.', $domain);
+    if (preg_match('{jediteam}', $domain[1])) {
+        return $domain[0];
+    } else {
+        return $domain[1];
+    }
+}
+
+/**
+ * Devuelve el lugar para el cual se está creando la cache
+ * @param void
+ * @return string Nombre del lugar donde ocurre la creación de la caché
+ */
+function _get_related_view_place() {
+    if (drupal_is_front_page()) {
+        return 'frontpage';
+    } elseif (arg(0) === 'taxonomy') {
+        return arg(2);
+    } elseif (arg(0) === 'node') {
+        return 'node';
+//        $taxonomy = get_info_taxonomy_node('info_taxonomy_node', 'default', arg(1));
+//        $term = $taxonomy[0]['tid'];
+//        unset($taxonomy);
+//        return $term;
+//
+//    $node=workbench_access_get_node_tree(arg(1));
+//    foreach($node as $item){
+//      $term=$item;
+//      break;
+//    }
+//    unset($node,$item);
+    } else {
+        return 'general';
+    }
+}
+
+function get_section_by_nid($nid, $vid = 2, $name = TRUE) {
+    if (!$nid)
+        return NULL;
+    $query = "SELECT ttd.tid, ttd.name
+              FROM {taxonomy_term_data} ttd
+              INNER JOIN {taxonomy_index} ti ON ti.tid=ttd.tid
+              WHERE ti.nid = $nid AND ttd.vid = $vid";
+    $result = db_query($query)->fetchAll();
+    $terms = $name ? $result[0]->name : $result[0]->tid;
+    return $terms;
+}
+function get_section_by_nid_array($nid, $vid = 3) {
+    if (!$nid)
+        return NULL;
+    $query = "SELECT ttd.tid, ttd.name
+              FROM {taxonomy_term_data} ttd
+              INNER JOIN {taxonomy_index} ti ON ti.tid=ttd.tid
+              WHERE ti.nid = $nid AND ttd.vid = $vid";
+    $result = db_query($query)->fetchAll();
+    $terms =array("name"=>$result[0]->name,"tid"=>$result[0]->tid);
+    return $terms;
+}
+function get_sections_by_nid($nid, $vid = 2) {
+    if (!$nid)
+        return NULL;
+    $query = "SELECT ttd.tid, ttd.name
+              FROM {taxonomy_term_data} ttd
+              INNER JOIN {taxonomy_index} ti ON ti.tid=ttd.tid
+              WHERE ti.nid = $nid AND ttd.vid = $vid limit 3";
+    $result = db_query($query)->fetchAll();
+    foreach($result as $r){
+        $terms[]=array("name"=>$r->name,"tid"=>$r->tid);
+    }
+//    $terms = $name ? $result[0]->name : $result[0]->tid;
+    return $terms;
+}
+
+function get_user_role($uid) {
+    if (!$uid)
+        return $uid;
+
+    $rid = db_query("SELECT *
+                     FROM {users_roles}
+                     WHERE uid = $uid
+                     GROUP BY uid")->execute();
+    return $rid;
+}
+
+//function imx_taxonomy_createcache($tid) {
+//    $args = array($tid);
+//    $view = views_get_view('taxonomy_term');
+//    $view->preview('block', $args);
+//    $view = $view->result;
+//    $items = array();
+//    $flagNid = 0;
+//    foreach ($view as $notas) {
+//        if ($flagNid !== $notas->nid) {
+//            $items[] = array(
+//                'nid' => $notas->nid,
+//                'image' => get_image_nodes($notas->nid)
+//            );
+//            $flagNid = $notas->nid;
+//        }
+//    }
+//    if (count($items) > 0 && is_array($items)) {
+//        $filename = "/srv/data/files/social/cache/taxonomy_term_" . arg(2) . ".json";
+//        unlink($filename);
+//        file_put_contents($filename, json_encode($items));
+//        return json_encode($items);
+//    }
+//    return FALSE;
+//}
+
+function get_image_nodes($nid) {
+    if (!$nid)
+        return NULL;
+    $query = "SELECT f.filepath from {image_attach} ia
+              INNER JOIN {image} i ON i.nid=ia.iid
+              INNER JOIN {files} f ON f.fid=i.fid
+              WHERE ia.nid=%d and f.filename='_original' AND f.status=1
+              ORDER BY ia.weight ASC LIMIT 1";
+    $result = db_query($query, $nid);
+    if (mysql_affected_rows() > 0) {
+        $img = db_fetch_object($result)->filepath;
+    }
+    return $img;
+}
+
+function get_title_carrusel_nodes($nid) {
+    if (!$nid)
+        return NULL;
+    $select = db_select('field_data_field_title_carrusel', 'ft');
+    $select->fields('ft', array('field_title_carrusel_value'));
+    $select->condition('ft.entity_id', $nid, '=');
+    $select->range(0,1);
+    $result = $select->execute()->fetchAll();
+    return $result[0]->field_title_carrusel_value;
+}
+
+/**
+ * Función que recupera la sinopsis del carrusel de una nota mediante su nid
+ * @param $nid int Nid de la nota
+ * @return $sinopsis string Sinopsis de la nota
+ */
+function get_sinopsis_nodes($nid) {
+    if (!$nid)
+        return NULL;
+    $select = db_select('field_data_field_sinopsis_carrusel', 'ft');
+    $select->fields('ft', array('field_sinopsis_carrusel_value'));
+    $select->condition('ft.entity_id', $nid, '=');
+    $select->range(0,1);
+    $result = $select->execute()->fetchAll();
+    return $result[0]->field_sinopsis_carrusel_value;
+}
+
+function get_html_apps() {
+    $html = '<section class="phrase_apps">
+                <ul>
+                   <li><a target="_blank" href="https://itunes.apple.com/mx/app/actitudfem-belleza-y-glamour/id510704612?mt=8" class="apple_big"></a></li>
+                   <li><a target="_blank" href="http://appworld.blackberry.com/webstore/content/29612889/?lang=es&countrycode=MX" class="bb_big"></a></li>
+                   <li><a target="_blank" href="http://www.windowsphone.com/es-mx/store/app/actitud-fem/0fd78404-334e-4e4f-823b-6bea4ee272de" class="windows_big"></a></li>
+                   <li><a target="_blank" href="http://apps.samsung.com/mars/topApps/topAppsDetail.as?productId=000000619607&srchClickURL=|@sn=SAPS|@qh=-434954784|@qid=SAPS.SRCH|@q=actitud+fem|@tot=1|@idx=0|@doc=G00015979994|@title=nil" class="android_big"></a></li>
+                </ul>
+             </section>';
+    return $html;
+}
+
+function get_user_roles_by_name($name, $membersonly = true, $permission = array()) {
+    if (!isset($name) || empty($name))
+        return false;
+
+    $roles = user_roles($membersonly, $permission);
+    return array_search($name, $roles);
+}
+
+function get_role_by_name($name) {
+    if (!isset($name) || empty($name))
+        return false;
+
+    global $user;
+    return array_search($name, $user->roles);
+}
+
+function get_user_roles($uid = NULL) {
+    if(!$uid){
+        global $user;
+        $uid = $user->uid;
+    }
+    $roles = array();
+    if ($uid > 0) {
+        $select = db_select('users', 'u');
+        $select->innerJoin('users_roles', 'ur', 'ur.uid=u.uid');
+        $select->innerJoin('role', 'r', 'r.rid=ur.rid');
+        $select->fields('ur', array('rid'));
+        $select->fields('r', array('name'));
+        $select->condition('u.uid', $uid, '=');
+        $select->range(0,1);
+        $results = $select->execute()->fetchAll();
+        if(count($results)){
+            foreach($results as $row){
+                $roles[] = array(
+                    'rid' => $row->rid,
+                    'name' => $row->name,
+                );
+            }
+        }
+    }
+    return $roles;
+}
+
+function _showAdsFem() {
+    global $user;
+    if ($user->uid > 0) {
+        $rid = get_role_by_name('editor');
+        if ($rid > 0)
+            return true;
+    }
+    return true;
+}
+
+/**
+ * Agrega metatags al header de la pagina
+ * recibe un array con todos los datos de los metatags
+ * @param array $elements
+ */
+function add_default_metatags_harcode($elements = array()) {
+    if (!empty($elements)) {
+        foreach ($elements as $key => $element) {
+            drupal_add_html_head($element['element'], $key);
+        }
+    }
+}
+
+/**
+ *
+ * @param int $nid
+ */
+//'node',$node->type,$node->nid,$content['body']['#object']->created,$image['uri']
+function add_default_node_metatags_harcode($type, $nid, $date, $image) {
+    $elements = array(
+        0 => array(
+            'key' => 'Cxcontenttype',
+            'element' => array(
+                '#tag' => 'meta',
+                '#attributes' => array(
+                    'name' => 'cXenseParse:imx:contenttype',
+                    'content' => 'node',
+                ),
+            )
+        ),
+        1 => array(
+            'key' => 'cxnodetype',
+            'element' => array(
+                '#tag' => 'meta',
+                '#attributes' => array(
+                    'name' => 'cXenseParse:imx:nodetype',
+                    'content' => $type,
+                ),
+            )
+        ),
+        2 => array(
+            'key' => 'cxnodeid',
+            'element' => array(
+                '#tag' => 'meta',
+                '#attributes' => array(
+                    'name' => 'cXenseParse:recs:articleid',
+                    'content' => $nid,
+                ),
+            )
+        ),
+        3 => array(
+            'key' => 'cxnodepublish',
+            'element' => array(
+                '#tag' => 'meta',
+                '#attributes' => array(
+                    'name' => 'cXenseParse:recs:publishtime',
+                    'content' => gmdate("Y-m-d\TH:i:s.000\Z", $date),
+                ),
+            )
+        ),
+    );
+    if ($image) {
+        $elements[4] = array(
+            'key' => 'cxnodeimg',
+            'element' => array(
+                '#tag' => 'meta',
+                '#attributes' => array(
+                    'name' => 'cXenseParse:imx:img-principal',
+                    'content' => $image,
+                ),
+            )
+        );
+    }
+    add_default_metatags_harcode($elements);
+}
+
+/**
+ * Devuelve vista HTML de info autor
+ *
+ * @category   Snippets
+ * @package
+ * @author     Miguel Angel Frias Bonfil | miguel@invent.com.mx
+ * @date       31 de Agosto de 2011
+ *
+ * @param array $data
+ * @return string $html devuelve el pintado de ese modulo
+ *
+ */
+function set_html_info_autor($colaborador = array()) {
+    if ($colaborador) {
+        $colaborador['tw'] = $colaborador['tw'] ? $colaborador['tw'] : 'actitudfem';
+        $colaborador['fb'] = $colaborador['fb'] ? $colaborador['fb'] : 'ActitudFem';
+        $htmlSocial = '<div class="shares_class mt10 clear">';
+        $htmlSocial.='<a href="https://twitter.com/' . $colaborador['tw'] . '" class="twitter-follow-button left" data-show-count="false">Seguir a ' . $colaborador['tw'] . '</a>';
+        $htmlSocial.='<div class="fb-follow left" data-href="http://www.facebook.com/' . $colaborador['fb'] . '" data-colorscheme="light" data-layout="standard" data-width="20" data-show-faces="false"></div>';
+        $htmlSocial.='<div class="g-plusone right" data-size="medium" data-href="http://www.actitudfem.com/"></div>
+                          </div>';
+
+        $html = '<div id="followme_wrapper" class="left w100p">
+                    <div class="followme-content w100p left">
+                        <div class="editor-pic left">
+                            <img src="' . image_style_url('colaborador', $colaborador['picture']) . '" alt="' . $colaborador['name'] . '" width="55" height="55" />
+                        </div>
+                        <div class="editor-info left">
+                            <p class="editor_name_content">
+                                <span class="editor_name P16r5 upp">' . $colaborador['name'] . '</span><span class="rolEditor P16r0 upp"> | ' . $colaborador['rol'][0]['name'] . '</span>
+                            </p>
+                            ' . $htmlSocial . '
+                        </div>
+                    </div>
+                </div>';
+        return $html;
+    } else {
+        return false;
+    }
+}
+
+/**
+ * Función que recupera las imágenes de Versus/Encuestas
+ */
+
+function getPollImages($nid){
+    if(!$nid)
+        return NULL;
+    $select = db_select('file_managed', 'fm');
+    $select->innerJoin('field_data_field_images', 'fi', 'fm.fid=fi.field_images_fid');
+    $select->fields('fm', array('uri'));
+    $select->condition('fi.entity_id', $nid, '=');
+    $select->orderBy('fi.delta');
+    $results = $select->execute()->fetchAll();
+    foreach($results as $result) {
+        $images[] = $result->uri;
+    }
+    return $images;
+}
+
+/**
+ * Función que recupera las imágenes de Carrusel de un nodo
+ */
+
+function getCarouselImage($nid){
+    if(!$nid)
+        return NULL;
+    $select = db_select('file_managed', 'fm');
+    $select->innerJoin('field_data_field_imagencarrusel', 'fi', 'fm.fid=fi.field_imagencarrusel_fid');
+    $select->fields('fm', array('uri'));
+    $select->condition('fi.entity_id', $nid, '=');
+    $select->orderBy('fi.delta');
+    $select->range(0,1);
+    $results = $select->execute()->fetchAll();
+    if(count($results)){
+        return image_style_url('newcarousel', $results[0]->uri);
+    } else {
+        $select = db_select('file_managed', 'fm');
+        $select->innerJoin('field_data_field_image', 'fi', 'fm.fid=fi.field_image_fid');
+        $select->fields('fm', array('uri'));
+        $select->condition('fi.entity_id', $nid, '=');
+        $select->orderBy('fi.delta');
+        $select->range(0,1);
+        $results = $select->execute()->fetchAll();
+        return image_style_url('newcarousel', $results[0]->uri);
+    }
+}
+
+/**
+ * Función que regenera la caché de la taxonomía
+ * @param $tid int recibe el id del término
+ */
+
+function createCacheTax($tid){
+    if(!$tid)
+        $tid = (int) arg(2);
+
+    $file = '/srv/data/files/cache/fem/taxonomy_' . $tid . '.json';
+    $args = array($tid);
+    $view = views_get_view('taxonomy_term');
+    $view->preview('block_1', $args);
+    $view = $view->result;
+    $items = array();
+    foreach ($view as $node) {
+        $items[] = array(
+            'nid' => $node->nid,
+            'url' => drupal_get_path_alias('node/' . $node->nid),
+            'title' => $node->node_title,
+            'field_title_carrusel_value' => $node->node_title,
+            'image' => _get_image($node->nid, $node->node_type),
+            'imagecarrusel' => getCarouselImage($node->nid),
+            'titleCarrusel' => get_title_carrusel_nodes($node->nid),
+            'sinopsis' => get_sinopsis_nodes($node->nid)
+        );
+    }
+    if (count($items) > 0) {
+        unlink($file);
+        file_put_contents($file, json_encode($items));
+        unset($view);
+        return $items;
+    }
+}
+
+/**
+ * Función que envía el formato para el pintado del script de reproductor JWPlayer
+ * @param $file string recibe la ruta completa del video
+ * @param $image string recibe la ruta completa de la imagen
+ * @return $script_jwplayer string Código script completo
+ */
+function get_jwplayercode($file, $image = null, $audio = false, $ads = false) {
+    if (!$file)
+        return $file;
+    if($ads){
+        $script[] = "<script>";
+        $script[] = "jwplayer('jwplayer-wrapper').setup({";
+        $script[] = "file: '$file',";
+        $script[] = "image: '$image',";
+        $script[] = "width: '100%',";
+        $script[] = "height: 390,";
+        $script[] = "autostart: 'true',";
+        $script[] = "events:{";
+        $script[] = "onReady: function() {";
+        $script[] = "jQuery('#skipAd').fadeIn();";
+        $script[] = "},";
+        $script[] = "onComplete: function() {";
+        $script[] = "jQuery('#skipAd').click();";
+        $script[] = "}";
+        $script[] = "}";
+        $script[] = "});";
+        $script[] = "</script>";
+    } else {
+        $script[] = "<script>";
+        $script[] = "jwplayer('jwplayer-wrapper').setup({";
+        $script[] = (!$audio) ? "width: 680," : "width: 508,";
+        $script[] = !$audio ? "height: 390," : "height: 30,";
+        if (!$audio) {
+            $script[] = "file: '$file',";
+            $script[] = "image: '$image',";
+        } else {
+            if (count($file) == 1) {
+                $script[] = "file: '" . $file[0]['file'] . "',";
+            } else {
+                foreach ($file as $audio) {
+                    $playlist[] = "{file: '" . $audio['file'] . "',title: '" . $audio['description'] . "'},";
+                }
+                $script[] = "playlist: [" . implode(' ', $playlist) . "],";
+            }
+        }
+        $script[] = "modes: [
+                         { type: 'html5' }
+                     ],";
+        $script[] = "});";
+        $script[] = "</script>";
+    }
+    return implode(' ', $script);
+}
+
+function getUserFavorites($uid){
+    if(!$uid)
+        return $uid;
+    $items = array();
+    $qry = db_select('users_node_saved', 'ns');
+    $qry->fields('ns', array('nid'));
+    $qry->condition('ns.uid', $uid, '=');
+    $qry->condition('ns.status', 1, '=');
+    $qry->orderBy('ns.created', 'DESC');
+    $favorites = $qry->execute()->fetchAll();
+
+    foreach ($favorites as $favorite){
+        $info = getInfoNode($favorite->nid);
+        $items[] = array(
+            'nid' => $favorite->nid,
+            'title' => $info['title'],
+            'body' => getSummary($favorite->nid),
+            'image' => _get_image($favorite->nid, $info['type'])
+        );
+    }
+    return $items;
+}
+
+function getSummary($nid){
+    if(!$nid)
+        return $nid;
+    $qry = db_select('field_data_body', 'fdb');
+    $qry->fields('fdb', array('body_value', 'body_summary'));
+    $qry->condition('fdb.entity_id', $nid, '=');
+    $qry->range(0,1);
+    $body = $qry->execute()->fetchAll();
+    $summary = $body[0]->body_summary ? trunc(trim(strip_tags($body[0]->body_summary)), 30) : trim(trunc(strip_tags($body[0]->body_value), 30));
+    return $summary;
+}
+
+function getInfoNode($nid){
+    if(!$nid)
+        return $nid;
+    $qry = db_select('node', 'n');
+    $qry->fields('n', array('title','type'));
+    $qry->condition('n.nid', $nid, '=');
+    $qry->range(0,1);
+    $title = $qry->execute()->fetchAll();
+    $items = array(
+        'title' => $title[0]->title,
+        'type' => $title[0]->type,
+    );
+    return $items;
+}
+/**
+ * Función que recupera la información de taxonomía de un nodo
+ * @param $nid recibe el nid del nodo
+ *  @return $items Array que contiene nid, título y canal de un nodo
+ */
+function get_info_taxonomy_node($view = null, $template = 'default', $nid = null) {
+    if (!$view)
+        return NULL;
+    $args = array($nid);
+    $view = views_get_view($view, $template);
+    $view->preview($template, $args);
+    $view = $view->result;
+    $items = array();
+    foreach ($view as $node) {
+        $items[] = array(
+            'nid' => $node->nid,
+            'type' => get_translate_nodetype($node->node_type),
+            'title' => $node->node_title,
+            'taxonomy' => $node->taxonomy_term_data_node_name,
+            'tid' => $node->taxonomy_term_data_node_tid,
+            'colaborador' => ($node->field_field_colaborador[0]["rendered"]["#title"]) ? $node->field_field_colaborador[0]["rendered"]["#title"] : null,
+        );
+    }
+    return $items;
+}
+
+/**
+ * Devuelve el tipo de contenido traducido a SP
+ * @param string $type El tipo de contenido de los 5 disponibles {article, video, audio, poll, gallerie}
+ * @param string $format El formato de retorno entre 3 posibiles {altas[upper], bajas[lower], letra capital[void](default)}
+ * @return mixed nuell | string
+ */
+function get_translate_nodetype($type = NULL, $format = "capital") {
+    if (!$type)
+        return $type;
+    $type = strtolower($type);
+    $types = array(
+        'article' => 'artículo',
+        'videos' => 'video',
+        'gallerie' => 'fotogalería',
+        'poll' => 'encuesta',
+        'audio' => 'audio',
+        'page' => 'página',
+        'blog' => 'Opinión',
+        'topico' => 'Tópico',
+        'catalogo' => 'Catálogo',
+    );
+    switch ($format) {
+        case 'upper':
+            $type = strtoupper($types[$type]);
+            break;
+        case 'lower':
+            $type = strtolower($types[$type]);
+            break;
+        default:
+//Capital ucfirst
+            $type = ucfirst($types[$type]);
+            break;
+    }
+    return $type;
+}
+
+/**
+ * Función que recupera los shares de una url de la API de FB
+ * @param string $url URL absoluta
+ */
+function getSharesFB($url){
+    if(!$url)
+        return $url;
+    $xml = simplexml_load_file("http://api.facebook.com/restserver.php?method=links.getStats&urls=" . $url);
+    $counts = $xml->link_stat->share_count; //share count
+    return $counts;
+}
+
+/**
+ * Obtiene el parametro list de la url de youtube de existir
+ * @param type $url
+ * @return type
+ */
+function imx_get_list_youtube_url($url = '') {
+    $list_parametre = NULL;
+    $list_begin = explode('list=', (string) $url);
+    if (count($list_begin) > 1) {
+        // encontrando el final del parametro
+        if (count($list_end = explode('&', $list_begin[1])) > 1) {
+            $list_parametre = $list_end[0];
+        } else {   //no habia  ningun otro parametro siguiente
+            $list_parametre = $list_begin[1];
+        }
+    }
+    return $list_parametre;
+}
+
+/**
+ *Valida si el video es de vimeo o daylimotion
+ * y se retorna iframe de ser un iframe o video de ser un video de daylimotion o vimeo
+ */
+function validate_videos_url_embeds($url) {
+    $videos = array(
+        'vimeo' => array(
+            'type' => 'video',
+            'preg' => "/https?:\/\/(?:www\.)?(vimeo\.com)\/(?:hd#)?([0-9]+)/i"
+        ),
+        'daylimotion' => array(
+            'type' => 'video',
+            'preg' => "/https?:\/\/(?:www\.)?(dailymotion\.com)\/video\/([^_]+)/"
+        ),
+    );
+    $type = 'iframe';
+    foreach ($videos as $key => $value) {
+        preg_match($value['preg'], $url, $matches);
+        if (!empty($matches)) {
+            $type = $value['type'];
+            break;
+        }
+        unset($matches);
+    }
+    return $type;
+}
+
+############## Comienzan funciones para Multimedia ##################
+
+/** funciones para cache de varnish */
+function curl_clear_cache_varnish_varnishadm ( $Link = "none" ){
+    /*
+        $Link = ( $Link == "none" ) ? "/" : $Link;
+
+          $ch = curl_init();
+        $info = "";
+        $data = "";
+
+        $options = array(
+                    CURLOPT_URL => 'http://'. IP_VARNISH_LOCAL . $Link ,
+                    CURLOPT_HTTPHEADER => array('Host: www.excelsior.com.mx'),
+                    CURLOPT_CUSTOMREQUEST => 'BAN',
+                    CURLOPT_HEADER => TRUE,
+                    CURLOPT_RETURNTRANSFER => TRUE
+            );
+
+        curl_setopt_array( $ch, $options );
+
+            $curl_errno = curl_errno( $ch );
+                  $data = curl_exec( $ch );
+
+              curl_close( $ch ); //close
+
+            if ( ( strlen ( trim( $data ) ) > 0 ) && ( $curl_errno == 0 ) ) {
+                $info = true;
+            }//if
+
+        return ( $info );
+    */
+}
+
+function curl_clear_cache_varnish_x_refresh ( $Link = "none" ){
+    /*
+        $Link = ( $Link == "none" ) ? "/" : $Link;
+
+          $ch = curl_init();
+        $info = "";
+        $data = "";
+
+        $options = array(
+                    CURLOPT_URL => 'http://' . IP_VARNISH_LOCAL . $Link ,
+                    CURLOPT_HTTPHEADER => array( 'REFRESH: varnish refresh' ),
+                    CURLOPT_HEADER => TRUE,
+                    CURLOPT_RETURNTRANSFER => TRUE
+            );
+
+        curl_setopt_array( $ch, $options );
+
+            $curl_errno = curl_errno( $ch );
+                  $data = curl_exec( $ch );
+
+              curl_close( $ch ); //close
+
+            if ( ( strlen ( trim( $data ) ) > 0 ) && ( $curl_errno == 0 ) ) {
+                $info = true;
+            }//if
+
+        return ( $info );
+    */
+}
+
+function _get_youtubeid($url) {
+    $match =  '@';
+    $match .=  '(?:https?\:)?';                           #opcional
+    $match .=   '(//www\.youtube\.com/)';                 #forzoso
+    $match .=    '(?:';                                   #agrupador inicio
+    $match .=      '(embed/|watch\?v=|watch\?.+&v=|v/)';  #variación forzoso
+    $match .=    ')';                                     #agrupador fin
+    $match .=    '([\w-]{11})';                           #forzoso
+    $match .=  '@i';
+    $matches = array();
+    preg_match($match, $url, $matches);
+    return isset($matches[3])?$matches[3]:false;
+}
+
+function get_url_videos ($embed , $id_video) {
+    $parse_url = array();
+    // print_r(' parse_url =='.$parse_url);
+    parse_str($embed,$parse_url);
+    // Armando algo como esto //www.youtube.com/embed/oOn9UeOat-U?list=PLYnzMSw5fD7SoebodXMobbj1H_XJjdfVo
+    $src = "//www.youtube.com/embed/" . $id_video;
+    if ( count($parse_url) > 1) {
+        $src .= '?';
+        $slice_parse = array_slice($parse_url,1); // quitamos el primer valor de arreglo
+        for ($i = 0; $i < count($slice_parse); $i++) {
+            $src .= key($slice_parse) .'='. current($slice_parse);
+            if ($i <> (count($slice_parse) - 1) ) {
+                $src .= '&';
+            }
+            next($slice_parse);
+        }
+
+    }
+    return $src;
+}
+
+/* *
+* $arra_asc_peso = ARREGLO A ORDENAR
+* $field = NOMBRE DEL CAMPO
+* $inverse = ASCENDENTE O DESCENDENTE
+*
+*/
+function array_asc_peso ($arra_asc_peso, $field, $inverse = false) {
+    $position = array();
+    $newRow = array();
+    // recorre un array a ordenar
+    foreach ($arra_asc_peso as $key => $row) {
+        /*  obtiene el indice  origina y valor del campo
+         *   [0] => 6 [1] => 2  [2] => 4
+         */
+        $position[$key]  = $row[$field];
+
+        // regresa el indice original  y valor de los campos
+        $newRow[$key] = $row;
+    }
+    // ordena de forma descendente  [0] => 6 [2] => 4  [1] => 2
+    if ($inverse) {
+        arsort($position);
+    }
+    /* ordena de forma ascendente x valor de campo regresando el indice original
+    *  [1] => 2  [2] => 4  [0] => 6
+    */
+    else {
+        asort($position);
+
+    }
+    $returnArray = array();
+    // recorre el array ordenado
+    foreach ($position as $key => $pos) {
+        // hace un arreglo con nuevos indices
+        $returnArray[] = $newRow[$key];
+
+    }
+    return $returnArray;
+}
+
+/**
+ * Genera tags html
+ * @param array $tags
+ * ie.
+ * $tags = array(
+ *   array(
+ *     'meta' => array(
+ *       'http-equiv' => 'refresh',
+ *       'content' => '30',
+ *     )
+ *   ),
+ *   array(
+ *     'meta' => array(
+ *     'http-equiv' => 'refresh2',
+ *     'content' => '30',
+ *     )
+ *   ),
+ * );
+ * @return void
+ */
+function _create_html_tag($tags, $string_key) {
+    $attributes = array();
+    $new_element = array();
+    $index = 0;
+    foreach ($tags as $key => $tag) {
+        foreach ($tag as $tag_key => $tag_attributes) {
+            $new_element = array(
+                '#tag' => $tag_key,
+                '#attributes' => $tag_attributes,
+            );
+        }
+        drupal_add_html_head($new_element, $string_key.$index);
+        unset($new_element);
+        unset($attributes);
+        $index++;
+    }
+}
+
+/*
+ * Devuelve el html del autor o colaborador,esta funcion se usa para obtener
+ * el html de los campos field--author y field-colaborador, usa el profile editor
+ */
+function garuyo_get_html_sipi($uid){
+    $data_profile_user = profile2_load_by_user($uid, "editor");
+    $data="<div></div>";
+    if ($data_profile_user) {
+        $name_user_profile = (!empty($data_profile_user->field_nombre_completo)) ? $data_profile_user->field_nombre_completo["und"][0]["value"] : "";
+        $fb_user_profile = (!empty($data_profile_user->field_facebook_username)) ? $data_profile_user->field_facebook_username["und"][0]["value"] : "";
+        $tw_user_profile = (!empty($data_profile_user->field_twitter_username)) ? $data_profile_user->field_twitter_username["und"][0]["value"] : "";
+        $linkedin_user_profile = (!empty($data_profile_user->field_linkedin_username)) ? $data_profile_user->field_linkedin_username["und"][0]["value"] : "";
+        $website_user_profile = (!empty($data_profile_user->field_website)) ? $data_profile_user->field_website["und"][0]["value"] : "www.garuyo.com";
+        $review_user_profile = (!empty($data_profile_user->field_review)) ? $data_profile_user->field_review["und"][0]["value"] : "";
+        $google_user_profile = (!empty($data_profile_user->field_google_username)) ? $data_profile_user->field_google_username["und"][0]["value"] : "";
+        $image_user_profile = (!empty($data_profile_user->field_profile_background)) ? image_style_url("image_editor", $data_profile_user->field_profile_background["und"][0]["uri"]) : "http://placehold.it/116x116";
+
+        $data='<div class="nodeAuthor ptb20 mb20" itemscope itemtype="http://schema.org/Person">
+            <div class="left cuad-2">
+                <img itemprop="image" src="'.$image_user_profile.'" alt="'.$name_user_profile.'" />
+            </div>
+            <div class="right cuad-10 bsbb">
+                <h4 itemprop="name"><a itemprop="/user/<?php echo $data_profile_user->uid ?>" class="N16r4">'.$name_user_profile.'</a></h4>
+                <p itemprop="description" class="N14r0 mtb10">'.$review_user_profile.'</p>
+                <a href="'.$website_user_profile.'" target="_blank" class="N14r7">'.$website_user_profile.'</a>
+                <div class="nodeAuthorSocial mt20">
+                    <ul>
+                        <li class="diblock mr20">
+                            <a href="https://twitter.com/'.$tw_user_profile.'" class="twitter-follow-button" data-show-count="false" data-show-screen-name="false">Follow @'.$tw_user_profile.'</a>
+                            <script>!function(d, s, id) {
+                                    var js, fjs = d.getElementsByTagName(s)[0], p = /^http:/.test(d.location) ? "http" : "https";
+                                    if (!d.getElementById(id)) {
+                                        js = d.createElement(s);
+                                        js.id = id;
+                                        js.src = p + "://platform.twitter.com/widgets.js";
+                                        fjs.parentNode.insertBefore(js, fjs);
+                                    }
+                                }(document, "script","twitter-wjs");</script>
+                        </li>
+                        <li class="diblock mr20">
+                            <div class="fb-follow" data-href="https://www.facebook.com/'.$fb_user_profile.'" data-layout="button" data-show-faces="true"></div>
+                        </li>
+                        <li class="diblock">
+                            <script src="https://apis.google.com/js/platform.js" async defer></script>
+                            <div class="g-follow" data-href="htts://plus.google.com/'. $google_user_profile.'" data-rel="author" data-annotation="none"></div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div class="clear"></div>
+        </div>';
+
+    }
+    return $data;
+
+}
+
+function get_title_node($nid, $fields = array('title')) {
+    if (!$nid || !is_numeric($nid))
+        return NULL;
+    $select = db_select('node', 'n');
+    $select->fields('n', $fields);
+    $select->condition('n.nid', $nid, '=');
+    $select->range(0,1);
+    $result = $select->execute()->fetchAll();
+    return $result[0]->title;
+}
+
+function get_most_visited_query() {
+    $time = variable_get('imx_sidebar_visited_time', 7);
+    $created = variable_get('imx_sidebar_created_time', 15);
+    $week = mktime(0, 0, 0, date('m'), date('d') - $time, date('Y')); //most visited of week
+    $past = mktime(0, 0, 0, date('m'), date('d') - $created, date('Y')); //
+    $types = array('article');
+    $serialize = variable_get('imx_sidebar_types', NULL);
+    if ($serialize) {
+        $unserialize = unserialize($serialize);
+        unset($types);
+        foreach ($unserialize as $key => $value) {
+            $types[] = $value;
+        }
+    }
+    $qry = db_select('node', 'n');
+    $qry->innerJoin('node_counter', 'nc', 'nc.nid = n.nid');
+    $qry->fields('n', array('nid', 'title'));
+    $qry->fields('nc', array('totalcount'));
+    $qry->condition('n.status', 1, '=');
+    $qry->condition('n.type', array("article","gallerie","video"), 'IN');
+    //$qry->condition('nc.timestamp', $week, '>');
+    //$qry->condition('n.changed', $past, '>');
+    $qry->orderBy('nc.totalcount', 'DESC');
+    $qry->groupBy('nid');
+    $qry->range(0, 20);
+    $result = $qry->execute()->fetchAll();
+    return $result;
+}
+
+function get_most_visited_nodes() {
+    $items = array();
+    if ($cache = cache_get('imx_most_visited_nodes')) {
+        $items = $cache->data;
+    } else {
+        $tomorrow = mktime(0, 0, 0, date('m'), date('d') + 1, date('Y'));
+        $result = get_most_visited_query();
+        $style = variable_get('imx_sidebar_img_style', 'barra_lateral');
+        foreach ($result as $key => $value) {
+            $nid = $value->nid;
+            $node = node_load($nid);
+            $image = entity_metadata_wrapper('node', $node)->field_image->value();
+            if (is_array($image)) {
+                if (array_key_exists(0, $image)) {
+                    if (($image[0]) > 1) {
+                        $image = array_shift($image);
+                    }
+                }
+            } else {
+                if (count($image) > 1) {
+                    $image = array_shift($image);
+                }
+            }
+
+            $items[] = array(
+                'nid' => $node->nid,
+                'title' => $node->title,
+                'image' => image_style_url($style,($image['uri'])? $image["uri"] : ""),
+                'category' => get_sections_by_nid($nid,2),
+                'category_second' => get_sections_by_nid($nid,3),
+                'ocio' => get_sections_by_nid($nid,14),
+                'summary' => $node->body['und'][0]['summary'],
+                'image_uri'=>$node->field_image['und'][0]['uri'],
+            );
+
+            unset($node, $image, $nid, $tid, $category);
+        }
+        cache_set('imx_most_visited_nodes', $items, 'cache', $tomorrow);
+    }
+    return $items;
+}
+
+function get_ocio_class_name($tid,$type='bg'){
+    $class_name="";
+    if($tid==305787){
+        $class_name="{$type}-ocio-calle";
+    }else{
+        $class_name="{$type}-ocio-sillon";
+    }
+
+    return $class_name;
+}
+
+function string_to_slug_lcmx($string)
+{
+    return strtolower(trim(preg_replace('~[^0-9a-z\.]+~i', '-', preg_replace('~&([a-z]{1,2})(acute|cedil|circ|grave|lig|orn|ring|slash|th|tilde|uml);~i', '$1', htmlentities($string, ENT_QUOTES, 'UTF-8'))), ' '));
+}
+
+/**
+ * Funcion que regresa URL imagen
+ *
+ * @param int $nid
+ * @return string
+ */
+function get_node_image($nid = null, $type = 'article') {
+    if (!$nid)
+        return null;
+
+    //Aseguramos que sea entero casteandolo
+    $nid = (int) $nid;
+
+    $item = array();
+    switch ($type) {
+        case 'article':
+        case 'catalogo':
+        case 'videos':
+        case 'gallerie':
+            $query = "SELECT fdfi.field_image_alt AS title, fdfi.field_image_title AS footprint, fm.uri as uri
+                      FROM node n
+                      INNER JOIN {field_data_field_image} fdfi ON fdfi.entity_id=n.nid
+                      INNER JOIN {file_managed} fm ON fm.fid=fdfi.field_image_fid
+                      WHERE n.status=1 AND n.nid=$nid";
+            break;
+        case 'poll':
+            $query = "SELECT fdfi.field_images_alt AS title, fdfi.field_images_title AS footprint, fm.uri as uri
+                      FROM node n
+                      INNER JOIN {field_data_field_images} fdfi ON fdfi.entity_id=n.nid and fdfi.delta=0
+                      INNER JOIN {file_managed} fm ON fm.fid=fdfi.field_images_fid
+                      WHERE n.status=1 AND n.nid=$nid";
+            break;
+        default:
+            //Aplica para Audio y otros contenidos que no tengan imagen
+//            $item = "{URL A IMAGEN DEFAULT EN CASO DE QUE NO TENGA ESTE CONTENIDO, PUEDE SER DESDE EL MISMO THEME}";
+            $query= false;
+            break;
+    }
+
+    if($query){
+        $result = db_query($query)->fetchAll();
+        foreach ($result as $row) {
+            $image_url = file_create_url($row->uri);
+            $item = array(
+                'uri' => $row->uri,
+                'url' => !empty($image_url) ? $image_url : '',
+                'title' => isset($row->title) ? $row->title : (isset($row->footprint) ? $row->footprint : (isset($row->node_title) ? $row->node_title : $_SERVER['HTTP_HOST'])),
+                'footprint' => isset($row->footprint) ? $row->footprint : (isset($row->title) ? $row->title : (isset($row->node_title) ? $row->node_title : $_SERVER['HTTP_HOST']))
+            );
+        }
+    }
+    return $item;
+}
+
+function get_lcmx_banner($type){
+
+    $n=floor(rand(1,3));
+
+    $banners[1]=array(
+        "img"=>"/sites/all/themes/lacapitalmx_d7_responsive/lacapitalmx/images/{$type}_{$n}.png",
+        "url"=>"https://www.beerhouse.mx/"
+    );
+
+    $banners[2]=array(
+        "img"=>"/sites/all/themes/lacapitalmx_d7_responsive/lacapitalmx/images/{$type}_{$n}.png",
+        "url"=>"http://www.proyecto40.com"
+    );
+
+    $banners[3]=array(
+        "img"=>"/sites/all/themes/lacapitalmx_d7_responsive/lacapitalmx/images/{$type}_{$n}.png",
+        "url"=>"http://www.reinserta.org/"
+    );
+
+
+    return $banners[$n];
+}

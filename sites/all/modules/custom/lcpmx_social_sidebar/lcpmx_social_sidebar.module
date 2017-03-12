@@ -1,0 +1,43 @@
+<?php
+
+function lcpmx_social_sidebar_help($path, $arg) {
+    if ($path == 'admin/help#lcpmx_social_sidebar') {
+        return t('Muestra el footer en todo el sitio');
+    }
+}
+
+function lcpmx_social_sidebar_block_info() {
+    $blocks['lcpmx_social_sidebar'] = array(
+        'info' => t('LaCapitalMX social sidebar')
+    );
+    return $blocks;
+}
+
+function lcpmx_social_sidebar_block_view($delta = '') {
+    $block = array(
+        'subject' => t(''),
+        'content' => '',
+    );
+
+    if ($delta == 'lcpmx_social_sidebar') {
+        $block['content'] = array(
+            '#theme' => 'lcpmx_social_sidebar'
+        );
+    };
+    return $block;
+}
+
+function lcpmx_social_sidebar_theme($existing, $type, $theme, $path) {
+    return array(
+        'lcpmx_social_sidebar' => array(
+            'variables' => array(
+                'items_lcpmx_social_sidebar' => NULL,
+            ),
+            'template' => 'lcpmx_social_sidebar',
+        ),
+    );
+}
+
+function template_preprocess_lcpmx_social_sidebar(&$variables) {
+    $variables['items_lcpmx_social_sidebar'] = array();
+}

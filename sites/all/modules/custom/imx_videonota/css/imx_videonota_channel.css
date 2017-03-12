@@ -1,0 +1,146 @@
+.imx-wrapper-video-channel {
+  display: inline-block;
+  float: left;
+  margin: 0 10px;
+  width: 100%;
+}
+.imx-banner-channel {
+  width: 100%;
+  display: inline-block;
+  height: 115px;
+  position: relative;
+  margin: 10px 0 0;
+  vertical-align: middle;
+}
+.imx-banner-channel div {
+  position: absolute;
+  right: 27px;
+  bottom: 15px;
+  width: 150px;
+  height: 35px;
+}
+.imx-banner-channel a {
+  display: inline-block;
+  text-decoration: none;
+  border-image: none;
+  vertical-align: middle;
+  width: 100%;
+}
+.imx-banner-channel a img {
+  display: inline-block;
+  width: 100%;
+  border-image: none;
+  max-height: 115px;
+}
+.imx-wrapper-reproductor-channel {
+  display: inline-block;
+  margin: 0 auto 20px;
+  width: 100%;
+}
+.imx-wrapper-reproductor-channel figure {
+  display: inline-block;
+  width: 100%;
+  position: relative;
+  height: 335px;
+  vertical-align: middle;
+  overflow: hidden;
+}
+.imx-wrapper-reproductor-channel figure img {
+  height: 100%;
+  width: 100%;
+}
+.imx-plek-multimedia-video-channel {
+  background: url('/sites/gimm-dinero.jediteam.mx/themes/dinero/images/texturas/sprite_home_n.png') 0 -508px no-repeat;
+  height: 30px;
+  left: 44%;
+  position: absolute;
+  top: 45%;
+  width: 80px;
+  z-index: 9999;
+}
+.imx-wrapper-reproductor-channel:hover span.imx-plek-multimedia-video-channel {
+  background-position: 0 -540px;
+}
+#imx-videonota-list-channel {
+  display: inline-block;
+  list-style-type: none;
+  margin: 0 auto;
+  padding: 0;
+  vertical-align: middle;
+  width: 100%;
+}
+#imx-videonota-list-channel li {
+  display: inline-block;
+  margin-bottom: 25px;
+  width: 47%;
+  float: left;
+}
+#imx-videonota-list-channel li:first-child {
+  width: 100%;
+  margin: 0 auto !important;
+}
+#imx-videonota-list-channel li a {
+  display: inline-block;
+  text-decoration: none;
+  width: 100%;
+  height: auto;
+}
+.imx-list-wrapper-video {
+  display: inline-block;
+  height: auto;
+  width: 100%;
+}
+.imx-list-wrapper-video figure {
+  position: relative;
+  height: 160px;
+  width: 100%;
+  display: inline-block;
+  vertical-align: middle;
+}
+.imx-list-wrapper-video figure img {
+  height: 100%;
+  width: 100%;
+}
+.imx-list-wrapper-video figure .imx-plek-multimedia-chanel-list {
+  background: url('/sites/gimm-dinero.jediteam.mx/themes/dinero/images/texturas/sprite_home_n.png') 0 -510px no-repeat;;
+  height: 27px;
+  left: 35%;
+  position: absolute;
+  top: 40%;
+  width: 80px;
+  z-index: 9999;
+}
+.imx-list-wrapper-video:hover > figure span.imx-plek-multimedia-chanel-list {
+  background-position: 0 -540px;
+}
+#imx-videonota-list-channel li:nth-child(2n) {
+  margin-right: 10px;
+}
+#imx-videonota-list-channel li:nth-child(2n+1) {
+  margin-left: 20px;
+}
+.imx-title-reproductor-channel {
+  display: inline-block;
+  width: 100%;
+  height: 52px;
+  line-height: 25px;
+  font-family: ' Droid Sans ', sans-serif;
+  font-size: 24px;
+  color: #000;
+  margin: 10px auto;
+  overflow: hidden;
+}
+.imx-title-channel-list-video {
+  color: #000;
+  display: inline-block;
+  font-family: ' Droid Sans ', sans-serif;
+  font-size: 19px;
+  height: 40px;
+  line-height: 20px;
+  margin: 10px auto;
+  overflow: hidden;
+  width: 100%;
+}
+.imx-mas-dinero-img img{
+  height: 149px;
+}

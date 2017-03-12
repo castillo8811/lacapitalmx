@@ -1,0 +1,60 @@
+#block-imx-comments-imx-comments {
+    clear: both;
+}
+.comments-body {
+    width: 678px;
+    border: 1px solid #F90;
+}
+.comments-username {
+    padding: 5px;
+    width: 660px;
+}
+.comments-userpic img {
+    margin: 0 5px 0 0;
+    border: 1px solid #CCC;
+}
+.comments-userpic span {
+    margin: 10px 0 0 0;
+}
+.textarea-comments {
+    width: 520px;
+    height: 58px;
+    border: 1px solid #CCC;
+    margin: 0 0 0 5px;
+    box-shadow: inset 0px 0px 15px #333;
+    -moz-box-shadow: inset 0px 0px 15px #333;
+    -webkit-box-shadow: inset 0px 0px 15px #333;
+    padding: 8px;
+}
+.comments-textarea form#form-comments span.btnamarillobig {
+    margin: 37px 10px 0 0;
+    padding: 12px 20px 0 20px;
+}
+#comments-list {
+    background: white;
+    padding: 10px;
+}
+.comment-gral {
+    min-height: 70px;
+    border-bottom: 1px solid #CCC;
+    width: 660px;
+    float: left;
+    line-height: 14px;
+    padding: 10px 0 0 0;
+}
+.comment-pic img {
+    margin: 0 5px 0 0;
+}
+.comment-content span {
+    margin: 0 0 8px 0;
+}
+.comment-tools {
+    margin: 10px 0 5px 0;
+}
+.comment-reply {
+    width: 604px;
+    float: right;
+}
+.fbFeedbackContent .postToProfile {
+    min-width: 140px !important;
+}

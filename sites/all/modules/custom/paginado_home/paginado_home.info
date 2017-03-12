@@ -1,0 +1,8 @@
+; $Id$ 
+name = "Paginado del HOME"
+description = "Bloque que muestra el paginado del home para ver mas contenidos de sitio"
+package = "FEM"
+version = 1.0
+core = 7.x
+files[]=paginado_home.module
+

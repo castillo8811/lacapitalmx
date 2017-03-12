@@ -1,0 +1,7 @@
+; $Id$
+name = "LaCapitalMX Starred"
+description = "Muestra el bloque de notas principales top Home"
+package = "LCPMX"
+version = 7.x
+core = 7.x
+files[]="lcpmx_starred.module"

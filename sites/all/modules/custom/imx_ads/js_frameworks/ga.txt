@@ -1,0 +1,11 @@
+function recordOutboundLink(link, category, action, label) {
+    if(typeof ga !== "undefined"){
+        ga('send', 'event',category,action, action,label);
+    }else if(typeof _gaq !== "  undefined"){
+       _gaq.push(['_trackEvent',category,action,label]);
+    }
+    window.open(link.href,'_blank');
+}
+
+
+

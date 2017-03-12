@@ -1,0 +1,14 @@
+
+name = Autonodequeue
+description = Automatically, configurably adds nodes to nodequeues.
+package = Nodequeue
+dependencies[] = nodequeue
+core = 7.x
+configure = admin/structure/nodequeue/settings
+
+; Information added by drupal.org packaging script on 2013-04-30
+version = "7.x-1.2"
+core = "7.x"
+project = "autonodequeue"
+datestamp = "1367289911"
+

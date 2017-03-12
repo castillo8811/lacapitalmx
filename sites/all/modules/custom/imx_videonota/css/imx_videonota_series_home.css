@@ -1,0 +1,145 @@
+.imx-wrapper-serie-multimedia-home{
+	display: block;
+	overflow: hidden;
+	width: 98%;
+	margin: 10px;
+}
+.imx-row-series-home{
+	display: block;
+	width: 100%;
+	margin: 10px auto;
+}
+.imx-banner-series-home a{
+	display: inline-block;
+	text-decoration: none;
+	width: 100%;
+	height: 115px;
+}
+.imx-banner-series-home{
+	width: 100%;
+	display: block;
+	height: 115px;
+	overflow: hidden;
+	vertical-align: middle;
+	position: relative;
+}
+.imx-banner-series-home div[id*="___ytsubscribe_"]{
+		position: absolute;
+		bottom: 8px;
+  	right: 25px;
+}
+.imx-wrapper-node-videos-list-top{
+	width: 100%;
+	display: block;
+}
+.imx-wrapper-img-chanel-list-top{
+	display: block;
+	width: 100%;
+	max-height: 328px;
+	height: 100%;
+	overflow: hidden;
+	border: none;
+	position: relative;
+}
+.imx-wrapper-img-chanel-list-top .imx-plek-multimedia-video-channel {
+	background: url('/sites/gimm-dinero.jediteam.mx/themes/dinero/images/texturas/sprite_home_n.png') 0 -508px no-repeat;
+	height: 30px;
+	left: 43%;
+	position: absolute;
+	top: 40%;
+	width: 80px;
+	z-index: 9999;
+}
+.imx-wrapper-img-chanel-list-top:hover .imx-plek-multimedia-video-channel{
+	background-position: 0 -540px;
+}
+.imx-wrapper-img-chanel-list-top img{
+	width: 100%;
+	height: 373px;
+}
+.imx-title-home-chanel-list-top{
+	width: 100%;
+	display: block;
+	max-height: 75px;
+	overflow: hidden;
+	margin: 10px auto;
+}
+.imx-title-home-chanel-list-top h3{
+	color: #000;
+	 font-family: 'Droid Serif',serif;
+	 font-size: 24px;
+}
+.imx-ul-chanel-home-videos{
+	width: 100%;
+	display: inline-block;
+	margin: 10px 0;
+	padding: 0;
+}
+.imx-ul-chanel-home-videos li{
+	width: 31%;
+	margin: 15px 15px 15px 0;
+	display: inline-block;
+	vertical-align: top;
+}
+.imx-ul-chanel-home-videos li:first-child{
+	width: 100%;
+	margin: 0 auto;
+}
+.imx-ul-chanel-home-videos li:last-child{
+	margin: 15px 0 15px 0;
+}
+.imx-wrapper-node-videos-list{
+	width: 100%;
+}
+.imx-wrapper-img-chanel-list{
+	width: 100%;
+	height: 100px;
+	overflow: hidden;
+	position: relative;
+}
+.imx-wrapper-img-chanel-list .imx-plek-multimedia-video-channel {
+	background: url('/sites/gimm-dinero.jediteam.mx/themes/dinero/images/texturas/sprite_home_n.png') 0 -508px no-repeat;
+	height: 30px;
+	left: 30%;
+	position: absolute;
+	top: 37%;
+	width: 80px;
+	z-index: 9999;
+}
+.imx-wrapper-node-videos-list:hover .imx-plek-multimedia-video-channel{
+	background-position: 0 -540px;
+}
+.imx-wrapper-img-chanel-list img{
+	width: 100%;
+	height: 100%;
+	border: none;
+}
+.imx-title-home-chanel-list {
+	display: block;
+	margin: 10px 0;
+	height: 50px;
+	width: 100%;
+	overflow: hidden;
+}
+.imx-title-home-chanel-list h3{
+	color: #000;
+	font-family: 'Droid Serif',serif;
+	font-size: 14px;
+	line-height: 17px;
+}
+div.imx-home-videos-chanel-mas{
+	display: block;
+	margin: 10px;
+	height: auto;
+	width: 100%;
+	text-align: right;
+}
+a.imx-btn-home-videos-ver-mas{
+	display: block;
+	background: url('/sites/gimm-dinero.jediteam.mx/themes/dinero/images/texturas/sprite_home_n.png') no-repeat;
+	background-position: -11px -1417px;
+	height: 17px;
+	width: 94px;
+	float: right;
+	margin-right: 15px;
+}

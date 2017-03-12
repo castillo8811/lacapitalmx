@@ -1,0 +1,100 @@
+<?php
+
+function userfem_help($path, $arg) {
+    if ($path == 'admin/help#userfem') {
+        return t('Provee un bloque de links para facilitar el registro y login de usuarios en los sitios FEM con ajax');
+    }
+}
+
+function userfem_menu() {
+    $items = array();
+    $items['deletenode/action'] = array(
+        'type' => MENU_CALLBACK,
+        'title' => 'Eliminado de nodos favoritos de usuario',
+        'page callback' => 'deletenode_action',
+        'access callback' => TRUE,
+        'access arguments' => array('access content'),
+    );
+    return $items;
+}
+
+
+function userfem_block_info() {
+    $blocks['userfem'] = array(
+        'info' => t('Userfem')
+    );
+    return $blocks;
+}
+
+function userfem_block_view($delta = '') {
+    $block = array(
+        'subject' => t(''),
+        'content' => '',
+    );
+    if ($delta == 'userfem') {
+        $block['subject'] = t('Iniciar sesión | Regístrate Fem');
+        $block['content'] = ajax_get_login_block_content();
+    };
+    return $block;
+}
+
+function ajax_get_login_block_content() {
+    $login_uri = '<a href="/user" class="ulogin B16r0 fancybox">INICIAR SESIÓN</a>';
+    $register_uri = '<a href="/user/register" class="uregister B16r0 fancybox">REGISTRO</a>';
+    $logout_uri = '<a href="/user/logout" class="B16r0 upp">Cerrar sesión</a>';
+    if (user_is_anonymous()) {
+        $block_content = '<div id="userfem_block_anonymous" class="registrate_login">
+                             <p>
+                                 <span class="userfem_login n register">' . $login_uri . '</span> / <span class="userfem_register n">' . $register_uri . '</span>
+                             </p>
+                          </div>';
+    } else {
+        global $user;
+        $block_content = '<div id="userfem_block_authenticated"><p><span class="userfem_logout">' . $logout_uri . '</span></p></div>
+                          <div id="userfemSOS" style="display:none;"><span class="userfem_user_name O18l1 upp">' . t("Bienvenido(a): ") . $user->name . '</span></div>';
+    }
+    return $block_content;
+}
+
+function userfem_form_alter(&$form, $form_state, $form_id){
+    global $user;
+    if(count($user->roles) == 1 && array_key_exists(2, $user->roles)){
+        if ($form_id == 'user_profile_form' && !arg(2)) {
+//            hide($form['field_terminos_condiciones']);
+            hide($form['field_user_title']);
+            hide($form['field_user_speciality']);
+            hide($form['field_user_currentcare']);
+            hide($form['field_cuenta_social']);
+            hide($form['locale']);
+            hide($form['timezone']);
+        }
+    }
+}
+
+//function userfem_user_insert(&$edit, $account, $category){
+//    
+//}
+
+function userfem_user_update(&$edit, $account, $category){
+    $edit['field_terminos_condiciones']['und'][0]['value'] = 1; 
+}
+
+function deletenode_action() {
+    if ($_SERVER["HTTP_X_REQUESTED_WITH"] === "XMLHttpRequest") {
+        $nid = $_POST['nid'];
+        $uid = $_POST['uid'];
+        db_update('users_node_saved')
+                ->fields(array(
+                    'status' => 0,
+                    'deleted' => time(),
+                ))
+                ->condition('uid', $uid, '=')
+                ->condition('nid', $nid, '=')
+                ->execute();
+
+        $items = array('status' => 200);
+        echo json_encode($items);
+        exit;
+    }
+    exit;
+}

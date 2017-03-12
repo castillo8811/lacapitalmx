@@ -1,0 +1,26 @@
+<?php
+
+/**
+ * @file
+ * Intall and uninstall hook for autonodequeue.module.
+ */
+
+/**
+ * Implements hook_install().
+ */
+function autonodequeue_install() {
+  db_add_field('nodequeue_types', 'x_autonodequeue', array(
+    'type' => 'int',
+    'unsigned' => TRUE,
+    'not null' => TRUE,
+    'default' => 0,
+  ));
+}
+
+
+/**
+ * Implements hook_uninstall().
+ */
+function autonodequeue_uninstall() {
+  db_drop_field('nodequeue_types', 'x_autonodequeue');
+}

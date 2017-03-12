@@ -1,0 +1,7 @@
+; $Id$
+name = "LaCapitalMX social sidebar"
+description = "Muestra el bloque de redes sociales de la barra lateral"
+package = "LCPMX"
+version = 7.x
+core = 7.x
+files[]="lcpmx_social_sidebar.module"

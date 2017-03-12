@@ -1,0 +1,5 @@
+name = "LacapitalMx Home"
+package = "InventMX"
+description = Módulo para la configuración del home de laCapitalmx.
+core = 7.x
+dependencies[] = system

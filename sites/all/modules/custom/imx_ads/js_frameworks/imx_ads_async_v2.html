@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8"/>
+
+    <style>body {
+        margin: 0;
+        padding: 0;
+        background-color: #b2b2b2;
+    }
+    img, iframe{
+        margin: 0 auto;
+    }
+
+    .imx_ads{
+        text-align: center;
+    }
+    </style>
+    <script src='http://www5.smartadserver.com/config.js?nwid=1030' type="text/javascript"></script>
+    <script type="text/javascript">
+        sas.setup({ domain: 'http://www5.smartadserver.com'});
+    </script>
+
+    <script type="text/javascript">
+        function getQueryParams(qs) {
+            qs = qs.split("+").join(" ");
+            var params = {}, tokens,
+                    re = /[?&]?([^=]+)=([^&]*)/g;
+            while (tokens = re.exec(qs)) {
+                params[decodeURIComponent(tokens[1])] = decodeURIComponent(tokens[2]);
+            }
+            return params;
+        }
+        function printAd() {
+            var _GET = getQueryParams(document.location.search);
+            if (typeof _GET.pageid == 'undefined' || typeof _GET.formatid == 'undefined' || _GET.pageid == null || typeof _GET.siteid == null)
+                return null;
+
+            if (typeof _GET.target == 'undefined' || _GET.target == null)
+                _GET.target = '';
+
+            page_id=_GET.pageid.split('/');
+            if(page_id.length==2){
+                page_id_smart=page_id[1];
+            }else{
+                page_id_smart=_GET.pageid;
+            }
+
+            textAd = '<scr' + 'ipt type="text/javascript">' +
+                        'sas.call("std", { siteId:' + _GET.siteid +', pageId:' +page_id_smart+ ', formatId:' + _GET.formatid + ',target:"' + _GET.target + '"})   ;' +
+                    '</scr' + 'ipt>' +
+                    '<noscript>' +
+                        '<a href="http://www5.smartadserver.com/ac?jump=1&nwid=1030&siteid='+ _GET.siteId +'pagename=exclusive_site&fmtid='+ _GET.formatid + '&visit=m&tmstp=[timestamp]&out=nonrich" target="_blank">' +
+                            '<img src="http://www5.smartadserver.com/ac?out=nonrich&nwid=1030&siteid='+ _GET.siteId +'pagename=exclusive_site&fmtid='+ _GET.formatid + '&visit=m&tmstp=[timestamp]&out=nonrich" border="0" alt="" />' +
+                        '</a>' +
+                    '</noscript>';
+            document.write(textAd);
+
+            window.addEventListener('load', function() {
+                window.parent.postMessage("imx_ads-"+_GET.formatid+":" +document.body.offsetWidth+"#"+ document.body.offsetHeight, '*');
+            });
+        }
+
+
+
+    </script>
+</head>
+<body>
+<script>printAd();</script>
+</body>
+</html>

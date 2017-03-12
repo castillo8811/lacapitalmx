@@ -1,0 +1,8 @@
+name = "Garuyo Filter ocio"
+description = "Modulo para filtrar por subcategoria dentro la categoria ocio"
+package = "Garuyod7"
+core = "7.x"
+version = "1.x"
+php = "5.x"
+files[]=garuyo_filter_ocio.module
+

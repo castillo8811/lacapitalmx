@@ -1,0 +1,384 @@
+<?php
+
+/**
+ * Implements hook_install().
+ */
+function imx_ads_install() {
+    variable_set('imx_ads', '');
+
+    $insert=db_insert("imx_ads_frameworks");
+    $insert->fields(
+        array(
+        'name' => "eplanning",
+        'sid' => "",
+        'ss' => "",
+        'script_url' => "epl.v4.min.js",
+        'password' => "",
+        'account' => "",
+        'user' => "",
+        'site_id' => "",
+        'domain_name' => "",
+        ));
+    $insert->execute();
+
+    $insert=db_insert("imx_ads_frameworks");
+    $insert->fields(
+        array(
+        'name' => "google analitics",
+        'sid' => "",
+        'ss' => "",
+        'script_url' => "ga.js",
+        'password' => "",
+        'account' => "",
+        'user' => "",
+        'site_id' => "",
+        'domain_name' => "",
+        ));
+    $insert->execute();
+
+    $insert=db_insert("imx_ads_frameworks");
+    $insert->fields(
+        array(
+        'name' => "cxense",
+        'sid' => "",
+        'ss' => "",
+        'script_url' => "cxsense.js",
+        'password' => "",
+        'account' => "",
+        'user' => "",
+        'site_id' => "",
+        'domain_name' => "",
+        ));
+    $insert->execute();
+}
+
+function imx_ads_schema() {
+    global $databases;
+    $prefix = "";
+    if (is_array($databases["default"]["default"]["prefix"])) {
+        if (array_key_exists("default", $databases["default"]["default"]["prefix"])) {
+            $prefix = $databases["default"]["default"]["prefix"]["default"];
+        }
+    }
+
+    $schema["imx_ads_blocks"] = array(
+        'description' => 'Blockes para imx_ads',
+        'fields' => array(
+            'bid' => array(
+                'description' => 'The id del bloque a utilizar',
+                'type' => 'serial',
+                'unsigned' => TRUE,
+                'not null' => TRUE,
+            ),
+            'fid' => array(
+                'description' => 'FrameWork A usar en el bloque',
+                'type' => 'int',
+                'not null' => TRUE,
+                'default' => 1
+            ),
+            'title' => array(
+                'description' => 'Region donde estara el bloque',
+                'type' => 'varchar',
+                'length' => 64,
+                'not null' => TRUE,
+                'default' => '',
+            ),
+            'block_info' => array(
+                'description' => 'Informacion del bloque',
+                'type' => 'varchar',
+                'length' => 900,
+                'not null' => TRUE,
+                'default' => '',
+            ),
+            'region' => array(
+                'description' => 'Region donde estara el bloque',
+                'type' => 'varchar',
+                'length' => 100,
+                'not null' => TRUE,
+                'default' => '',
+            ),
+            'display_condition' => array(
+                'description' => 'Condicion de Visualización',
+                'type' => 'int',
+                'not null' => TRUE,
+                'default' => 1,
+            ),
+            'tids' => array(
+                'description' => 'Tids donde ser vera el bloque',
+                'type' => 'varchar',
+                'length' => 900,
+                'default' => '',
+            ),
+            'tags' => array(
+                'description' => 'Tags donde ser vera el bloque',
+                'type' => 'varchar',
+                'length' => 900,
+                'default' => '',
+            ),
+            'cxwh' => array(
+                'description' => 'medias cxsense de unidad',
+                'type' => 'varchar',
+                'length' => 900,
+                'default' => '',
+            ),
+            'cxinicial_vh' => array(
+                'description' => 'medias cxsense iniciales',
+                'type' => 'varchar',
+                'length' => 900,
+                'default' => '',
+            ),
+            'subcanals' => array(
+                'description' => 'nodos pertenicientes al canal o subcanal',
+                'type' => 'varchar',
+                'length' => 900,
+                'default' => '',
+            ),
+            'node_tags' => array(
+                'description' => 'nodos pertenicientes al canal o subcanal',
+                'type' => 'varchar',
+                'length' => 900,
+                'default' => '',
+            ),
+            'node_subcanals' => array(
+                'description' => 'nodos pertenicientes al canal o subcanal',
+                'type' => 'varchar',
+                'length' => 900,
+                'default' => '',
+            ),
+            'nids' => array(
+                'description' => 'Nodos donde sera visibles el bloque',
+                'type' => 'varchar',
+                'length' => 900,
+                'default' => '',
+            ),
+            'canales' => array(
+                'description' => 'The email of the user that recieb the email',
+                'type' => 'varchar',
+                'length' => 900,
+                'default' => '',
+            ),
+            'nodes' => array(
+                'description' => 'Nodos donde sera visibles el bloque',
+                'type' => 'varchar',
+                'length' => 900,
+                'default' => '',
+            ),
+            'pages' => array(
+                'description' => 'Merge de nodes y canales',
+                'type' => 'varchar',
+                'length' => 900,
+                'default' => '',
+            ),
+            'types' => array(
+                'description' => 'Tipos de contenido',
+                'type' => 'varchar',
+                'length' => 900,
+                'default' => '',
+            ),
+            'status' => array(
+                'description' => 'Status del Bloque',
+                'type' => 'int',
+                'not null' => TRUE,
+                'default' => 0,
+            ),
+            'created' => array(
+                'description' => 'The date when the user was subscribed in UNIX timestamp format.',
+                'type' => 'int',
+                'not null' => TRUE,
+                'default' => 0,
+            ),
+            'uid' => array(
+                'description' => 'Usuario creador del bloque',
+                'type' => 'int',
+                'not null' => TRUE,
+                'default' => 1,
+            ),
+            'sec' => array(
+                'description' => 'sec del block',
+                'type' => 'varchar',
+                'not null' => TRUE,
+                'length' => 900,
+                'default' => ""
+            ),
+            'ss' => array(
+                'description' => 'ss del block',
+                'type' => 'varchar',
+                'not null' => TRUE,
+                'length' => 900,
+                'default' => ""
+            ),
+            'file_id' => array(
+                'description' => 'File adjunto al bloque',
+                'type' => 'varchar',
+                'not null' => TRUE,
+                'length' => 900,
+                'default' => ""
+            ),
+            'image_uri' => array(
+                'description' => 'File adjunto al bloque',
+                'type' => 'varchar',
+                'not null' => TRUE,
+                'length' => 900,
+                'default' => ""
+            ),
+            'custom_pages' => array(
+                'description' => 'Paginas personalizadas',
+                'type' => 'varchar',
+                'not null' => TRUE,
+                'length' => 900,
+                'default' => ""
+            ),
+            'link_info' => array(
+                'description' => 'Info del link',
+                'type' => 'varchar',
+                'not null' => TRUE,
+                'length' => 900,
+                'default' => ""
+            ),
+            'async' => array(
+               'description' => 'Bloque asyncrono',
+               'type' => 'int',
+               'not null' => TRUE,
+               'default' => 1,
+             ),
+             'exclusive' => array(
+              'description' => 'Bloque Exclusivo',
+               'type' => 'int',
+               'not null' => TRUE,
+               'default' => 1,
+             ),
+            'invoque_id' => array(
+                 'description' => 'Regiones de invocación personalizadas',
+                 'type' => 'varchar',
+                 'not null' => TRUE,
+                 'length' => 900,
+                 'default' => null
+           ),
+
+           'custom_pages_exclude' => array(
+             'description' => 'Regiones de invocación personalizadas',
+             'type' => 'varchar',
+             'not null' => TRUE,
+             'length' => 900,
+             'default' => ""
+                      ),
+           'img_url' => array(
+             'description' => 'Regiones de invocación personalizadas',
+             'type' => 'varchar',
+             'not null' => TRUE,
+             'length' => 900,
+             'default' => null
+            ),
+        ), //End of fields on
+        'indexes' => array(
+            'ad_bid' => array('bid'),
+            'ad_fid' => array('fid'),
+            'ad_region' => array('region'),
+            'ad_title' => array('title'),
+        ),
+        'primary key' => array('bid'), //primarys keys
+    );
+
+    $schema['imx_ads_frameworks'] = array(
+        'description' => 'Frameworks disponibles en el sitio',
+        'fields' => array(
+            'fid' => array(
+                'description' => 'Id del Framework',
+                'type' => 'serial',
+                'unsigned' => TRUE,
+                'not null' => TRUE,
+            ),
+            'name' => array(
+                'description' => 'Nombre del Framework',
+                'type' => 'varchar',
+                'length' => 900,
+                'not null' => TRUE,
+                'default' => ""
+            ),
+            'script_url' => array(
+                'description' => 'Url del Framework',
+                'type' => 'varchar',
+                'length' => 900,
+                'not null' => TRUE,
+                'default' => ""
+            ),
+            'sid' => array(
+                'description' => 'Site Id para el Framework',
+                'type' => 'varchar',
+                'length' => 900,
+                'not null' => TRUE,
+                'default' => ""
+            ),
+            'site_id' => array(
+                'description' => 'Site Id para el Api Epplaning',
+                'type' => 'varchar',
+                'length' => 900,
+                'not null' => TRUE,
+                'default' => ""
+            ),
+            'user' => array(
+                'description' => 'Acount usada por cXsense',
+                'type' => 'varchar',
+                'length' => 900,
+                'not null' => TRUE,
+                'default' => ""
+            ),
+            'password' => array(
+                'description' => 'Acount usada por cXsense',
+                'type' => 'varchar',
+                'length' => 900,
+                'not null' => TRUE,
+                'default' => ""
+            ),
+            'account' => array(
+                'description' => 'Acount usada por cXsense',
+                'type' => 'varchar',
+                'length' => 900,
+                'not null' => TRUE,
+                'default' => ""
+            ),
+            'sec' => array(
+                'description' => 'sec del block para eplanning',
+                'type' => 'varchar',
+                'not null' => TRUE,
+                'length' => 900,
+                'default' => ""
+            ),
+            'ss' => array(
+                'description' => 'ss del block para eplanning',
+                'type' => 'varchar',
+                'not null' => TRUE,
+                'length' => 900,
+                'default' => ""
+            ),
+            'start_script' => array(
+                'description' => 'ss del block para eplanning',
+                'type' => 'varchar',
+                'not null' => TRUE,
+                'length' => 900,
+                'default' => ""
+            ),
+            'ad_script' => array(
+                'description' => 'ss del block para eplanning',
+                'type' => 'varchar',
+                'not null' => TRUE,
+                'length' => 900,
+                'default' => ""
+            ),
+            'domain_name' => array(
+                'description' => 'Ruta de una imagen',
+                'type' => 'varchar',
+                'not null' => TRUE,
+                'length' => 900,
+                'default' => ""
+            ),
+        ),
+        'indexes' => array(
+            'framework_fid' => array('fid'),
+            'framework_title' => array('name'),
+        ), //End of fields on
+        'primary key' => array('fid'), //primarys keys
+    );
+
+    return $schema;
+}

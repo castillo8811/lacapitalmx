@@ -1,0 +1,294 @@
+<?php
+
+const CIUDADES_VOCABULARY = 12;
+
+function lcpmx_ciudades_help($path, $arg) {
+    if ($path == 'admin/help#lcpmx_ciudads') {
+        return t('URLS para los homes');
+    }
+}
+
+function lcpmx_ciudades_menu() {
+    $items['queretaro'] = array(
+        'type' => MENU_CALLBACK,
+        'title' => 'LaCapital Queretaro',
+        'page callback' => 'lcpmx_queretaro',
+        'access callback' => TRUE,
+        'access arguments' => array('access content'),
+    );
+    return $items;
+}
+
+function lcpmx_queretaro(){
+    return array();
+}
+
+function lacapitalmx_menu_link__main_menu(&$variables) {
+    if(arg(0)=="queretaro" || preg_match('/\queretaro/',$_SERVER['REQUEST_URI'])) {
+        $element = $variables['element'];
+
+        if($element["#original_link"]["load_functions"][2]=="taxonomy_term_load"){
+            $term=taxonomy_get_term_by_name($element["#title"],"categorias");
+            $term=array_shift($term);
+            if(module_load_include('inc','pathauto','pathauto') !== FALSE) {
+                if (function_exists('pathauto_cleanstring')) {
+                    $name =  $name=pathauto_cleanstring($term->name);
+                }
+            }else{
+                $name =  $name=$term->name;
+            }
+
+        }else{
+            if($element["#href"]!="<front>")
+                $name=$element["#href"];
+        }
+        $variables['element']["link_path"] = "queretaro/".$name ;
+        $variables['element']['#href'] = "queretaro/".$name;
+        $variables['element']["#original_link"]["link_path"] = $element['#href'];
+        $variables['element']["#original_link"]["href"] = $element['#href'];
+    }
+    return theme_menu_link($variables);
+}
+
+function lcpmx_ciudades_block_info() {
+    $blocks['lcpmx_queretaro_home_page'] = array(
+        'info' => t('LaCapitalMX Queretaro Inicio')
+    );
+
+    $blocks['lcpmx_queretaro_subterraneo'] = array(
+        'info' => t('LaCapitalMX Queretaro Subterraneo')
+    );
+
+    $blocks['lcpmx_queretaro_sensorama'] = array(
+        'info' => t('LaCapitalMX Queretaro Sensorama')
+    );
+
+    $blocks['lcpmx_queretaro_intervensiones'] = array(
+        'info' => t('LaCapitalMX Queretaro Intervensiones')
+    );
+
+    $blocks['lcpmx_queretaro_trafico'] = array(
+        'info' => t('LaCapitalMX Queretaro Tráfico')
+    );
+
+    return $blocks;
+}
+
+function lcpmx_ciudades_block_view($delta = '') {
+    $block = array(
+        'subject' => t(''),
+        'content' => '',
+    );
+
+    if ($delta == 'lcpmx_queretaro_home_page') {
+        $block['content'] = array(
+            '#theme' => 'lcpmx_queretaro_home_page'
+        );
+    }
+
+    if ($delta == 'lcpmx_queretaro_subterraneo') {
+        $block['content'] = array(
+            '#theme' => 'lcpmx_queretaro_subterraneo'
+        );
+    }
+
+    if ($delta == 'lcpmx_queretaro_sensorama') {
+        $block['content'] = array(
+            '#theme' => 'lcpmx_queretaro_sensorama'
+        );
+    }
+
+    if ($delta == 'lcpmx_queretaro_intervensiones') {
+        $block['content'] = array(
+            '#theme' => 'lcpmx_queretaro_intervensiones'
+        );
+    }
+
+    if ($delta == 'lcpmx_queretaro_trafico') {
+        $block['content'] = array(
+            '#theme' => 'lcpmx_queretaro_trafico'
+        );
+    }
+
+    return $block;
+}
+
+function lcpmx_ciudades_theme($existing, $type, $theme, $path) {
+    return array(
+        'lcpmx_queretaro_home_page' => array(
+            'variables' => array(
+                'lcpmx_queretaro_home_page' => NULL,
+            ),
+            'template' => 'lcpmx_queretaro_home_page',
+        ),
+
+        'lcpmx_queretaro_subterraneo' => array(
+            'variables' => array(
+                'items_lcpmx_queretaro_subterraneo' => NULL,
+            ),
+            'template' => 'lcpmx_queretaro_subterraneo',
+        ),
+
+        'lcpmx_queretaro_sensorama' => array(
+            'variables' => array(
+                'items_lcpmx_queretaro_sensorama' => NULL,
+            ),
+            'template' => 'lcpmx_queretaro_sensorama',
+        ),
+
+        'lcpmx_queretaro_trafico' => array(
+            'variables' => array(
+                'items_lcpmx_queretaro_trafico' => NULL,
+            ),
+            'template' => 'lcpmx_queretaro_trafico',
+        ),
+
+        'lcpmx_queretaro_intervensiones' => array(
+            'variables' => array(
+                'items_lcpmx_queretaro_intervensiones' => NULL,
+            ),
+            'template' => 'lcpmx_queretaro_intervensiones',
+        ),
+
+    );
+}
+
+function getSocialLinks(){
+    $links=array(
+        'fb'=>'http://www.facebook.com/revistalacapitalmx',
+        'tw'=>'http://twitter.com/LaCapital_',
+        'yt'=>"http://youtube.com/channel/UCplzYDA2Hitw8uxdQqar9zw",
+        'insta'=>'https://www.instagram.com/revistalacapitalmx',
+        'email'=>'lacapitalmx@gmail.com'
+    );
+
+
+    if(arg(0)=="queretaro" || preg_match('/\queretaro/',$_SERVER['REQUEST_URI'])){
+        $links=array(
+            'fb'=>'https://www.facebook.com/ElQueretanoSemanal',
+            'tw'=>'https://twitter.com/ElQueretano_',
+            'yt'=>'http://youtube.com/channel/ElQueretano_',
+            'insta'=>'https://www.instagram.com/ElQueretano_',
+            'email'=>'lacapitalqueretaro@gmail.com'
+        );
+    }
+
+    return $links;
+}
+
+function getLogo(){
+    $ciudad=getCurrentCiudad();
+    if($ciudad){
+    return "/sites/all/themes/lacapitalmx_d7_responsive/lacapitalmx/logo_{$ciudad}.png";
+    }else{
+        return '/sites/all/themes/lacapitalmx_d7_responsive/lacapitalmx/logo.png';
+    }
+}
+
+function getLogoFooter(){
+    if(arg(0)=="queretaro" || preg_match('/\queretaro/',$_SERVER['REQUEST_URI'])){
+        return '/sites/all/themes/lacapitalmx_d7_responsive/lacapitalmx/logo_queretaro_chico.png';
+    }else{
+        return '/sites/all/themes/lacapitalmx_d7_responsive/lacapitalmx/images/logo_c.png';
+    }
+}
+
+function getLogoNlModal(){
+    if(arg(0)=="queretaro" || preg_match('/\queretaro/',$_SERVER['REQUEST_URI'])){
+        return '/sites/all/themes/lacapitalmx_d7_responsive/lacapitalmx/logo_queretaro_chico.png';
+    }else{
+        return '/sites/all/themes/lacapitalmx_d7_responsive/lacapitalmx/images/logo_capital_news.png';
+    }
+}
+
+function lcpmx_ciudades_pathauto_alias_alter(&$alias, &$context) {
+    if($context['module']=="node") {
+        $ciudades=$context['data']['node']->field_capital["und"];
+
+        $term=taxonomy_term_load($context['data']['node']->field_categoria["und"][0]["tid"]);
+        $url=pathauto_cleanstring($term->name).'/'.pathauto_cleanstring($context['data']['node']->field_titulo_seo["und"][0]["value"]);
+
+        foreach ($ciudades as $ciudad)
+        {
+            $ciudad_term=taxonomy_term_load($ciudad["tid"]);
+            $ciudad_url=pathauto_cleanstring($ciudad_term->name).'/'.$url;
+
+            $path_url=drupal_lookup_path('source',$ciudad_url);
+            if(!$path_url){
+                if($ciudad_term->name != "Ciudad de México") {
+                    $path = array(
+                        'source' => 'node/' . $context['data']['node']->nid,
+                        'alias' => $ciudad_url,
+                        'language' => LANGUAGE_NONE,
+                    );
+                    path_save($path);
+                }
+            }
+        }
+    }
+}
+
+
+function lcpmx_get_path_alias($path) {
+    $url=drupal_get_path_alias($path);
+    if(arg(0)=="queretaro" || preg_match('/\/queretaro/',$_SERVER['REQUEST_URI'])){
+        if(!preg_match('/\/queretaro/',$url)){
+            $url='/queretaro'.'/'.$url;
+        }
+    }else{
+        if(preg_match('/\queretaro/',$url)){
+            $url=str_replace("\/queretaro",'',$url);
+        }
+    }
+
+    return $url;
+}
+
+function lcpmx_ciudades_url_inbound_alter(&$path, $original_path, $path_language) {
+    // Create the path user/me/edit, which allows a user to edit their account.
+    if(arg(0)=="queretaro" && count(arg())>2){
+        $url_valid=drupal_lookup_path("alias",$path);
+        if(!$url_valid){
+            if(preg_match('/queretaro\//',$path)){
+                $url=str_replace("queretaro/",'',$path);
+                $path=$url;
+                print_r($path);
+                drupal_goto($path);
+            }
+        }
+    }
+}
+
+function getCiudades(){
+    module_load_include('inc', 'pathauto');
+    $ciudades=taxonomy_get_tree(CIUDADES_VOCABULARY);
+
+    for($x=0; $x<count($ciudades); $x++){
+        $ciudades[$x]->clean_name=pathauto_cleanstring($ciudades[$x]->name);
+    }
+
+    return $ciudades;
+}
+
+
+function getCurrentCiudad(){
+    $ciudades=getCiudades();
+    foreach($ciudades as $ciudad){
+        if(preg_match("/{$ciudad->clean_name}/",$_SERVER['REQUEST_URI'])){
+            return $ciudad->clean_name;
+        }
+    }
+
+    return false;
+}
+
+function getCurrentCiudadTid(){
+    $ciudades=getCiudades();
+    foreach($ciudades as $ciudad){
+        if(preg_match("/{$ciudad->clean_name}/",$_SERVER['REQUEST_URI'])){
+            return $ciudad->tid;
+        }
+    }
+
+    return false;
+}

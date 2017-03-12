@@ -1,0 +1,280 @@
+<?php
+
+function imx_menusubcanal_help($path, $arg) {
+    if ($path == 'admin/help#imx_menusubcanal') {
+        return t('Módulo que devuelve el pintado del menú principal');
+    }
+}
+
+function imx_menusubcanal_block_info() {
+    $blocks['imx_menusubcanal'] = array(
+        'info' => t('Menú de Subcanal')
+    );
+    return $blocks;
+}
+
+function imx_menusubcanal_block_view($delta = '') {
+    $block = array(
+        'subject' => t(''),
+        'content' => '',
+    );
+    if ($delta == 'imx_menusubcanal') {
+        $block['subject'] = t('Menú de Subcanal');
+        $block['content'] = menu_make();
+    };
+    return $block;
+}
+
+/**
+ * Arma el menu y submenu de los sitios 
+ * @return $bloque string  Devuelve el HTML 
+ */
+function menu_make() {
+//    drupal_add_js(drupal_get_path('module', 'imx_menusubcanal') . "/imx_menusubcanal.js");
+    //Construccion del menu, generar cache
+    $cacheName = 'menu';
+    //Cuando es por primera vez, comentar la siguiente línea para generar una caché nueva
+//    $itemsCache = _search_cache($cacheName);
+    if (!$itemsCache) {
+        $items = _get_menu();
+        _create_cache($cacheName, $items, 24);
+    } else {
+        $items = $itemsCache;
+    }
+    //Fin cache
+    //Recuperar TID para armado de Breadcrumbs
+    $breadcrumb = drupal_get_breadcrumb(); // Build Breadcrumbs
+    $path = arg(0);
+    $tid = array();
+    $sitio = 0;
+    $seccion = 0;
+    $type = 'general';
+    switch ($path) {
+        case 'user':
+            $place = arg(1) == 'password' ? 'Recuperar contraseña' : ((arg(1) == 'login' || !arg(1)) ? 'Cuenta de usuario' : 'Registro de cuenta');
+            $breadcrumb[] = t($place);
+            break;
+        case 'busqueda':
+            $breadcrumb[] = t('Buscar » ' . $_REQUEST['as_q']);
+            break;
+        case 'mas-versus':
+            $breadcrumb = array();
+            $breadcrumb[] = '<a href="/">Inicio</a>';
+            $breadcrumb[] = t('Más Versus');
+            break;
+        case 'mis-favoritos':
+            $breadcrumb = array();
+            $breadcrumb[] = '<a href="/">Inicio</a>';
+            $breadcrumb[] = t('Mis favoritos');
+            break;
+        case 'node':
+            if (is_numeric(arg(1)) && is_null(arg(2))) {
+                $type = 'node';
+                $breadcrumb = array();
+                $sitio = get_section_by_nid((int) arg(1), 2, FALSE); // obtengo el tid del sitio del nodo
+                $seccion = get_section_by_nid((int) arg(1), 3, FALSE); // obtengo el tid de la seccion del nodo
+                // armado del Breadcrumb customizado 
+                $breadcrumb[] = l('Inicio', '<front>'); //Set HOME
+                $breadcrumb[] = l($items[$sitio]['name'], 'taxonomy/term/' . $sitio); //Set site
+                if($items[$sitio]['childs'][$seccion]){
+                    $breadcrumb[] = "<a href='/" . $items[$sitio]['childs'][$seccion]['path'] . "'>" . $items[$sitio]['childs'][$seccion]['name'] . "</a>"; //Set section
+                } else {
+                    $nombreSeccion = get_section_by_nid((int) arg(1), 3); // obtengo el name de la seccion del nodo
+                    $breadcrumb[] = "<a href='/" . drupal_get_path_alias('taxonomy/term/'.$seccion) . "'>" . $nombreSeccion . "</a>"; //Set section
+                }
+                $breadcrumb[] = drupal_get_title(); // Set current node title
+            }
+            break;
+        case 'taxonomy':
+            $type = 'site';
+            $breadcrumb = array();
+            $sitio = (int) arg(2); // se recupera el tid de la taxonomía donde estamos
+            $breadcrumb[] = l('Inicio', '<front>'); //Set HOME
+            
+            if(!array_key_exists($sitio, $items)) { // no es un sitio, es tag o sección
+                foreach($items as $sitios){
+                    if(array_key_exists('childs', $sitios)){
+                        if(array_key_exists($sitio, $sitios['childs'])){
+                            $type = 'section';
+                            $parent = getMenuParent($sitios['childs'][$sitio]['plid']);
+                            $breadcrumb[] = "<a href='/" . $items[$parent]['path'] . "'>" . $items[$parent]['name'] . "</a>"; //Set section
+                        }
+                    }
+                }   
+            }
+            
+            $breadcrumb[] = drupal_get_title(); // Set current title
+            break;
+        default :
+            $breadcrumb[] = drupal_get_title(); // Set current node title
+            break;
+    }
+    drupal_set_breadcrumb($breadcrumb); // Set Breadcrumbs
+    
+    $htmlmenu = '';
+    $menu = '';
+    $submenuitems = '';
+
+    unset($items[0]);
+    
+    $sitio = $type == 'section' ? $parent : $sitio;
+    foreach($items as $tid => $menuTop) {
+        $classmenu = ($tid == $sitio) ? $menuTop['path'] . '_active current' : $menuTop['path'];  
+        $menu.='<li class="' . (arg(0) == 'obsesiones' && $menuTop['path'] == 'moda' ? 'moda_active current' : $classmenu) . '">
+                    <span id="' . $menuTop['path'] . '">
+                        <a href="/' . $menuTop['path'] . '" id="' . $menuTop['path'] . '">' . strtoupper($menuTop['name']) . '</a>
+                    </span>
+                </li>';
+        
+        if(array_key_exists('childs', $menuTop)){
+            foreach($menuTop['childs'] as $subsites){
+                $parent = $menuTop['name'] == 'Moda' ? 1 : getMenuParent($subsites['plid']);
+                switch ($type) {
+                    case 'node':
+                        $classmenu = ($subsites['tid'] == $seccion) ? 'active' : '';
+                        break;
+                    case 'site':
+                    case 'section':
+                        $classmenu = ($subsites['tid'] == (int) arg(2)) ? 'active' : '';
+                        break;
+                    default:
+                        $classmenu = '';
+                        break;
+                }
+                
+                $submenuitems[$parent][] = '<li class="sub_' . $menuTop['path'] . '">
+                                              <a href="/' . $subsites['path'] . '" class="' . $classmenu . '">' . strtoupper($subsites['name']) . '</a>
+                                            </li>';
+            }
+        }
+        
+    }
+    
+    if (count($submenuitems[$sitio]) > 0 && !drupal_is_front_page()) {
+        $submenu = '<nav id="submenu">
+                        <ul>
+                            ' . implode('', $submenuitems[$sitio]) . '
+                        </ul>
+                        <div class="dotted_line"></div>
+                    </nav>';
+    }
+    
+    $liberado = TRUE;
+    if($liberado){
+        $multimedia = '<li class="' . (arg(0) == 'multimedia' ? 'multimedia_active current' : 'multimedia') . '">
+                           <span id="multimedia">
+                               <a href="/multimedia" id="multimedia">MULTIMEDIA</a>
+                           </span>
+                       </li>';
+    } else {
+        $multimedia = '<li class="' . (arg(0) == 'multimedia' ? 'menucategorias-multimedia_active current' : 'menucategorias-multimedia') . '">
+                           <span class="multimedia-btn prelative">
+                               MULTIMEDIA
+                               <span class="multimedia-prox">Próximamente</span>
+                           </span>
+                       </li>';
+    }
+    
+    if (user_is_anonymous()) {
+        $favoritos = '<li class="menucategorias-misfavoritos">
+                          <span class="misfavoritos-star">
+                              <a class="ulogin thickbox" href="/user">MIS FAVORITOS</a>
+                          </span>
+                      </li>';
+    } else {
+        $favoritos = '<li class="menucategorias-misfavoritos ' . (arg(0) === 'user' && !arg(2) ? 'favoritos_active' : '') . '">
+                          <span class="misfavoritos-star">
+                              <a href="/user">MIS FAVORITOS</a>
+                          </span>
+                      </li>';
+    }
+    
+    $htmlmenu = '<nav class="main_menu">
+                    <div id="contenedormenucategorias">
+                       <ul class="MenuCategorias">
+                           <li class="' . (drupal_is_front_page() ? 'Inicio_active' : '') . '"><span><a href="/" id="inicio">INICIO</a></span></li>
+                           ' . $menu . $multimedia . $favoritos . '
+                       </ul>
+                    </div>
+                </nav>' . ($submenu ? $submenu : '');
+
+    unset($items, $menu, $submenu, $favoritos, $multimedia, $menuTop, $submenuitems, $parent, $seccion, $sitio, $sitios, $classmenu, $subsites);
+    return $htmlmenu;
+}
+
+function _get_menu() {
+    $items = array();
+    $query = "SELECT link_title, mlid, plid, link_path as path, has_children, weight
+              FROM menu_links 
+              WHERE menu_name='main-menu' AND plid = 0
+              ORDER BY weight";
+    $result = db_query($query)->fetchAll();
+    foreach ($result as $value) {
+        $tid = explode('/', $value->path);
+        // son "padres"
+        $items[$value->link_title == 'Inicio' ? 0 : $tid[2]] = array(
+            'name' => $value->link_title,
+            'path' => drupal_get_path_alias($value->path),
+            'mlid' => $value->mlid,
+            'plid' => $value->plid,
+            'tid' => $tid[2],
+            'childs' => getMenuChild($value->mlid)
+        );
+//            if($tid[2] == 1) {
+//                $moda = getModa();
+//                foreach ($moda as $type => $value) {
+//                    $items[1]['childs'][$type] = array(
+//                        'name' => $value['name'],
+//                        'path' => $value['path'],
+//                    );
+//                }
+//            }
+    }
+    return $items;
+}
+
+function getMenuParent($mlid){
+    $query = db_query("select link_path from menu_links where mlid=$mlid")->fetchAll();
+    $tid = explode('/', $query[0]->link_path);
+    return $tid[2];
+}
+
+function getMenuChild($mlid){
+    $items = array();
+    $query = db_query("select link_title, mlid, plid, link_path as path, has_children, weight from menu_links where plid=$mlid")->fetchAll();
+    foreach ($query as $value) {
+        $obsesiones=preg_match("/obsesiones\/?.*/", $value->path, $matches);
+        if(count($matches)){
+            $key = $value->path;
+        } else {
+            $tid = explode('/', $value->path);
+            $key = $tid[2];
+        }
+        $items[$key] = array(
+            'name' => $value->link_title,
+            'path' => drupal_get_path_alias($value->path),
+            'mlid' => $value->mlid,
+            'plid' => $value->plid,
+            'tid' => $tid[2],
+        );
+    }
+    return $items;
+}
+
+function getModa(){
+    $moda = array(
+        'ropa' => array(
+            'name' => 'TODO',
+            'path' => 'obsesiones',
+        ),
+        'zapatos' => array(
+            'name' => 'FASHION SHOWS',
+            'path' => 'obsesiones/fashion-show',
+        ),
+        'accesorios' => array(
+            'name' => 'COLECCIONES',
+            'path' => 'obsesiones/coleccion',
+        )
+    );
+    return $moda;
+}

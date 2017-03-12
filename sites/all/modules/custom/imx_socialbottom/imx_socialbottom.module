@@ -1,0 +1,71 @@
+<?php
+
+// $Id: imx_socialbottom.module, v 0.01 2011/03/02 11:32:00:00 Exp $
+/**
+ * 
+ */
+function imx_socialbottom_help($path, $arg) {
+    if ($path == 'admin/help#imx_socialbottom') {
+        return t('Muestra botones de redes sociales en la parte de abajo del sitio');
+    }
+}
+
+function imx_socialbottom_block_info() {
+    $blocks['imx_socialbottom'] = array(
+        'info' => t('Social Bottom')
+    );
+    return $blocks;
+}
+
+function imx_socialbottom_block_view($delta = '') {
+    $block = array(
+        'subject' => t(''),
+        'content' => '',
+    );
+    if ($delta == 'imx_socialbottom') {
+        $block['subject'] = t('Social Bottom');
+        $block['content'] = get_social_bottom();
+    };
+    return $block;
+}
+
+function get_social_bottom(){
+    $footerUser = '';
+    $html = '<div id="footer_details">
+                <span class="E1 dblock">SIGUE ActitudFEM</span>
+                <div class="footer_sn">
+                    <a target="_blank" href="https://www.facebook.com/ActitudFEM" class="footer_fb left"></a>
+                    <div class="footer_sd right E7">FACEBOOK</div>
+                </div>
+                <div class="footer_sn">
+                    <a target="_blank" href="http://twitter.com/#!/actitudfem" class="footer_tt left"></a>
+                    <div class="footer_sd right E7">TWITTER</div>
+                </div>
+                <div class="footer_sn">
+                    <a target="_blank" href="https://plus.google.com/114707219296528975137" class="footer_gp left"></a>
+                    <div class="footer_sd right E7">GOOGLE +</div>
+                </div>
+                <div class="footer_sn">
+                    <a target="_blank" href="http://www.youtube.com/subscription_center?add_user=ActitudFEM" class="footer_yt left"></a>
+                    <div class="footer_sd right E7">YOUTUBE</div>
+                </div>
+                <div class="footer_sn">
+                    <a target="_blank" href="#" class="footer_nl left"></a>
+                    <div class="footer_sd right E7">NEWSLETTER</div>
+                </div>
+                <div class="clear">
+                    <div class="fb-like" data-href="https://www.facebook.com/ActitudFEM" data-send="false" data-width="450" data-show-faces="false"></div>
+                </div>
+             </div>';
+    
+    if (arg(0) == 'user' && (arg(1) == 'password' || arg(1) == 'register' || !arg(1))) {
+        $footerUser = '<div id="llevanos-user">
+                           <span class="llevanos-title">¡LLÉVANOS CONTIGO!</span>
+                           <a target="_blank" href="https://itunes.apple.com/mx/app/actitudfem-belleza-y-glamour/id510704612?mt=8" class="llevanos-apple"></a>
+                           <a target="_blank" href="http://apps.samsung.com/mars/topApps/topAppsDetail.as?productId=000000619607&srchClickURL=|@sn=SAPS|@qh=-434954784|@qid=SAPS.SRCH|@q=actitud+fem|@tot=1|@idx=0|@doc=G00015979994|@title=nil" class="llevanos-android"></a>
+                           <a target="_blank" href="http://appworld.blackberry.com/webstore/content/29612889/?lang=es&countrycode=MX" class="llevanos-bb"></a>
+                           <a target="_blank" href="http://www.windowsphone.com/es-mx/store/app/actitud-fem/0fd78404-334e-4e4f-823b-6bea4ee272de" class="llevanos-win"></a>
+                       </div>';
+    }
+    return $footerUser . $html;
+}

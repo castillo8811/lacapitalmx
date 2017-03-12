@@ -1,0 +1,105 @@
+<?php
+
+
+/**
+ * Trae la vista de datos desde el módulo Views, previamente creada.
+ */
+function imx_feeds_clones_list($view_name=NULL,$type='stage') {
+  if (!$view_name || !$type)
+    return NULL;
+  //Execute dynamically functions
+  $return=call_user_func('imx_feeds_clones'.'_'.$type, $view_name);
+  echo json_encode($return);
+}
+
+
+function imx_feeds_clones_stage($view_name=NULL){
+  if (!$view_name)
+    return NULL;
+  
+  $view = views_get_view($view_name, $display_id = 'default');
+  $view->preview('default');
+  $view = $view->result;
+  $items = array();
+  foreach ($view as $node) {
+    $items[] = array(
+      'id'                => $node->_field_data['nid']['entity']->nid,
+      'titulo'            => $node->_field_data['nid']['entity']->title,
+      'tipo_contenido'    => $node->_field_data['nid']['entity']->type,
+      'fecha_publicacion' => date('Y-m-d H:i:s',$node->_field_data['nid']['entity']->created),
+      'section'           => array(
+        'tid'  => $node->taxonomy_term_data_node_tid,
+        'name' => $node->taxonomy_term_data_node_name,
+        'url'  => url(drupal_get_path_alias('taxonomy/term/'.$node->taxonomy_term_data_node_tid), array('absolute'=>true)),
+      ),
+      'contenido'         => $node->_field_data['nid']['entity']->body['und']['0']['safe_value'],
+      'sumario'           => $node->_field_data['nid']['entity']->body['und']['0']['safe_summary'],
+      'autor'             => $node->_field_data['nid']['entity']->name,
+      'video'             => imx_feeds_clones_get_video($node->field_field_video),
+      'url'               => url(drupal_get_path_alias('node/'.$node->nid), array('absolute'=>true)),
+      'imagen_nota'       => imx_feeds_clones_get_image_style($node,'large_mobile'),
+      'imagen_media'      => imx_feeds_clones_get_image_style($node,'medium_mobile'),
+      'imagen_thumb'      => imx_feeds_clones_get_image_style($node,'thumb_mobile'),
+      'galeria'           => imx_feeds_clones_get_galleries($node->field_field_images),
+    );
+  }
+    
+  //Include medallero
+  $items[] = array(
+    'id'                => '',
+    'titulo'            => 'Medallero Olímpico',
+    'tipo_contenido'    => array(),
+    'fecha_publicacion' => date('Y-m-d H:i:s'),
+    'section'           => array(),
+    'contenido'         => imx_medallero_embed(),
+    'sumario'           => 'El medallero tras la jornada de hoy',
+    'autor'             => 'Arturo López',
+    'video'             => '',
+    'url'               => 'http://corazonolimpico.excelsior.com.mx/medallero',
+    'imagen_nota'       => 'http://corazonolimpico.excelsior.com.mx/media/olimpiadas/styles/large_mobile/public/medallero-de-los-juegos-olimpicos-2012.png',
+    'imagen_media'      => 'http://corazonolimpico.excelsior.com.mx/media/olimpiadas/styles/large_mobile/public/medallero-de-los-juegos-olimpicos-2012.png',
+    'imagen_thumb'      => 'http://corazonolimpico.excelsior.com.mx/media/olimpiadas/styles/thumb_mobile/public/medallero-de-los-juegos-olimpicos-2012.png',
+    'galeria'           => array(),
+  );
+  
+  return($items);
+  unset($items);
+}
+
+function imx_feeds_clones_get_image_style($node=NULL,$style=NULL){
+  if (!$node || !$style)
+    return NULL;
+  
+  //tring_shift(file_create_url(array_key_exists('und', $node->_field_data['nid']['entity']->field_image)?$node->_field_data['nid']['entity']->field_image['und'][0]['uri']:''), 5, '/'),
+  $url_image=string_shift(file_create_url(array_key_exists('und', $node->_field_data['nid']['entity']->field_image)?$node->_field_data['nid']['entity']->field_image['und'][0]['uri']:''), 5, '/');
+
+  return image_style_url($style,$url_image);
+}
+
+function imx_feeds_clones_get_video($data=NULL){
+  if(!$data)
+    return NULL;
+  $items=array();
+  foreach($data as $item){
+    $items[]=array(
+        'titulo'      => $item['title'],
+        'descripcion' => $item['alt'],
+        'url'         => $item['url'],
+    );
+  }
+  return $items;
+}
+
+function imx_feeds_clones_get_galleries($data=NULL){
+  if(!$data)
+    return NULL;
+  $items=array();
+  foreach($data as $item){
+    $items[]=array(
+        'titulo'      => $item['raw']['alt'],
+        'descripcion' => $item['raw']['alt'],
+        'url'         => image_style_url('large_mobile', string_shift(file_create_url($item['raw']['uri']), 5, '/')),
+    );
+  }
+  return $items;
+}

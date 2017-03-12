@@ -1,0 +1,562 @@
+<?php
+
+function customhome_permission() {
+    $permissions = array();
+    $permissions['administer customhome'] = array(
+        'title' => t('Configurar y reorganizar el home'),
+        'restrict access' => TRUE,
+    );
+    return $permissions;
+}
+
+function customhome_menu() {
+    $items = array();
+    $items['admin/config/customhome'] = array(
+        'title' => 'CustomHOME',
+        'description' => 'Seleccione y ordene los bloques del home',
+        'page callback' => 'system_admin_menu_block_page',
+        'access arguments' => array('administer customhome'),
+        'position' => 'right',
+        'file' => 'system.admin.inc',
+        'weight' => -100,
+        'file path' => drupal_get_path('module', 'system'),
+    );
+    $items['admin/config/customhome/default'] = array(
+        'title' => 'CustomHOME Settings',
+        'description' => 'Seleccione y ordene los bloques del home',
+        'page callback' => 'drupal_get_form',
+        'access arguments' => array('administer customhome'),
+        'type' => MENU_NORMAL_ITEM,
+        'page arguments' => array('customhome_admin_blocks_form'),
+        'file' => 'customhome.admin.inc',
+        'module' => 'customhome'
+    );
+    $items['fem/customhome/cache'] = array(
+        'type' => MENU_CALLBACK,
+        'title' => 'CUSTOMHOME CACHE',
+        'access callback' => TRUE,
+        'access arguments' => array('access content'),
+        'page callback' => 'fem_customhome_createcache',
+    );
+    return $items;
+}
+
+function getDefaultBlocks() {
+    $blocks = array();
+    $blocks[] = array('bloque' => 'Carrusel', 'machinename' => 'carrusel', 'peso' => 0, 'status' => 1);
+    $blocks[] = array('bloque' => 'Destacados', 'machinename' => 'destacados', 'peso' => 1, 'status' => 1);
+    $blocks[] = array('bloque' => 'Mosaico', 'machinename' => 'mosaico', 'peso' => 2, 'status' => 1);
+    $blocks[] = array('bloque' => 'Notas', 'machinename' => 'notas', 'peso' => 3, 'status' => 1);
+    $blocks[] = array('bloque' => 'Tip', 'machinename' => 'tip', 'peso' => 4, 'status' => 1);
+    $blocks[] = array('bloque' => 'Versus', 'machinename' => 'versus', 'peso' => 5, 'status' => 1);
+    $blocks[] = array('bloque' => 'Notas', 'machinename' => 'notas', 'peso' => 6, 'status' => 1);
+    $blocks[] = array('bloque' => 'NYT', 'machinename' => 'nyt', 'peso' => 7, 'status' => 1);
+    $blocks[] = array('bloque' => 'Encuesta', 'machinename' => 'encuesta', 'peso' => 8, 'status' => 1);
+    $blocks[] = array('bloque' => 'Notas', 'machinename' => 'notas', 'peso' => 9, 'status' => 1);
+    $blocks[] = array('bloque' => 'Otono', 'machinename' => 'otono', 'peso' => 10, 'status' => 1);
+    $blocks[] = array('bloque' => 'Catalogo', 'machinename' => 'catalogo', 'peso' => 11, 'status' => 1);
+    $blocks[] = array('bloque' => 'MDM', 'machinename' => 'mdm', 'peso' => 12, 'status' => 1);
+    $blocks[] = array('bloque' => 'Notas', 'machinename' => 'notas', 'peso' => 13, 'status' => 1);
+    return $blocks;
+}
+
+//agregar los nombres de los tpls que se usarán para pintar los snippets del home
+function customhome_theme() {
+    return array(
+        'customhome_admin_blocks_form' => array(
+            'render element' => 'form',
+            'template' => 'customhome_admin_blocks_form',
+        ),
+        'customhome_carrusel' => array(
+            'variables' => array('items' => NULL,),
+            'template' => 'customhome_carrusel',
+        ),
+        'customhome_destacados' => array(
+            'variables' => array('items' => NULL,),
+            'template' => 'customhome_destacados',
+        ),
+        'customhome_mosaico' => array(
+            'variables' => array('items' => NULL,),
+            'template' => 'customhome_mosaico',
+        ),
+        'customhome_notas' => array(
+            'variables' => array('items' => NULL,),
+            'template' => 'customhome_notas',
+        ),
+        'customhome_tip' => array(
+            'variables' => array('items' => NULL,),
+            'template' => 'customhome_tip',
+        ),
+        'customhome_versus' => array(
+            'variables' => array('items' => NULL,),
+            'template' => 'customhome_versus',
+        ),
+        'customhome_nyt' => array(
+            'variables' => array('items' => NULL,),
+            'template' => 'customhome_nyt',
+        ),
+        'customhome_encuesta' => array(
+            'variables' => array('items' => NULL,),
+            'template' => 'customhome_encuesta',
+        ),
+        'customhome_otono' => array(
+            'variables' => array('items' => NULL,),
+            'template' => 'customhome_otono',
+        ),
+        'customhome_catalogo' => array(
+            'variables' => array('items' => NULL,),
+            'template' => 'customhome_catalogo',
+        ),
+        'customhome_mdm' => array(
+            'variables' => array('items' => NULL,),
+            'template' => 'customhome_mdm',
+        ),
+    );
+}
+
+function customhome_get_template($data, $tpl) {
+    switch ($tpl) {
+        case 'notas-0':
+        case 'notas-1':
+        case 'notas-2':
+        case 'notas-3':
+        case 'notas-4':
+            $template = 'customhome_notas';
+            break;
+        default:
+            $template = 'customhome_' . $tpl;
+            break;
+    }
+    $output = theme($template, array('items' => $data));
+    unset($data, $template, $tpl);
+    return $output;
+}
+
+/**
+ * Función que responde al llamado de la url fem/customhome/cache que es ejecutada por un cron cada 5 minutos
+ * CRON:
+ * * /5  *  *  *  *  /srv/data/cron/homeFem.sh  2>&1  #Obtiene json para el home de ActitudFEM
+ *
+ * .SH:
+ * #Guarda en un archivo json todo el home de ActitudFEM
+  FECHA=$(date +"%Y%m%d")
+  NOW=$(date +"%Y%m%d_%H")
+  logfile="/srv/data/logs/log_homeFem_$FECHA.log"
+  echo "Generando Json" >> $logfile
+  wget -O - -t 20 http://local.actitudfemd7.com/fem/customhome/cache
+  echo "Home ActitudFEM actualizado" . $NOW >> $logfile
+ *
+ * Realiza los queries correspondientes para el home, valida si traen resultados y de ser así, borra el archivo json actual
+ * y lo vuelve a generar con datos actualizados
+ * @return $items Json, sólo si se realizó correctamente el proceso
+ * @return NULL si no hay datos
+ */
+function fem_customhome_createcache() {
+    $items = array();
+    $data = array();
+    $file = '/srv/data/files/cache/fem/homeFEM.json';
+    $currentblocks = variable_get('customhome', getDefaultBlocks());
+    $notesGroup = 0;
+    foreach ($currentblocks as $key => $block) {
+        if ($block['status'] == 1) {
+            $function = is_callable('get_' . $block['machinename']) ? 'get_' . $block['machinename'] : NULL;
+            $data = $function ? call_user_func($function) : array();
+            if (count($data)) {
+                if (($block['machinename'] == 'notas')) {
+                    $items['notas-' . $notesGroup] = $data[$notesGroup];
+                    $currentblocks[$key]['posicion'] = $notesGroup;
+                    variable_set('customhome', $currentblocks);
+                    $notesGroup++;
+                } else {
+                    $items[$block['machinename']] = $data;
+                }
+            }
+        }
+    }
+    if (count($items) > 0) {
+        unlink($file);
+        file_put_contents($file, json_encode($items));
+        unset($items, $data);
+        return;
+    }
+    unset($items, $data);
+    return NULL;
+}
+
+function get_carrusel() {
+    $items = array();
+    $view = views_get_view('nodequeue_1');
+    $view->preview('block');
+    $view = $view->result;
+    foreach ($view as $node) {
+        $items[] = array(
+            'title' => $node->node_title,
+            'type' => $node->_field_data['nid']['entity']->type,
+            'field_title_carrusel_value' => $node->field_field_sinopsis_carrusel[0]['raw']['safe_value'],
+            'nid' => $node->nid,
+            'url' => url(drupal_get_path_alias('node/' . $node->nid), array('absolute' => true)),
+            'imagecarrusel' => array_key_exists(0, $node->field_field_imagencarrusel) ? image_style_url('newcarousel', $node->field_field_imagencarrusel[0]['rendered']['#item']['uri']) : NULL,
+            'image' => array_key_exists(0, $node->field_field_image) ? image_style_url('newcarousel', $node->field_field_image[0]['rendered']['#item']['uri']) : NULL,
+            'section' => get_section_by_nid($node->nid, 3)
+        );
+    }
+    unset($view);
+    return $items;
+}
+
+function get_destacados() {
+    $items = array();
+    $view = views_get_view('nodequeue_2');
+    $view->preview('block');
+    $view = $view->result;
+    foreach ($view as $node) {
+        $items[] = array(
+            'title' => $node->node_title,
+            'type' => $node->_field_data['nid']['entity']->type,
+            'nid' => $node->nid,
+            'url' => url(drupal_get_path_alias('node/' . $node->nid), array('absolute' => true)),
+            'image' => array_key_exists(0, $node->field_field_image) ? image_style_url('listadomedium', $node->field_field_image[0]['rendered']['#item']['uri']) : NULL,
+            'section' => get_section_by_nid($node->nid, 3)
+        );
+    }
+    $items['tip'] = get_SmallBalloon();
+    unset($view);
+    return $items;
+}
+
+function get_mosaico(){
+    $file = '/srv/data/files/cache/fem/mosaico.json';
+    $items = file_exists($file) ? json_decode(file_get_contents($file), true) : NULL;
+    return $items;
+}
+
+function get_otono() {
+    $items = array();
+    $view = views_get_view('nodequeue_3');
+    $view->preview('block');
+    $view = $view->result;
+    foreach ($view as $node) {
+        $items[] = array(
+            'title' => $node->node_title,
+            'type' => $node->_field_data['nid']['entity']->type,
+            'nid' => $node->nid,
+            'url' => url(drupal_get_path_alias('node/' . $node->nid), array('absolute' => true)),
+            'imagev' => array_key_exists(0, $node->field_field_imagenmosaico) ? image_style_url('large_vertical', $node->field_field_imagenmosaico[0]['rendered']['#item']['uri']) : image_style_url('large_vertical', $node->field_field_image[0]['rendered']['#item']['uri']),
+            'image' => array_key_exists(0, $node->field_field_image) ? image_style_url('medium', $node->field_field_image[0]['rendered']['#item']['uri']) : NULL,
+            'section' => get_section_by_nid($node->nid, 3)
+        );
+    }
+    unset($view);
+    return $items;
+}
+
+function get_mdm() {
+    $items = array();
+    $view = views_get_view('mdm');
+    $view->preview();
+    $view = $view->result;
+    foreach ($view as $node) {
+        $items[] = array(
+            'title' => $node->node_title,
+            'date' => $node->node_created,
+            'nid' => $node->nid,
+            'nidr' => $node->field_field_nodereference[0]['raw']['nid'],
+            'url' => url(drupal_get_path_alias('node/' . $node->field_field_nodereference[0]['raw']['nid']), array('absolute' => true)),
+            'imagev' => array_key_exists(0, $node->field_field_image) ? image_style_url('mujermes', $node->field_field_image[0]['rendered']['#item']['uri']) : NULL,
+            'image' => array_key_exists(0, $node->field_field_image) ? image_style_url('square', $node->field_field_image[0]['rendered']['#item']['uri']) : NULL,
+            'currentjob' => $node->_field_data['nid']['entity']->body['und'][0]['safe_value'],
+            'month' => $node->field_field_mesmujerdelmes[0]['raw']['value'],
+        );
+    }
+    $items['tip'] = get_BigBalloon();
+    unset($view);
+    return $items;
+}
+
+function get_tip() {
+    $items = array();
+    $view = views_get_view('snippets');
+    $view->preview('block_1');
+    $view = $view->result;
+    foreach ($view as $node) {
+        $items[] = array(
+            'title' => $node->node_title,
+            'nid' => $node->nid,
+            'nidr' => $node->field_field_nodereference[0]['raw']['nid'],
+            'url' => url(drupal_get_path_alias('node/' . $node->field_field_nodereference[0]['raw']['nid']), array('absolute' => true)),
+            'imagebroken' => array_key_exists(0, $node->field_field_imagebroken) ? image_style_url('gallerie', $node->field_field_imagebroken[0]['rendered']['#item']['uri']) : NULL,
+            'image' => array_key_exists(0, $node->field_field_image) ? image_style_url('gallerie', $node->field_field_image[0]['rendered']['#item']['uri']) : NULL,
+            'body' => $node->_field_data['nid']['entity']->body['und'][0]['safe_value'],
+        );
+    }
+    unset($view);
+    return $items;
+}
+
+function get_SmallBalloon() {
+    // faltan imágenes
+    $items = array();
+    $view = views_get_view('snippets');
+    $view->preview('block_2');
+    $view = $view->result;
+    foreach ($view as $node) {
+        $items[] = array(
+            'title' => $node->node_title,
+            'nid' => $node->nid,
+            'nidr' => $node->field_field_nodereference[0]['raw']['nid'],
+            'url' => url(drupal_get_path_alias('node/' . $node->field_field_nodereference[0]['raw']['nid']), array('absolute' => true)),
+            'image' => array_key_exists(0, $node->field_field_image) ? image_style_url('avatar', $node->field_field_image[0]['rendered']['#item']['uri']) : NULL,
+            'author' => $node->field_field_author_postit[0]['raw']['safe_value'],
+            'body' => $node->_field_data['nid']['entity']->body['und'][0]['safe_value'],
+            'currentjob' => $node->field_field_ocupacion_autor[0]['raw']['safe_value'],
+        );
+    }
+    unset($view);
+    return $items;
+}
+
+function get_BigBalloon() {
+    // faltan imágenes
+    $items = array();
+    $view = views_get_view('snippets');
+    $view->preview('block_3');
+    $view = $view->result;
+    foreach ($view as $node) {
+        $items[] = array(
+            'title' => $node->node_title,
+            'nid' => $node->nid,
+            'nidr' => $node->field_field_nodereference[0]['raw']['nid'],
+            'url' => url(drupal_get_path_alias('node/' . $node->field_field_nodereference[0]['raw']['nid']), array('absolute' => true)),
+            'image' => array_key_exists(0, $node->field_field_image) ? image_style_url('avatar', $node->field_field_image[0]['rendered']['#item']['uri']) : NULL,
+            'body' => $node->_field_data['nid']['entity']->body['und'][0]['safe_value'],
+            'currentjob' => $node->field_field_ocupacion_autor[0]['raw']['safe_value'],
+        );
+    }
+    unset($view);
+    return $items;
+}
+
+function get_nyt() {
+    $items = array();
+    $view = views_get_view('newyorktimes');
+    $view->preview('block');
+    $view = $view->result;
+    foreach ($view as $node) {
+        $items[] = array(
+            'title' => $node->node_title,
+            'type' => $node->_field_data['nid']['entity']->type,
+            'nid' => $node->nid,
+            'url' => url(drupal_get_path_alias('node/' . $node->nid), array('absolute' => true)),
+            'image' => array_key_exists(0, $node->field_field_image) ? image_style_url('medium', $node->field_field_image[0]['rendered']['#item']['uri']) : NULL,
+        );
+    }
+    unset($view);
+    return $items;
+}
+
+function get_catalogo(){
+    // solo colecciones al home
+    $file = '/srv/data/files/cache/fem/obsesiones/cacheColecciones.json';
+    $collections = json_decode(file_get_contents($file), TRUE);
+    $data = array();
+    for ($i = 0; $i <= 11; $i++) {
+        $items[] = array_shift($collections);
+    }
+    foreach ($items as  $item) {
+        $data[] = array(
+            'nid' => $item['nid'],
+            'marca' => $item['mname'],
+            'temporada' => $item['tname'],
+            'url' => $item['fullurl'],
+            'image' => getImageCatalogo($item['nid'])
+        );
+    }
+    unset($items, $item, $collections);
+    return $data;
+}
+
+function get_notas() {
+    $items = array();
+    $view = views_get_view('contenido_reciente');
+    $view->preview();
+    $view = $view->result;
+    foreach ($view as $node) {
+        $items[] = array(
+            'title' => $node->node_title,
+            'sinopsis' => $node->field_field_sinopsis_carrusel[0]['raw']['safe_value'],
+            'type' => $node->_field_data['nid']['entity']->type,
+            'nid' => $node->nid,
+            'url' => url(drupal_get_path_alias('node/' . $node->nid), array('absolute' => true)),
+            'image' => array_key_exists(0, $node->field_field_image) ? image_style_url('listadomedium', $node->field_field_image[0]['rendered']['#item']['uri']) : NULL,
+            'section' => get_section_by_nid($node->nid, 3)
+        );
+    }
+    $items = array_chunk($items, 3);
+    unset($view);
+    return $items;
+}
+
+function get_versus(){
+    $nid = getNidLastPoll(1, 4);
+    $items = array();
+    foreach ($nid as $n){
+        $images[$n] = getPollImage($n);
+    }
+    // faltan imágenes
+    // select n.title, pc.nid, pc.chtext, pc.chid from node n inner join poll_choice pc on pc.nid = n.nid where n.nid in (62084,62241,62600,62676);
+    $qry = db_select('node', 'n');
+    $qry->join('poll_choice', 'pc', 'pc.nid = n.nid');
+    $qry->fields('n', array('title'));
+    $qry->fields('pc', array('nid', 'chid', 'chtext'));
+    $qry->condition('n.nid', $nid,'IN');
+    $qry->orderBy('n.created', 'DESC');
+    $qry->orderBy('pc.weight');
+    $versus = $qry->execute()->fetchAll();
+    foreach($versus as $row){
+        $items[$row->nid]['nid'] = $row->nid;
+        $items[$row->nid]['title'] = $row->title;
+        $items[$row->nid]['url'] = url(drupal_get_path_alias('node/' . $row->nid), array('absolute' => true));
+        $items[$row->nid]['choices'][] = array(
+            'chtext' => $row->chtext,
+            'chid' => $row->chid
+        );
+    }
+    foreach($items as $nid => $item){
+        foreach($item['choices'] as $key => $row){
+            $items[$nid]['choices'][$key]['image'] = $images[$nid][$key];
+        }
+    }
+    unset($versus,$images,$item,$row);
+    return $items;
+}
+
+function get_encuesta(){
+    $nid = getNidLastPoll(0, 1);
+    $images[$nid] = getPollImage($nid);
+    $items = array();
+    // faltan imágenes
+    $qry = db_select('node', 'n');
+    $qry->join('poll_choice', 'pc', 'pc.nid = n.nid');
+    $qry->fields('n', array('title'));
+    $qry->fields('pc', array('nid', 'chid', 'chtext'));
+    $qry->condition('n.nid', $nid,'=');
+    $qry->orderBy('n.created', 'DESC');
+    $qry->orderBy('pc.weight');
+    $versus = $qry->execute()->fetchAll();
+    foreach($versus as $row){
+        $items[$row->nid]['nid'] = $row->nid;
+        $items[$row->nid]['title'] = $row->title;
+        $items[$row->nid]['url'] = url(drupal_get_path_alias('node/' . $row->nid), array('absolute' => true));
+        $items[$row->nid]['choices'][] = array(
+            'chtext' => $row->chtext,
+            'chid' => $row->chid,
+        );
+    }
+    foreach($items as $nid => $item){
+        foreach($item['choices'] as $key => $row){
+            $items[$nid]['choices'][$key]['image'] = $images[$nid][$key];
+        }
+    }
+    unset($versus,$images,$item,$row);
+    return $items;
+
+}
+
+function getPollImage($nid){
+//    select n.nid,n.title,fdfi.field_images_fid,fm.uri 
+//    from node n 
+//    inner join field_data_field_images fdfi on fdfi.entity_id=n.nid 
+//    inner join file_managed fm on fm.fid=fdfi.field_images_fid 
+//    where n.nid=96255 
+//    order by fdfi.delta
+    $items = array();
+    $qry = db_select('node', 'n');
+    $qry->join('field_data_field_images', 'fdfi', 'fdfi.entity_id=n.nid');
+    $qry->join('file_managed', 'fm', 'fm.fid=fdfi.field_images_fid');
+    $qry->fields('n', array('nid'));
+    $qry->fields('fm', array('uri'));
+    $qry->condition('n.nid', $nid, '=');
+    $qry->orderBy('fdfi.delta');
+//    $qry = db_select('poll_choice', 'pc');
+//    $qry->join('field_data_field_images', 'fdfi', 'fdfi.entity_id=pc.nid');
+//    $qry->join('file_managed', 'fm', 'fm.fid=field_images_fid');
+//    $qry->fields('fm', array('uri'));
+//    $qry->condition('pc.chid', $chid, '=');
+//    $qry->orderBy('pc.weight');
+    $result = $qry->execute()->fetchAll();
+    foreach ($result as $row) {
+        $items[] = $row->uri;
+    }
+    return $items;
+}
+
+function getNidLastPoll($versus = 1, $limit = 1){
+    $qry = db_select('poll', 'p');
+    $qry->join('field_data_field_versus', 'fv', 'p.nid = fv.entity_id');
+    $qry->fields('p', array('nid'));
+    $qry->condition('fv.field_versus_value', $versus, '=');
+    $qry->condition('p.active', 1, '=');
+    $qry->orderBy('p.nid', 'DESC');
+    $qry->range(0, $limit);
+    $result = $qry->execute()->fetchAll();
+    foreach($result as $row){
+        $nids[] = $row->nid;
+    }
+    if(count($nids) > 1) {
+        $nids = $nids;
+    } else {
+        $nids = $nids[0];
+    }
+    return $nids;
+}
+
+function getViewname($machinename){
+    if(!$machinename)
+        return NULL;
+    switch ($machinename) {
+        case 'carrusel':
+            $viewname = 'nodequeue_1';
+            break;
+        case 'notas':
+            $viewname = 'contenido_reciente';
+            break;
+        case 'destacados':
+            $viewname = 'nodequeue_2';
+            break;
+        case 'otono':
+            $viewname = 'nodequeue_3';
+            break;
+        case 'tips':
+            $viewname = 'snippets';
+            break;
+        case 'nyt':
+            $viewname = 'newyorktimes';
+            break;
+        default:
+            $viewname = $machinename;
+            break;
+    }
+    return $viewname;
+}
+/**
+ * Función que genera el formulario para administrar el título del bloque de Especiales/Otoño
+ */
+
+function customhome_title_otono_form($form, &$form_state) {
+    $form = array();
+    $form['title'] = array(
+        '#type' => 'textfield',
+        '#title' => t('Titulo del bloque'),
+        '#default_value' => variable_get('customhome_title_otono', "Especiales"),
+    );
+    $form['submit'] = array(
+        '#type' => 'submit',
+        '#value' => "Guardar",
+    );
+    return $form;
+}
+
+function customhome_title_otono_form_submit($form, &$form_state) {
+    $title = ($form_state['values']['title']) ? $form_state['values']['title'] : "Especiales";
+    variable_set('customhome_title_otono', $title);
+}

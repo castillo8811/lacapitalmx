@@ -1,0 +1,138 @@
+<?php
+
+/**
+ * Implements hook_block_info().
+ */
+function imx_editor_user_block_info() {
+    $blocks['imx_editor_user'] = array(
+        'info' => t('Bloque que muestra la firma del editor.'),
+    );
+
+    return $blocks;
+}
+
+/**
+ * Implements block_view().
+ */
+function imx_editor_user_block_view($delta = '') {
+    switch ($delta) {
+        case 'imx_editor_user':
+            $block['subject'] = t('Bloque que muestra la firma del editor.');
+            $block['content'] = imx_editor_user_html();
+            return $block;
+            break;
+    }
+}
+
+/**
+ * Valida la ruta actual y extrae el output que será pintado en el content del bloque
+ */
+function imx_editor_user_html() {
+    $url = arg();
+    $user_data = array();
+    if ($url[0] == 'node' && is_numeric($url[1]) && $url[2] != 'edit') {
+        $nid = (int) $url[1];
+        $node_load = node_load($nid);
+        $uid = $node_load->field_autor_colaborador['und'][0]['uid'];//obtenemos el uid
+        if ($uid) {
+            $user_data = extract_data_user($uid);
+        } else {
+            return '';
+        }
+    }
+    $output .= theme('imx_editor_user', array('data' => $user_data)); //hook & data array
+    return $output;
+}
+
+/**
+ * Obtiene los datos del perfil del editor y/o colaborador
+ * y los regresa en un array
+ * @global string $base_url
+ * @param int $uid
+ * @return array
+ */
+function extract_data_user($uid) {
+    global $base_url;
+    $user = user_load($uid);//load del user
+    $facebook_name = 'Salud180';//nombre del usuario de facebook default de salud cambiar por el que corresponda
+    $twitter_name = 'Salud180';//nombre del usuario de twitter default de salud cambiar por el que corresponda
+    if (is_callable('profile2_load_by_user')) {
+        $profile = profile2_load_by_user($uid, 'main');//llamado al profile si el de ustedes no es main cambiarlo por el que corresponda
+        if ($profile) {
+            if ($profile->field_facebook_username) {//obtenemos el nombre de usuario de facebook
+                $facebook_name = strip_tags($profile->field_facebook_username['und'][0]['value']);
+            }if ($profile->field_twitter_username) {//obtenemos el nombre de usuario de twitter
+                $twitter_name = strip_tags($profile->field_twitter_username['und'][0]['value']);
+            }
+        }
+    }
+    $roles = $user->roles;
+    $user_data = array();
+    $user_data['name'] = $user->name;//obtengo el nombe del usuario
+    if (isset($user->field_user_firma['und'][0]['value'])) {
+        $user_data['signature'] = $user->field_user_firma['und'][0]['value'];//el texto de su firma, cambiar por el campo correcto
+    } else {
+        $user_data['signature'] = '';
+    }
+    $editor = is_user_editor_perfil($roles);
+    if ($editor) {//validamos si es editor o colaborador
+        if ($user->field_sexo['und'][0]['value'] == 1) {
+            $user_data['edit'] = 'Editor';
+        } else {
+            $user_data['edit'] = 'Editora';
+        }
+    } else {
+        if ($user->field_sexo['und'][0]['value'] == 1) {
+            $user_data['edit'] = 'Colaborador';
+        } else {
+            $user_data['edit'] = 'Colaboradora';
+        }
+    }
+    if (isset($user->picture)) {//obtenemos la imagen
+        $file = file_load($user->picture->fid);
+        $user_data['picture_uri'] = file_create_url($file->uri);
+    } else {
+        $user_data['picture_uri'] = $base_url . '/sites/all/themes/salud180/css/avatares/av1.png';//imagen por default de salud180
+    }
+    $user_data['facebook'] = $facebook_name;//los agregamos al array a regresar
+    $user_data['twitter'] = $twitter_name;//los agregamos al array a regresar
+    return $user_data;
+}
+
+/**
+ * Valida si un usuario es o no 
+ * editor en base a sus roles
+ * @param array $roles
+ * @return boolean
+ */
+function is_user_editor_perfil($roles = array()) {
+    $rol = FALSE;
+    if (array_key_exists(3, $roles)) {
+        $rol = TRUE;
+    }
+    return $rol;
+}
+
+function get_correct_autor_nota_query($nid = NULL) {
+    $result = NULL;
+    if ($nid) {
+        $result = db_select('field_data_field_autor_colaborador')
+                        ->fields('field_data_field_autor_colaborador', array('field_autor_colaborador_target_id'))
+                        ->condition('entity_id', $nid, '=')
+                        ->range(0, 1)
+                        ->execute()->fetchField();
+    }
+    return $result;
+}
+
+/**
+ * Implements block_theme().
+ */
+function imx_editor_user_theme() {
+    return array(
+        'imx_editor_user' => array(
+            'template' => 'imx_editor_user', // define xxx-xxx.tpl.php inside module
+            'variables' => array('data' => null), //define $xxx so it will available in your xxx-xxx.tpl.php
+        ),
+    );
+}

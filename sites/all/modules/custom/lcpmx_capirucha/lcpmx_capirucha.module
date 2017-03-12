@@ -1,0 +1,99 @@
+<?php
+
+function lcpmx_capirucha_help($path, $arg) {
+    if ($path == 'admin/help#lcpmx_capirucha') {
+        return t('Muestra el bloque de barra lateral notas de capirucha Home');
+    }
+}
+
+function lcpmx_capirucha_block_info() {
+    $blocks['lcpmx_capirucha'] = array(
+        'info' => t('LaCapitalMX Capirucha')
+    );
+    return $blocks;
+}
+
+function lcpmx_capirucha_block_view($delta = '') {
+    $block = array(
+        'subject' => t(''),
+        'content' => '',
+    );
+
+    if ($delta == 'lcpmx_capirucha') {
+        $block['content'] = array(
+            '#theme' => 'lcpmx_capirucha'
+        );
+    };
+    return $block;
+}
+
+function lcpmx_capirucha_theme($existing, $type, $theme, $path) {
+    return array(
+        'lcpmx_capirucha' => array(
+            'variables' => array(
+                'items_lcpmx_capirucha' => NULL,
+            ),
+            'template' => 'lcpmx_capirucha',
+        ),
+    );
+}
+
+function template_preprocess_lcpmx_capirucha(&$variables) {
+    $items['capirucha'] = _get_nodes_by_type('capirucha');
+    $items['sensorama'] = _get_nodes_by_category(99, 4);
+    $variables['items_lcpmx_capirucha'] = $items;
+}
+
+function _get_nodes_by_type($type, $limit = 1){
+    if(!$type)
+        return NULL;
+    $items = array();
+    $qry = db_select('node', 'n');
+    $qry->fields('n', array('nid', 'title'));
+    $qry->condition('n.type', array($type), '=');
+    $qry->orderBy('n.nid', 'DESC');
+    $qry->range(0,$limit);
+    $capiruchas = $qry->execute()->fetchAll();
+    foreach ($capiruchas as $capirucha) {
+        $imagen = _get_image_by_nid($capirucha->nid);
+        $items[] = array(
+            'nid' => $capirucha->nid,
+            'title' => $capirucha->title,
+            'image' => $imagen,
+        );
+    }
+    return $items;
+}
+
+function _get_nodes_by_category($tid, $limit = 1){
+//    select n.nid,n.title from field_data_field_categoria fc inner join node n on n.nid=fc.entity_id where field_categoria_tid=99 limit 4;
+    $nodes=nodequeue_load_nodes(11,false, $from = 0, $limit,TRUE);
+    foreach ($nodes as $res) {
+        $imagen = _get_image_by_nid($res->nid);
+        $items[] = array(
+            'nid' => $res->nid,
+            'title' => $res->title,
+            'image' => $imagen,
+        );
+    }
+    return $items;
+}
+
+/**
+ * Función que recupera la imagen del producto
+ */
+function _get_image_by_nid($nid){
+    if(!$nid)
+        return NULL;
+    $uri = FALSE;
+    $qry = db_select('field_data_field_image', 'fdfi');
+    $qry->join('file_managed', 'fm', 'fm.fid = fdfi.field_image_fid');
+    $qry->fields('fm', array('uri'));
+    $qry->condition('fdfi.entity_id', $nid, '=');
+    $qry->orderBy('fdfi.delta', 'ASC');
+    $qry->range(0,1);
+    $result = $qry->execute()->fetchAll();
+    $uri = $result[0]->uri;
+    unset($result, $qry);
+    return $uri;
+}

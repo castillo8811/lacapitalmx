@@ -1,0 +1,64 @@
+<?php
+
+/**
+ * Devuelve el pintado de los botones de redes sociales
+ */
+function imx_comments_help($path, $arg) {
+    if ($path == 'admin/help#imx_comments') {
+        return t('Módulo que devuelve el pintado del formulario de comentarios de facebook y twitter en los nodos');
+    }
+}
+
+function imx_comments_block_info() {
+    $blocks['imx_comments'] = array(
+        'info' => t('Comentarios')
+    );
+    return $blocks;
+}
+
+function imx_comments_block_view($delta = '') {
+    $block = array(
+        'subject' => t(''),
+        'content' => '',
+    );
+
+    if ($delta == 'imx_comments') {
+        $comments_node = NULL;
+        $block['subject'] = t('Comentarios');
+        $nid = (int) arg(1);
+        $qry = db_select('node', 'n');
+        $qry->fields('n', array('status'));
+        $qry->condition('n.nid', $nid, '=');
+        $qry->range(0,1);
+        $result = $qry->execute()->fetchAll();
+        $status = $result[0]->status;
+        
+        if($status == 1){
+            $url = url(drupal_get_path_alias('node/' . $nid), array('absolute' => true));
+            $comments_node = render_imx_comments($url);
+        }
+
+        $block['content'] = array(
+            '#theme' => 'imx_comments',
+            '#comments_node' => $comments_node,
+        );
+    };
+    return $block;
+}
+
+function imx_comments_theme($existing, $type, $theme, $path) {
+    return array(
+        'imx_comments' => array(
+            'variables' => array(
+                'comments_node' => NULL,
+            ),
+            'template' => 'imx_comments',
+        ),
+    );
+}
+
+function render_imx_comments($url) {
+    $html = '';
+    $html .= '<div class="fb-comments" data-href="' . $url . '" data-width="100%" data-numposts="5"></div>';
+    return $html;
+}

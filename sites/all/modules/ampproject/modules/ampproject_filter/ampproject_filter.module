@@ -1,0 +1,534 @@
+<?php
+/**
+ * @file
+ * The main module file.
+ */
+
+/**
+ * Implements hook_filter_info().
+ *
+ * AMPPROJECT Filters.
+ */
+function ampproject_filter_filter_info() {
+
+  $filters['ampproject_img_filter'] = [
+    'title' => t('AMP: Convert Images to AMP markup'),
+    'description' => t('This filter will convert all <img> tags into AMP markup.'),
+    'process callback' => '_ampproject_filter_img_filter',
+    'weight' => 2,
+  ];
+
+  $filters['ampproject_embed_filter'] = [
+    'title' => t('AMP: Convert widgets embed code to AMP specific markup'),
+    'description' => t('This filter will convert twitter, youtube embed code tags into AMP specific markup.'),
+    'process callback' => '_ampproject_filter_embed_filter',
+    'weight' => 3,
+  ];
+
+  $filters['ampproject_attr_filter'] = [
+    'title' => t('AMP: Remove all unsupported attributes'),
+    'description' => t('This filter will remove all unsupported attributes.'),
+    'process callback' => '_ampproject_filter_attr_filter',
+    'weight' => 4,
+  ];
+
+  return $filters;
+}
+
+/**
+ * Filter callback for AMPPROJECT Image markup filter.
+ */
+function _ampproject_filter_img_filter($text) {
+
+  $dom = filter_dom_load($text);
+  $dom_xpath = new DOMXPath($dom);
+  $imgs = $dom_xpath->query("//img");
+
+  foreach ($imgs as $oldImgNode) {
+    $src = $oldImgNode->getAttribute('src');
+    if (empty($src)) {
+      continue;
+    }
+
+    $img_attr = [
+      'src_url' => $src, // For non-local images.
+      'width' => $oldImgNode->getAttribute('width'),
+      'height' => $oldImgNode->getAttribute('height'),
+      'alt' => $oldImgNode->getAttribute('alt'),
+    ];
+
+    $filename = ampproject_get_last_string_piece('/', $src);
+
+    // Get file.
+    $query = db_select('file_managed', 'fm');
+    $query->addField('fm', 'uri');
+    $query->condition('fm.uri', '%'. $filename, 'LIKE');
+    $file = $query->execute()->fetchObject();
+
+    // Fetch file details from DB.
+    if (!empty($file)) {
+      if (isset($file->uri) && file_exists($file->uri)) {
+        $img_attr['src_url'] = file_create_url($file->uri);
+        $info = image_get_info($file->uri, FALSE);
+        $img_attr['width'] = strval($info['width']);
+        $img_attr['height'] = strval($info['height']);
+        if ($src_set = _ampproject_build_srcset($file)) {
+          $img_attr['srcset'] = $src_set;
+        }
+      }
+    }
+
+    // Replace with new node.
+    $newNode = $dom->createElement('div');
+    $newNode->setAttribute('class', 'amp-image-converted');
+    _ampproject_filter_append_HTML($newNode, theme('ampproject_image', ['ampproject' => $img_attr]));
+    $oldImgNode->parentNode->replaceChild($newNode, $oldImgNode);
+  }
+
+  return filter_dom_serialize($dom);
+}
+
+/**
+ * Filter callback for AMPPROJECT Embeds markup filter.
+ *
+ * Supporting providers:
+ * - Twitter cards - Yes
+ * - Twitter timeline - No(Lack of AMP Support)
+ * - YouTube - Yes
+ * - Facebook Post - Yes
+ * - Facebook Video - Yes
+ *
+ * @note: We may thing about splitting this filter in separate
+ *        filters(per provider) as any provider requires a separate script.
+ */
+function _ampproject_filter_embed_filter($text) {
+  $dom = filter_dom_load($text);
+  $dom_xpath = new DOMXPath($dom);
+
+  /**
+   * Twitter card.
+   * href example:
+   * - https://twitter.com/alphr/status/693015236476018689
+   */
+  $twitter_entries = $dom_xpath->query("//*[contains(@class, 'twitter-tweet')]");
+  if (!is_null($twitter_entries)) {
+    foreach ($twitter_entries as $oldTweetNode) {
+      $links = $oldTweetNode->getElementsByTagName('a');
+      foreach ($links as $link) {
+        $href = $link->getAttribute('href');
+        if (preg_match('/\/status\w{0,2}\//',$href)) {
+          $status_id = ampproject_get_last_string_piece('/', $href);
+          if (is_integer((int) $status_id)) {
+            $newNode = $dom->createElement('div');
+            $newNode->setAttribute('class', 'amp-twitter-converted');
+            $data = ['status_id' => $status_id];
+            _ampproject_filter_append_HTML($newNode, _ampproject_filter_twitter_element($data));
+            $oldTweetNode->parentNode->replaceChild($newNode, $oldTweetNode);
+            // Add the script for rendering.
+            ampproject_scripts(ampproject_get_component_script('twitter'));
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * YouTube.
+   * src examples:
+   * - https://www.youtube.com/embed/RwPMKozHPCM
+   * - https://www.youtube-nocookie.com/embed/olXBfU4Bjp8?controls=0
+   */
+  $yt_entries = $dom_xpath->query("//iframe[contains(@src, 'www.youtube') and contains(@src, '/embed/')]");
+
+  if (!is_null($yt_entries)) {
+    // Add the script for rendering.
+    ampproject_scripts(ampproject_get_component_script('youtube'));
+    foreach ($yt_entries as $oldYtNode) {
+      $src = $oldYtNode->getAttribute('src');
+      $data = [
+        'src' => $src,
+        'width' => $oldYtNode->getAttribute('width'),
+        'height' => $oldYtNode->getAttribute('height'),
+      ];
+      $data['vid'] = ampproject_get_last_string_piece('/', $data['src']);
+      $newNode = $dom->createElement('div');
+      $newNode->setAttribute('class', 'amp-youtube-converted');
+      _ampproject_filter_append_HTML($newNode, _ampproject_filter_youtube_element($data));
+      $oldYtNode->parentNode->replaceChild($newNode, $oldYtNode);
+    }
+  }
+
+  /**
+   * Facebook Post.
+   * string example:
+   * - <div class="fb-post" data-href="https://www.facebook.com/theweekuk/posts/1146557272051916" data-width="500">
+   */
+  $fbpost_entries = $dom_xpath->query("//*[contains(@class, 'fb-post') and contains(@data-href, '/posts/')]");
+  if (!is_null($fbpost_entries)) {
+    // Add the script for rendering.
+    ampproject_scripts(ampproject_get_component_script('facebook'));
+    foreach ($fbpost_entries as $oldFbpNode) {
+      $data = [
+        'href' => $oldFbpNode->getAttribute('data-href'),
+        'width' => $oldFbpNode->getAttribute('data-width'),
+        'height' => $oldFbpNode->getAttribute('data-height'),
+        'embed_as' => 'post',
+      ];
+      // Create the new Node.
+      $newNode = $dom->createElement('div');
+      $newNode->setAttribute('class', 'amp-facebook-post-converted');
+      _ampproject_filter_append_HTML($newNode, _ampproject_filter_fb_element($data));
+      $oldFbpNode->parentNode->replaceChild($newNode, $oldFbpNode);
+    }
+  }
+
+  /**
+   * Facebook Video.
+   * string example:
+   * - <div class="fb-video" data-allowfullscreen="1" data-href="https://www.facebook.com/pastor.sunday.adelaja/videos/10153470906663845/">
+   */
+  $fbvideo_entries = $dom_xpath->query("//*[contains(@class, 'fb-video') and contains(@data-href, '/videos/')]");
+  if (!is_null($fbvideo_entries)) {
+    foreach ($fbvideo_entries as $oldFbvNode) {
+      $data = [
+        'href' => $oldFbvNode->getAttribute('data-href'),
+        'width' => $oldFbvNode->getAttribute('data-width'),
+        'height' => $oldFbvNode->getAttribute('data-height'),
+        'embed_as' => 'video',
+      ];
+      // Create the new Node.
+      $newNode = $dom->createElement('div');
+      $newNode->setAttribute('class', 'amp-facebook-video-converted');
+      _ampproject_filter_append_HTML($newNode, _ampproject_filter_fb_element($data));
+      $oldFbvNode->parentNode->replaceChild($newNode, $oldFbvNode);
+    }
+  }
+
+  $text = filter_dom_serialize($dom);
+  return $text;
+}
+
+/**
+ * Filter callback for AMPPROJECT Attr filter.
+ *
+ * As we are waiting for final version of whitelisted attributes
+ *
+ * Use hook_ampproject_filter_attr_alter for adding your attributes.
+ *
+ * @see: https://github.com/ampproject/amphtml/issues/994
+ *      https://github.com/ampproject/amphtml/blob/master/validator/validator.protoascii
+ */
+function _ampproject_filter_attr_filter($text) {
+  if (empty($text)) {
+    return $text;
+  }
+
+  // List sourced from http://microformats.org/wiki/existing-rel-values
+  $rel_vals = [
+    'accessibility',
+    'author',
+    'alternate',
+    'appendix',
+    'alternate',
+    'archived',
+    'archives?',
+    'attachment',
+    'appendix',
+    'author',
+    'bookmark',
+    'bibliography',
+    'canonical',
+    'category',
+    'chapter',
+    'cite',
+    'colleague',
+    'comment',
+    'contact',
+    'contents',
+    'contribution',
+    'copyright',
+    'directory',
+    'discussion',
+    'EditURI',
+    'endorsed',
+    'external',
+    'fan',
+    'feed',
+    'glossary',
+    'group',
+    'help',
+    'home',
+    'hub',
+    'in-reply-to',
+    'index',
+    'indieauth',
+    'issues',
+    'its-rules',
+    'jslicense',
+    'license',
+    'made',
+    'map',
+    'me',
+    'meta',
+    'micropub',
+    'microsummary',
+    'next',
+    'nofollow',
+    'noreferrer',
+    'openid2?\\..*',
+    'p3pv1',
+    'payment',
+    'pingback',
+    'pgpkey',
+    'privacy',
+    'pronounciation',
+    'profile',
+    'prev',
+    'previous',
+    'referral',
+    'related',
+    'replies',
+    'reply-to',
+    'search',
+    'section',
+    'service',
+    'shortlink',
+    'source',
+    'sidebar',
+    'sitemap',
+    'sponsor',
+    'start',
+    'status',
+    'syndication',
+    'subsection',
+    'tag',
+    'timesheet',
+    'toc',
+    'token_endpoint',
+    'trackback',
+    'transformation',
+    'unendorsed',
+    'user',
+    'vcalendar-parent',
+    'vcalendar-sibling',
+    'webmention',
+    'yandex-tableau-widget'
+  ];
+
+  /**
+   * Explanation.
+   * 'tagName' => [
+   *   'allowedAttributeName' => [
+   *     'NOTAllowedAttributeValues' => ['javascript', 'vbscript', 'data'],
+   *     'allowedAttributeValues' => [],
+   *   ],
+   * ]
+   *
+   * Notes:
+   *  - Just one of blacklist|whitelist property must be filled.
+   */
+
+  $rules = [
+    'a' => [
+      'href' => [
+        'blacklist' => ['javascript', 'vbscript', 'data'],
+        'whitelist' => [],
+      ],
+      'hreflang' => [
+        'blacklist' => [],
+        'whitelist' => [],
+      ],
+      'target' => [
+        'blacklist' => [],
+        'whitelist' => ['_blank'],
+      ],
+      'rel' => [
+        'blacklist' => [],
+        'whitelist' => $rel_vals,
+      ],
+    ],
+    'time' => [
+      'datetime',
+    ],
+    'test' => [
+      'datetime',
+    ],
+  ];
+
+  // Allow modules to alter the list of attributes.
+  drupal_alter('ampproject_filter_attr', $rules);
+
+  $dom = filter_dom_load($text);
+  $dom_xpath = new DOMXPath($dom);
+
+  // Build the query.
+  foreach ($rules as $tag => $val) {
+    $xtags[] = '//' . $tag;
+  }
+  $xtags = implode(' | ', $xtags);
+
+  // Loop through defined tags.
+  $all_entries = $dom_xpath->query($xtags);
+
+  foreach ($all_entries as $entry) {
+    // Get existing tag attributes.
+    $attributes = _ampproject_filter_get_DOMNode_attributes($entry);
+    if (!$attributes) {
+      continue;
+    }
+    // Check existing tag attributes for validity.
+    foreach ($attributes as $attr_name => $attr_value) {
+      // Remove undefined attribute for defined tag.
+      $supported_attr = array_keys($rules[$entry->localName]);
+      if (!in_array($attr_name, $supported_attr)) {
+        $entry->removeAttribute($attr_name);
+        continue;
+      }
+
+      // Get the rules for specific attr.
+      $allowed_attr_val = @$rules[$entry->localName][$attr_name]['whitelist'];
+      $not_allowed_attr_val = @$rules[$entry->localName][$attr_name]['blacklist'];
+
+      // No rules to check.
+      $to_check = empty($not_allowed_attr_val) xor empty($not_allowed_attr_val);
+      if (!$to_check) {
+        continue;
+      }
+
+      // Remove prohibited attributes.
+      if (!empty($not_allowed_attr_val)) {
+        if (in_array($attr_value, $not_allowed_attr_val)) {
+          $entry->removeAttribute($attr_name);
+        }
+      }
+      else {
+        if (!in_array($attr_value, $allowed_attr_val)) {
+          $entry->removeAttribute($attr_name);
+        }
+      }
+    }
+  }
+
+  /**
+   * Lack of documentation per tag for now,
+   * so we'll just define the attributes reported as error in validation.
+   */
+  $general_prohibited_attr = ['face', 'size', 'color'];
+  // Remove general prohibited attributes.
+  // Can't find a way to select Nodes by attribute existence.
+  $all_nodes = $dom_xpath->query('//*');
+  foreach ($all_nodes as $node) {
+    // Get existing node attributes.
+    $attributes = _ampproject_filter_get_DOMNode_attributes($node);
+    if (!$attributes) {
+      continue;
+    }
+
+    // Remove all matches.
+    foreach ($general_prohibited_attr as $attr) {
+      if (in_array($attr, $general_prohibited_attr)) {
+        $node->removeAttribute($attr);
+      }
+    }
+  }
+
+  $text = filter_dom_serialize($dom);
+  return $text;
+}
+
+/**
+ * Get attributes of a DomNode.
+ *
+ * @param \DOMNode $node
+ * @return array
+ *  Attributes.
+ */
+function _ampproject_filter_get_DOMNode_attributes(DOMNode $node) {
+  $attributes = [];
+  foreach ($node->attributes as $attribute_name => $attribute_node) {
+    $attributes[$attribute_name] = $attribute_node->nodeValue;
+  }
+
+  return $attributes;
+}
+
+/**
+ * Get AMP Twitter element.
+ *
+ * @param $data
+ *  Parameters.
+ * @return string
+ *  Amp element.
+ */
+function _ampproject_filter_twitter_element($data) {
+  // Set default width and height if any of them are missing.
+  // These data usually are missing from standard embed code.
+  if (empty($data['width']) || empty($data['height'])) {
+    $data['width'] = 552;
+    $data['height'] = 574;
+  }
+
+  return theme('ampproject_twitter', ['ampproject' => $data]);
+}
+
+/**
+ * Get AMP Facebook element.
+ *
+ * @param $data
+ *  Parameters.
+ * @return string
+ *  Amp element.
+ */
+function _ampproject_filter_youtube_element($data) {
+  return theme('ampproject_youtube', ['ampproject' => $data]);
+}
+
+/**
+ * Get AMP Facebook element.
+ *
+ * @param $data
+ *  Parameters.
+ * @return string
+ *  Amp element.
+ */
+function _ampproject_filter_fb_element($data) {
+  $data['embed_as'] = !empty($data['embed_as']) ? $data['embed_as'] : 'post';
+  if (empty($data['width']) || empty($data['height'])) {
+    // As width and height are required attributes,
+    // add default values if any of those are missing.
+    // This actually happens always at this time because facebook usually don't
+    // provide any height value(video has none of them).
+    // Todo: Open an issue on github as this is causing video have huge whitespace at the bottom.
+    switch ($data['embed_as']) {
+      case 'video':
+        // Add an standard video ratio for smooth rendering.
+        $data['width'] = 400;
+        $data['height'] = 224;
+        break;
+      default:
+        $data['width'] = 552;
+        $data['height'] = 574;
+    }
+  }
+
+  return theme('ampproject_facebook', ['ampproject' => $data]);
+}
+
+/**
+ * Append given HTML to a given DOM Node.
+ *
+ * @param \DOMNode $parent
+ * @param $source
+ */
+function _ampproject_filter_append_HTML(DOMNode $parent, $source) {
+  $tmpDoc = new DOMDocument();
+  // Suppress the warnings as html5 tags aren't recognised.
+  libxml_use_internal_errors(TRUE);
+  $tmpDoc->loadHTML($source);
+  foreach ($tmpDoc->getElementsByTagName('body')
+             ->item(0)->childNodes as $node) {
+    $node = $parent->ownerDocument->importNode($node);
+    $parent->appendChild($node);
+  }
+  libxml_use_internal_errors(FALSE);
+}

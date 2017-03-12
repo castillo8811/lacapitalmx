@@ -1,0 +1,324 @@
+<?php
+
+/**
+ * 
+ * Implement of Hook menu
+ * @return mixed 
+ */
+function imx_sidebar_node_menu() {
+    $items = array();
+    $items['admin/config/imx_sidebar_node'] = array(
+        'title' => 'Configuracion general de la barra lateral derecha',
+        'description' => 'Configuracion general de la barra lateral derecha',
+        'page callback' => 'system_admin_menu_block_page',
+        'access arguments' => array('administer imx sidebar config'),
+        'position' => 'right',
+        'file' => 'system.admin.inc',
+        'file path' => drupal_get_path('module', 'system'),
+    );
+
+    $items['admin/config/imx_sidebar_node/queue_configuration'] = array(
+        'title' => 'Configuracion de queue',
+        'description' => 'Configuracion del Queue del Editor te recomienda',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('imx_sidebar_node_config_queue_form'),
+        'access arguments' => array('administer imx sidebar config'),
+        'file' => 'inc/imx_sidebar_node.admin.inc',
+        'weight' => 0,
+        'type' => MENU_NORMAL_ITEM,
+    );
+
+    $items['admin/config/imx_sidebar_node/most_visited_configuration'] = array(
+        'title' => 'Configuracion de los más visitado',
+        'description' => 'Configuracion de los más visitado',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('imx_sidebar_node_config_most_visited_form'),
+        'access arguments' => array('administer imx sidebar config'),
+        'file' => 'inc/imx_sidebar_node.admin.inc',
+        'weight' => 0,
+        'type' => MENU_NORMAL_ITEM,
+    );
+
+
+    return $items;
+}
+
+function imx_sidebar_node_permission() {
+    return array(
+        'administer imx sidebar config' => array(
+            'title' => t('Administer sidebar configuration'),
+            'description' => t('Configure settings sidebar node.'),
+        ),
+    );
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function imx_sidebar_node_block_info() {
+    $blocks = array();
+    $blocks['imx_sidebar_node_block'] = array(
+        'info' => t('Bloque de notas de la barra lateral derecha'),
+        'cache' => DRUPAL_NO_CACHE
+    );
+    return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function imx_sidebar_node_block_view($delta = '') {
+    $block = array();
+    switch ($delta) {
+        case 'imx_sidebar_node_block' :
+            //drupal_add_js(drupal_get_path('module', 'imx_sidebar_node') . '/imx_sidebar_node.js');
+            $items=array();
+            $block['content']=array();
+            if(!drupal_is_front_page()){
+                $pass_sidebar=true;
+            if(arg(2)){
+                $term_taxonomy=taxonomy_term_load(arg(2))->vid;
+//            print_r($term_taxonomy);exit;
+            if($term_taxonomy!=12){
+                $pass_sidebar=false;
+            }
+            }
+            
+            if($pass_sidebar) {
+                    $items = get_imx_sidebar_items_nodes_list();
+                    $block['content'] = array(
+                        '#theme' => 'imx_sidebar_node_list',
+                        '#items' => $items,
+                    );
+                }
+            }
+            
+            break;
+    }
+    return $block;
+}
+
+/**
+ * 
+ * @return type
+ */
+function imx_sidebar_node_theme() {
+    return array(
+        'imx_sidebar_node_list' => array(
+            'template' => 'template/sidebar_nodes',
+            'variables' => array(
+                'items' => NULL,
+            )
+        ),
+    );
+}
+
+function template_preprocess_imx_sidebar_node_list(&$variables) {
+    $variables['items'] = $variables['items'];
+}
+
+function get_imx_sidebar_items_nodes_list() {
+    $visited = get_most_visited_nodes_items();
+//    $recommended = get_editor_recommendations_queue_items();
+    $items = array(
+//        'recomended' => $recommended,
+        'visited' => $visited,
+        'link_visited' => variable_get('imx_sidebar_visited_link', ''),
+//        'link_recommended' => variable_get('imx_sidebar_queue_link', ''),
+    );
+    return $items;
+}
+
+/**
+ * 
+ * @return type
+ */
+function get_most_visited_nodes_items() {
+    $items = array();
+    if ($cache = cache_get('imx_b_')) {
+        $items = $cache->data;
+    } else {
+        $tomorrow = mktime(0, 0, 0, date('m'), date('d') + 1, date('Y'));
+        $result = get_most_visited_nodes_query();
+        $style = variable_get('imx_sidebar_img_style', 'barra_lateral');
+        foreach ($result as $key => $value) {
+            $nid = $value->nid;
+            $node = node_load($nid);
+//            $tid = $node->field_seccion['und'][0]['tid'];
+//            $category = '';
+//            if ($tid) {
+//                $category = get_name_of_taxonomy($tid);
+//            }
+            $image = entity_metadata_wrapper('node', $node)->field_image->value();
+            if (is_array($image)) {
+                if (array_key_exists(0, $image)) {
+                    if (($image[0]) > 1) {
+                        $image = array_shift($image);
+                    }
+                }
+            } else {
+                if (count($image) > 1) {
+                    $image = array_shift($image);
+                }
+            }
+
+            $items[] = array(
+                'title' => $node->title,
+                'image' => image_style_url($style,($image['uri'])? $image["uri"] : ""),
+//                'url' => url('node/' . $node->nid, array('absolute' => TRUE)),
+                'url' =>url('node/' . $node->nid, array('absolute' => true)),
+                'category' => get_sections_by_nid($nid,2),
+                'ocio' => get_sections_by_nid($nid,14),
+                'image'=>($image)? $image['uri']: ""
+            );
+
+//            if($image) {
+//                $items[]['image'] = image_style_url($style, $image['uri']);
+//            }
+
+            unset($node, $image, $nid, $tid, $category);
+        }
+        cache_set('imx_b', $items, 'cache', $tomorrow);
+    }
+    return $items;
+}
+
+/**
+ * 
+ * @return type
+ */
+function get_most_visited_nodes_query() {
+    $time = variable_get('imx_sidebar_visited_time', 7);
+    $created = variable_get('imx_sidebar_created_time', 15);
+    $week = mktime(0, 0, 0, date('m'), date('d') - $time, date('Y')); //most visited of week
+    $past = mktime(0, 0, 0, date('m'), date('d') - $created, date('Y')); //
+    $types = array('article');
+    $serialize = variable_get('imx_sidebar_types', NULL);
+    if ($serialize) {
+        $unserialize = unserialize($serialize);
+        unset($types);
+        foreach ($unserialize as $key => $value) {
+            $types[] = $value;
+        }
+    }
+    $qry = db_select('node', 'n');
+    $qry->innerJoin('node_counter', 'nc', 'nc.nid = n.nid');
+    $qry->fields('n', array('nid', 'title'));
+    $qry->fields('nc', array('totalcount'));
+    $qry->condition('n.status', 1, '=');
+    $qry->condition('n.type', $types, 'IN');
+    //$qry->condition('nc.timestamp', $week, '>');
+    //$qry->condition('n.changed', $past, '>');
+    $qry->orderBy('nc.nid', 'DESC');
+    $qry->orderBy('nc.totalcount', 'DESC');
+
+    $qry->groupBy('nid');
+    $qry->range(0, 8);
+    $result = $qry->execute()->fetchAll();
+    return $result;
+}
+
+/**
+ * 
+ * @return mixed
+ */
+function get_editor_recommendations_queue_items() {
+    $items = array();
+    if ($cache = cache_get('sidebar_recommended_nodes')) {
+        $items = $cache->data;
+    } else {
+        $timestamp = time() + 10800; //3 hours of cache
+        $result = get_editor_recommendations_queue_query();
+        $style = variable_get('imx_sidebar_queue_style', 'alert_fav');
+        foreach ($result as $key => $value) {
+            $nid = $value->nid;
+            $node = node_load($nid);
+//            $tid = $node->field_categorias['und'][0]['tid'];
+//            $category = '';
+//            if ($tid) {
+//                $category = get_name_of_taxonomy($tid);
+//            }
+            $image = entity_metadata_wrapper('node', $node)->field_image->value();
+            if (count($image[0]) > 1) {
+                $image = array_shift($image);
+            }
+            $items[] = array(
+                'title' => $node->title,
+                'image' => image_style_url($style, $image['uri']),
+                'url' => url('node/' . $node->nid, array('absolute' => true)),
+                'category' => get_section_by_nid($nid, 3)
+            );
+            unset($node, $image, $nid, $tid, $category);
+        }
+        cache_set('sidebar_recommended_nodes', $items, 'cache', $timestamp);
+    }
+    return $items;
+}
+
+/**
+ * 
+ */
+function get_editor_recommendations_queue_query() {
+    $queue = variable_get('imx_sidebar_queue_title', 'recomendaciones_editor');
+    $result = array();
+    if ($queue) {
+        $query = "SELECT n.nid,n.title 
+     FROM {node} n 
+     INNER JOIN {nodequeue_nodes} nn ON n.nid=nn.nid 
+     INNER JOIN {nodequeue_queue} nq on nq.qid=nn.qid 
+     WHERE nq.name='{$queue}' 
+     ORDER BY nn.position ASC 
+     Limit 30 ";
+        $result = db_query($query)->fetchAll();
+    }
+    return $result;
+}
+
+/**
+ * Valida si existe el tipo de o no un queue
+ * si existe se retorna true, de lo contrario retorna false
+ * @param type $queue
+ * @return boolean
+ */
+function validate_queue_exist_query($queue = NULL) {
+    $validate = false;
+    if ($queue) {
+        $query = "select qid from {nodequeue_queue} where name = '{$queue}' ";
+        $result = db_query($query)->fetchField();
+        if ($result) {
+            $validate = TRUE;
+        }
+    }
+    return $validate;
+}
+
+/**
+ * Retorna un array con los tipos de contenidos
+ * habilitados en el sitio actual con la siguiente relacion
+ * Nombre maquina como indice y el nombre del tipo de contenido como valor
+ * <code>
+ * $array = array(
+ *   'nombre_Maquina'=>'Nombre_Contenido'
+ * );
+ * </code>
+ * @return array
+ */
+function sidebar_get_node_types() {
+    $nt = array();
+    $types = node_type_get_types(true);
+    foreach ($types as $t) {
+        if (!$t->disabled)
+            $nt[$t->type] = $t->name;
+    }
+
+    return $nt;
+}
+
+function sidebar_get_images_styles(){
+    $styles_array = image_styles();
+    $images = array();
+    foreach ($styles_array as $key => $value) {
+       $images[$key] = $value['name'];
+    }
+    return $images;
+}

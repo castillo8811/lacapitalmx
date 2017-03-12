@@ -1,0 +1,6 @@
+;$Id$
+name = "imx_recommended_videos"
+description = "Recomendacion de videos de la re de inventmx"
+package = "InventMX"
+core = "7.x"
+files[] = imx_recommended_videos.module

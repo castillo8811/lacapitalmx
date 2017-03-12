@@ -1,0 +1,7 @@
+; $Id$
+name = "LaCapitalMX Footer"
+description = "Muestra el footer en todo el sitio"
+package = "LCPMX"
+version = 7.x
+core = 7.x
+files[]="lcpmx_footer.module"

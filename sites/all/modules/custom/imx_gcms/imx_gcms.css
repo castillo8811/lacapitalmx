@@ -1,0 +1,41 @@
+.form-item{
+    float: left;
+}
+
+.header-links a{
+    float: left;
+    margin: 0 20px 20px 0;
+}
+
+.fancybox-media img {
+    width: 100px; !important;
+    height: auto;
+    border: 0;
+    -ms-interpolation-mode: bicubic;
+}
+
+
+.header-links a{
+    background-color: black;
+    color: white !important;
+    font-size: 12px;
+    padding: 5px;
+    font-weight: bold;
+    border-radius: 5px;
+}
+
+.imx-gcms-nav-menu {
+    display: block;
+    width: 100%;
+    float: left;
+}
+
+.imx-gcms-nav-menu {
+    display: block;
+    width: 100%;
+    float: left;
+}
+
+.gcms-table{
+    float: left;
+}

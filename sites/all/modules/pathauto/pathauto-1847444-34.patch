@@ -1,0 +1,29 @@
+diff --git a/pathauto.module b/pathauto.module
+index 9bb132d..22e01c7 100644
+--- a/pathauto.module
++++ b/pathauto.module
+@@ -374,6 +374,24 @@ function pathauto_entity_presave($entity, $type) {
+     $entity->path['alias'] = $entity->path['old_alias'];
+   }
+ 
++  // Prevent rebuilding custom paths from node_save
++  // when syncing translations
++  if (!isset($entity->path['pathauto']) && !empty($entity->language)) {
++    $langcode = $entity->language;
++    list($id, , $bundle) = entity_extract_ids($type, $entity);
++
++    if (!empty($id)) {
++      module_load_include('inc', 'pathauto');
++      $uri = entity_uri($type, $entity);
++      $path = drupal_get_path_alias($uri['path'], $langcode);
++      $pathauto_alias = pathauto_create_alias($type, 'return', $uri['path'], array($type => $entity), $bundle, $langcode);
++      $entity->path['pathauto'] = ($path != $uri['path'] && $path == $pathauto_alias);
++    }
++    else {
++      $entity->path['pathauto'] = TRUE;
++    }
++  }
++
+   // Help prevent errors with progromatically creating entities by defining
+   // path['alias'] as an empty string.
+   // @see http://drupal.org/node/1328180

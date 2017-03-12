@@ -1,0 +1,7 @@
+; $Id$
+name = "InventMx Ads"
+description = "Módulo para generacion y administracion de espacios publictarios.(implementación para e-Planning v4), escalable para otro Framework de Ads"
+package = "InventMX"
+version = 1.0
+core = 7.x
+files[] = imx_ads.module,imx_ads_queries.inc

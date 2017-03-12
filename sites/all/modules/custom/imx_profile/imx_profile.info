@@ -1,0 +1,12 @@
+name = IMX Profile
+description = Módulo para presentanción de los perfiles de usuarios y sus productos (Favoritos, Configuracion, Alertas).
+core = 7.x
+files[] = imx_profile.module
+
+; Information added by drupal.org packaging script on 2013-01-16
+version = "7.x-1.0"
+package= "InventMx"
+core = "7.x"
+project = "IMX Profile"
+datestamp = "1358339807"
+

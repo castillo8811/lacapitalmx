@@ -1,0 +1,11 @@
+form {
+    background-color: #fff;
+}
+input.error{
+    display: inline-block !important;
+    border-color:red;
+}
+
+.imx_ads_roles_hidden{
+    display: none;
+}

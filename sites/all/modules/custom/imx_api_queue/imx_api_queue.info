@@ -1,0 +1,6 @@
+name = "InventMx API queue"
+package = "InventMX"
+description = Módulo para la configuración de un queue en beastalk para la recolección de contenido para la API.
+core = 7.x
+dependencies[] = system
+dependencies[] = user

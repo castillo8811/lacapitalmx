@@ -1,0 +1,20 @@
+.imx_ads {
+    text-align: center;
+    margin: 10px auto;
+}
+
+.otras-recomendaciones {
+    margin: 0 auto;
+    width: 570px;
+    position: static !important;
+    overflow: hidden;
+}
+
+/*Alto iframe*/
+.lower-content-recomendaciones {
+    margin: 0 auto;
+    width: 570px;
+    position: static !important;
+    overflow: hidden;
+    height: 390px;
+}

@@ -1,0 +1,9 @@
+name = "Garuyo Custom Blocks"
+description = "Modulo que contiene bloques custom de garuyod7"
+package = "Garuyod7"
+core = "7.x"
+version = "1.x"
+php = "5.x"
+files[]=garuyoCustomBlocks.module
+files[]=garuyo_functions_blocks.inc
+

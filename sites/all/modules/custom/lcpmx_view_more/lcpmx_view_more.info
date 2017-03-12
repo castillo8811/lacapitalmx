@@ -1,0 +1,8 @@
+name = "View More"
+description = "View More"
+package = "lcpmx"
+core = "7.x"
+version = "1.x"
+php = "5.x"
+files[]=lcpmx_view_more.module
+

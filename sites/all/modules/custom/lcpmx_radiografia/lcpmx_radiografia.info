@@ -1,0 +1,7 @@
+; $Id$
+name = "LaCapitalMX Radiografía"
+description = "Muestra el bloque de barra principal notas de Radiografía Home"
+package = "LCPMX"
+version = 7.x
+core = 7.x
+files[]="lcpmx_radiografia.module"

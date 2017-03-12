@@ -1,0 +1,8 @@
+; $Id$
+name = "Login Usuarios Fem"
+description = "Provee un bloque de links para facilitar el registro y login de usuarios en los sitios FEM con ajax"
+package = "FEM"
+version = "7.24"
+core = "7.x"
+datestamp = "1306890615"
+

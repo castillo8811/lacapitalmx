@@ -1,0 +1,133 @@
+<?php
+
+function lcpmx_radiografia_help($path, $arg) {
+    if ($path == 'admin/help#lcpmx_radiografia') {
+        return t('Muestra el bloque de barra principal notas de Radiografía Home');
+    }
+}
+
+function lcpmx_radiografia_block_info() {
+    $blocks['lcpmx_radiografia'] = array(
+        'info' => t('LaCapitalMX Radiografía')
+    );
+
+    $blocks['lcpmx_subterraneo'] = array(
+        'info' => t('LaCapitalMX Subterraneo')
+    );
+
+    $blocks['lcpmx_sensorama'] = array(
+        'info' => t('LaCapitalMX Sensorama')
+    );
+
+    $blocks['lcpmx_intervensiones'] = array(
+        'info' => t('LaCapitalMX Intervensiones')
+    );
+
+    $blocks['lcpmx_trafico'] = array(
+        'info' => t('LaCapitalMX Tráfico')
+    );
+
+    $blocks['lcpmx_mirador'] = array(
+        'info' => t('LaCapitalMX Mirador')
+    );
+
+
+    return $blocks;
+}
+
+function lcpmx_radiografia_block_view($delta = '') {
+    $block = array(
+        'subject' => t(''),
+        'content' => '',
+    );
+
+    if ($delta == 'lcpmx_radiografia') {
+        $block['content'] = array(
+            '#theme' => 'lcpmx_radiografia'
+        );
+    }
+
+    if ($delta == 'lcpmx_subterraneo') {
+        $block['content'] = array(
+            '#theme' => 'lcpmx_subterraneo'
+        );
+    }
+
+    if ($delta == 'lcpmx_sensorama') {
+        $block['content'] = array(
+            '#theme' => 'lcpmx_sensorama'
+        );
+    }
+
+    if ($delta == 'lcpmx_mirador') {
+        $block['content'] = array(
+            '#theme' => 'lcpmx_mirador'
+        );
+    }
+
+    if ($delta == 'lcpmx_intervensiones') {
+        $block['content'] = array(
+            '#theme' => 'lcpmx_intervensiones'
+        );
+    }
+
+    if ($delta == 'lcpmx_trafico') {
+        $block['content'] = array(
+            '#theme' => 'lcpmx_trafico'
+        );
+    }
+
+    return $block;
+}
+
+function lcpmx_radiografia_theme($existing, $type, $theme, $path) {
+    return array(
+        'lcpmx_radiografia' => array(
+            'variables' => array(
+                'items_lcpmx_radiografia' => NULL,
+            ),
+            'template' => 'lcpmx_radiografia',
+        ),
+
+        'lcpmx_subterraneo' => array(
+            'variables' => array(
+                'items_lcpmx_subterraneo' => NULL,
+            ),
+            'template' => 'lcpmx_subterraneo',
+        ),
+
+        'lcpmx_sensorama' => array(
+            'variables' => array(
+                'items_lcpmx_sensorama' => NULL,
+            ),
+            'template' => 'lcpmx_sensorama',
+        ),
+
+        'lcpmx_mirador' => array(
+            'variables' => array(
+                'items_lcpmx_mirador' => NULL,
+            ),
+            'template' => 'lcpmx_mirador',
+        ),
+
+        'lcpmx_trafico' => array(
+            'variables' => array(
+                'items_lcpmx_trafico' => NULL,
+            ),
+            'template' => 'lcpmx_trafico',
+        ),
+
+        'lcpmx_intervensiones' => array(
+            'variables' => array(
+                'items_lcpmx_intervensiones' => NULL,
+            ),
+            'template' => 'lcpmx_intervensiones',
+        ),
+
+    );
+}
+
+function template_preprocess_lcpmx_radiografia(&$variables) {
+    $variables['items_lcpmx_radiografia'] = array();
+    $variables['items_lcpmx_sensorama'] = array();
+}

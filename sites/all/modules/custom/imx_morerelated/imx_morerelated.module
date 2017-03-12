@@ -1,0 +1,190 @@
+<?php
+
+function imx_morerelated_help($path, $arg) {
+    if ($path == 'admin/help#imx_morerelated') {
+        return t('Módulo que devuelve el pintado de más contenido relacionado al nodo');
+    }
+}
+
+function imx_morerelated_block_info() {
+    $blocks['imx_morerelated'] = array(
+        'info' => t('Más relacionados lateral')
+    );
+    $blocks['imx_morerelated_bottom'] = array(
+        'info' => t('Más relacionados bottom')
+    );
+    return $blocks;
+}
+
+function morerelated_list() {
+    $related = array();
+    if (arg(0) == 'node' && is_numeric(arg(1)) && !arg(2)) {
+        $nid = (int) arg(1);
+        $cathegory = get_section_by_nid($nid, 2, FALSE);
+        $related = get_related_nodes_by_cathegory($cathegory);
+        foreach ($related as $row) {
+            if ($row['nid'] != $nid) {
+                $items[] = $row;
+            }
+        }
+        unset($cathegory, $related, $row);
+        return $items;
+    }
+}
+
+/**
+ * Función que trae los nodos relacionados a un nodo en específico por categoría y los cachea en un archivo externo
+ * @author Betsabé Ortegón <betsabe@inventmx.com>
+ * @param int $cathegory Contiene el ID de la categoría del nodo
+ * @return $data Devuelve un arreglo con una colección de nodos relacionados
+ */
+function get_related_nodes_by_cathegory($cathegory) {
+    if (!$cathegory)
+        return NULL;
+    // Buscar primero caché
+    if (file_exists('/srv/data/files/cache/fem/morerelated_' . $cathegory . '.json'))
+        $items = json_decode(file_get_contents('/srv/data/files/cache/fem/morerelated_' . $cathegory . '.json'), true);
+
+    if ($items && !is_null($items) && is_array($items) && count($items)) {
+        // si hay caché, la devuelvo
+        return $items;
+    } else {
+        // si no, realizo el query y la creo
+        $related = db_query("SELECT n.nid, n.type, n.title, n.created, fdfsc.field_sinopsis_carrusel_value as teaser, ttd.name, f.uri
+                             FROM {node} n 
+                             INNER JOIN {field_data_field_sinopsis_carrusel} fdfsc ON fdfsc.entity_id = n.nid 
+                             INNER JOIN {field_data_field_sitio} fdfs ON fdfs.entity_id = n.nid 
+                             INNER JOIN {taxonomy_term_data} ttd ON fdfs.field_sitio_tid = ttd.tid
+                             INNER JOIN {field_data_field_image} fdfi ON fdfi.entity_id = n.nid 
+                             INNER JOIN {file_managed} f ON f.fid = fdfi.field_image_fid 
+                             WHERE n.status=1 AND n.type IN ('article','gallerie','videos') AND ttd.tid = $cathegory
+                             GROUP BY n.nid ORDER BY n.created DESC LIMIT 10")->fetchAll(); //trae el nid, tipo, título y fecha de creación de los contenidos relacionados por tag al nodo actual
+        foreach ($related as $row) { //barrido del objeto anterior, para agrupar en un array los elementos de los nodos relacionados
+            $data[] = array(
+                'nid' => $row->nid,
+                'title' => $row->title,
+                'type' => $row->type,
+                'url' => drupal_get_path_alias('node/' . $row->nid),
+                'urlcomplete' => url(drupal_get_path_alias('node/' . $row->nid), array('absolute' => 'true')),
+                'created' => $row->created,
+                'image' => $row->uri,
+                'teaser' => $row->teaser,
+                'cathegory' => $row->name,
+                'subcathegory' => get_section_by_nid($row->nid, 3)
+            );
+        }
+        // Crear JSON cache
+        unlink('/srv/data/files/cache/fem/morerelated_' . $cathegory . '.json');
+        file_put_contents('/srv/data/files/cache/fem/morerelated_' . $cathegory . '.json', json_encode($data));
+        unset($related, $cathegory);
+        return $data;
+    }
+}
+
+function morerelated_list_lateral() {
+    
+    if (arg(0) == 'node') {
+        $nid = (int) arg(1);
+        // recupero todos los tags del nodo
+        $tags_array = _get_level_nid_terms($nid);
+        
+        // barro el array de tags para agrupar los tids
+        foreach($tags_array['tags'] as $tid){
+            $tagss[] = $tid['tid'];
+        }
+        
+        // imploto los tags, separándolos por coma
+        $tags = implode(',', $tagss); // etiquetas
+        $terms = $tags_array['canales'][0]['tid']; // canal
+        
+        // recupero el último relacionado por etiquetas
+        $relacionados_tags = relatedQuery($tags, $nid, 1);
+        
+        // evito la repetición del nodo donde estoy, y el recuperado anteriormente (por etiquetas)
+        $nid_aux = $relacionados_tags[0]['nid'] ? $nid . ',' . $relacionados_tags[0]['nid'] : $nid;
+        
+        // recupero el último relacionado por Canal
+        $relacionados = relatedQuery($terms, $nid_aux, 2);
+        
+        // combino ambos arrays en uno solo
+        $data = array_merge($relacionados_tags, $relacionados);
+        
+        unset($tags, $tags_array, $terms, $tagss, $relacionados, $relacionados_tags);
+        return $data;
+    }
+}
+
+function relatedQuery($tids, $nid = 1, $limit = 1) {
+    if(!$tids)
+        return NULL;
+    $query = "SELECT n.nid, n.title, n.created, n.type 
+              FROM {node} n 
+              INNER JOIN {taxonomy_index} ti ON ti.nid = n.nid 
+              INNER JOIN {taxonomy_term_data} ttd ON ttd.tid = ti.tid 
+              WHERE n.type IN('article','gallerie','videos','poll') AND n.status = 1 AND n.nid NOT IN ($nid) AND ti.tid IN($tids) 
+              GROUP BY n.nid ORDER BY n.created DESC LIMIT $limit;";
+    $relacionados_tags = db_query($query)->fetchAll();
+    if($relacionados_tags){
+        foreach($relacionados_tags as $item){
+            $items[] = array(
+                'nid' => $item->nid,
+                'urlcomplete' => url(drupal_get_path_alias('node/' . $item->nid), array('absolute' => true)),
+                'title' => $item->title,
+                'created' => $item->created,
+                'type' => $item->type,
+                'image' => _get_image($item->nid, $item->type),
+                'section' => get_section_by_nid($item->nid,3)
+            );
+        }
+    }
+    return $items;
+}
+
+function imx_morerelated_block_view($delta = '') {
+    $block = array(
+        'subject' => t(''),
+        'content' => '',
+    );
+    if ($delta == 'imx_morerelated') {
+        $block['subject'] = t('Notas relacionadas');
+        $block['content'] = array(
+            '#theme' => 'imx_morerelated'
+        );
+    };
+    if ($delta == 'imx_morerelated_bottom') {
+        $block['subject'] = t('Notas relacionadas bottom');
+        $block['content'] = array(
+            '#theme' => 'imx_morerelated_bottom'
+        );
+    };
+    return $block;
+}
+
+function imx_morerelated_theme($existing, $type, $theme, $path) {
+    return array(
+        'imx_morerelated' => array(
+            'variables' => array(
+                'items_imx_morerelated' => NULL,
+            ),
+            'template' => 'imx_morerelated',
+        ),
+        'imx_morerelated_bottom' => array(
+            'variables' => array(
+                'items_imx_morerelated_bottom' => NULL,
+            ),
+            'template' => 'imx_morerelated_bottom',
+        ),
+    );
+}
+
+function template_preprocess_imx_morerelated(&$variables) {
+    $items = array_chunk(morerelated_list_lateral(), 3);
+    $variables['items_imx_morerelated'] = $items[0];
+    unset($items);
+}
+
+function template_preprocess_imx_morerelated_bottom(&$variables) {
+    $items = array_chunk(morerelated_list(), 10);
+    $variables['items_imx_morerelated_bottom'] = $items[0];
+    unset($items);
+}

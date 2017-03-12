@@ -1,0 +1,222 @@
+.imx-newsletter-modal-wrapper {
+    background: black;
+    border: solid #CCCCCC 1px;
+    width: 800px;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+    height: 360px;
+    overflow: hidden;
+}
+
+.imx-newsletter-block-wrapper{
+    max-width: 1024px;
+    margin: 0 auto;
+}
+
+.imx-newsletter-modal-logo{
+    background-color: black;
+    padding: 10px;
+}
+
+.imx-newsletter-modal {
+    background-color: black;
+}
+
+.imx-newsletter-modal-text {
+    padding-top: 2px;
+    text-align: center;
+}
+
+.imx-newsletter-modal-text h3 {
+    font: 54px 'Playfair Display', serif;
+    font-weight: 400;
+    font-style: italic;
+    color: #CC9900;
+}
+
+.imx-newsletter-modal-text span {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+    display: block;
+    margin: 20px auto;
+    text-transform: uppercase;
+    line-height: 30px;
+    font-size: 22px;
+    font-weight: bolder;
+}
+
+.imx-newsletter-modal-form{
+    background-color: white;
+    min-height: 256px;
+}
+.imx-newsletter-modal-form-input-text {
+    width: 400px;
+    margin: 0 auto;
+    display: block;
+}
+
+.imx-newsletter-modal-form-input-check {
+    margin: 10px 0 10px 0px;
+    font-size: 12px;
+    color: #999;
+    font-weight: bolder;
+    line-height: 1.5;
+}
+
+.imx-newsletter-modal-form-input-check a {
+    color: #369;
+}
+
+.imx-newsletter-modal-form input[type=text], .imx-newsletter-modal-form input[type=email] {
+    border: solid 1px #CCC;
+    width: 100%;
+    height: 25px;
+    margin-top: 10px;
+    padding: 5px;
+    text-align: center;
+    text-transform: uppercase;
+    color: #CCC;
+    font-size: 18px;
+    font-weight: bolder;
+}
+
+#imx_nm_mail-error, #imx_nm_mail_check-error, i#mx_nm_name_check-error {
+
+}
+
+.imx-newsletter-modal-form input[type=checkbox] {
+    width: 25px;
+    height: 25px;
+    float: none;
+    margin: 0 5px 0 0;
+    display: inline-block;
+}
+
+.imx-newsletter-modal-form label {
+    text-transform: uppercase;
+    color: #000;
+}
+
+.imx-newsletter-modal-form label a {
+    color: #369;
+}
+
+.imx-newsletter-modal-form-action {
+    width: 385px;
+    margin: 0 auto;
+    text-align: center;
+    padding: 10px 0 0 0;
+    position: relative;
+}
+
+.imx-newsletter-modal-send {
+    font-size: 30px;
+    color: #FFF;
+    background-color: red;
+    width: 200px;
+    height: 33px;
+    padding: 2px 0 3px 0;
+    text-transform: uppercase;
+    margin: 15px auto 0 auto;
+    border: none;
+    font-weight: bolder;
+}
+
+.imx-newsletter-modal-form label.error {
+    color: #f00;
+    font-size: 14px;
+    padding: 10px;
+}
+
+.imx-newsletter-modal-form label.error {
+    color: #f00;
+    font-size: 14px;
+    text-align: center;
+}
+
+
+.imx-newsletter-block{
+    width: 100%;
+    background-color: black;
+}
+
+.imx-newsletter-block-form .error{
+    font-size: 14px !important;
+    padding: 5px;
+}
+
+.imx-newsletter-block-form{
+    background-color: #D6D6D6;
+    padding: 20px 10px 0px 10px;
+}
+
+.imx-newsletter-block-text{
+    font-size: 20px;
+    text-align: center;
+}
+
+#imx-newsletter-block-data{
+    text-align: center;
+    margin: 10px auto;
+    width: 80%;
+}
+
+#imx-newsletter-block-data div{
+    margin: 0 0 0 10px;
+    color: #333;
+}
+
+.imx-newsletter-block-form-input-text input{
+    height: 20px;
+    margin: 0;
+    width: 250px;
+    padding: 5px;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.imx-newsletter-block-send {
+    background-color: red;
+    width: 150px !important;
+    height: 32px !important;
+    border: none;
+    color: white;
+}
+
+.imx-newsletter-block-form-action{
+    color: white;
+    margin: 30px auto !important;
+    font-size: 13px;
+    font-weight: bold;
+    text-align: center;
+    padding-bottom: 5px;
+
+}
+
+.imx-newsletter-thanks h1 {
+    text-align: center;
+    font-size: 30px;
+    font-weight: bold;
+}
+
+.imx-newsletter-thanks h2 {
+    text-align: center;
+    font-size: 25px;
+    padding: 20px;
+}
+
+
+
+.imx-newsletter-modal-text span {
+    font-size: 16px;
+    padding: 5px;
+}
+
+@media only screen and (max-width: 767px){
+    .imx-newsletter-modal-form-input-check{
+        margin-top: 5px;
+        font-size: 12px;
+    }
+    .imx-newsletter-modal-form input[type=text], .imx-newsletter-modal-form input[type=email] {
+        font-size: 13px;
+        font-weight: bolder;
+    }
+}

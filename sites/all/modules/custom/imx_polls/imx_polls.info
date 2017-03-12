@@ -1,0 +1,7 @@
+; $Id$
+name = "Poll HELPERS"
+description = "Contiene funciones auxiliares para Versus y Encuestas"
+package = "FEM"
+version = 7.x
+core = 7.x
+files[]="imx_polls.module"

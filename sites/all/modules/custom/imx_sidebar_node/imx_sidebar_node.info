@@ -1,0 +1,6 @@
+;$Id$
+name = "Barra lateral en las notas"
+description = "Muestra las notas más visitadas del sitio y las recomendaciones del editor"
+package = "InventMX"
+core = "7.x"
+files[] = imx_sidebar_node.module

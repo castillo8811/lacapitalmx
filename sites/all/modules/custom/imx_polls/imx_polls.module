@@ -1,0 +1,180 @@
+<?php
+
+
+function imx_polls_menu() {
+    $items = array();
+    $items['versus/action'] = array(
+        'type' => MENU_CALLBACK,
+        'title' => 'Versus votación',
+        'page callback' => 'versus_action',
+        'access callback' => TRUE,
+        'access arguments' => array('access content'),
+    );
+    return $items;
+}
+
+//Procesa el request de ajax
+function versus_action() {
+    if ($_SERVER["HTTP_X_REQUESTED_WITH"] === "XMLHttpRequest") {
+        $options = array();
+        //Primero se recuperan los parametros de la forma enviados
+        $options['chid'] = (int) $_POST['chid'];
+        $options['nid'] = (int) $_POST['nid'];
+        $options['nodetype'] = $_POST['nodetype'];
+        $items = versus_update($options);
+        echo $items;
+        exit;
+    }
+}
+
+function versus_update($data = NULL) {
+    if (!$data)
+        return null;
+    if ($_SERVER["HTTP_X_REQUESTED_WITH"] === "XMLHttpRequest") {
+        $ipaddress = $_SERVER['REMOTE_ADDR'];
+        global $user;
+        $uid = $user->uid;
+        // revisar primero si el usuario no tiene un voto ya para el Versus
+        $qry = db_select('poll_vote', 'pv');
+        $qry->fields('pv', array('nid','uid','hostname'));
+        $qry->condition('pv.nid', $data['nid'], '=');
+        $qry->condition('pv.uid', $uid, '=');
+        $qry->condition('pv.hostname', $ipaddress, '=');
+        $currentVote = $qry->execute()->fetchAssoc();
+        
+        if(!$currentVote){
+            // si el usuario NO había votado
+            // seleccionar el número de votos actuales
+            $qry = db_select('poll_choice', 'pc');
+            $qry->fields('pc', array('chvotes'));
+            $qry->condition('pc.chid', $data['chid'], '=');
+            $qry->condition('pc.nid', $data['nid'], '=');
+            $votes = $qry->execute()->fetchAssoc();
+
+            // incrementar en una unidad el número de votos actuales
+            $newvotes = $votes[0] ? $votes[0] + 1 : $votes['chvotes'] + 1;
+            $num_updated = db_update('poll_choice')
+                           ->fields(array(
+                               'chvotes' => $newvotes
+                           ))
+                           ->condition('chid', $data['chid'], '=')
+                           ->execute();
+
+            // Evaluar si hubo update
+            if ($num_updated) {
+                // actualizar tabla poll_vote
+                db_insert('poll_vote')->fields(
+                        array(
+                            'chid' => $data['chid'], 
+                            'nid' => $data['nid'], 
+                            'uid' => $uid,
+                            'hostname' => $ipaddress,
+                            'timestamp' => time())
+                        )->execute();
+                
+                return ($data['nodetype'] == 'versus') ? getResultVersus($data['nid'], $data['nodetype']) : TRUE;
+            } else {
+                return ($data['nodetype'] == 'versus') ? getResultVersus($data['nid'], $data['nodetype']) : TRUE;
+            }
+        } else {
+            // si el usuario ya había votado
+            return ($data['nodetype'] == 'versus') ? getResultVersus($data['nid'], $data['nodetype']) : TRUE;
+        }
+    }
+}
+
+function getResultVersus($nid){
+    if(!$nid)
+        $nid = (int) arg(1);
+    $total = 0;
+    // seleccionar el número de votos nuevo, de ambas opciones del versus
+    $qry = db_select('poll_choice', 'pc');
+    $qry->fields('pc', array('chid','chtext','chvotes'));
+    $qry->condition('pc.nid', $nid, '=');
+    $qry->orderBy('chid');
+    $newvotes['votes'] = $qry->execute()->fetchAll();
+  
+    // seleccionar las imágenes
+    $select = db_select('file_managed', 'fm');
+    $select->innerJoin('field_data_field_images', 'fi', 'fm.fid=fi.field_images_fid');
+    $select->fields('fm', array('uri'));
+    $select->condition('fi.entity_id', $nid, '=');
+    $select->orderBy('fid');
+    $newvotes['images'] = $select->execute()->fetchAll();
+    
+    // seleccionar más versus
+    $file = '/srv/data/files/cache/fem/homeFEM.json';
+    $items = file_exists($file) ? json_decode(file_get_contents($file), true) : NULL;
+    
+    foreach($newvotes['votes'] as $x => $votes){
+        $total = $total + $votes->chvotes;
+    }
+    
+    foreach($newvotes['votes'] as $x => $votes){
+        $percent = $x == 0 ? ceil(($votes->chvotes * 100) / $total) : floor(($votes->chvotes * 100) / $total);
+        $percentTmp[] = $percent;
+        $htmlResults .= '<div id="porc-results-' . $votes->chid . '" class="versus_percent porcentage-results d P45r3 right">' . $percent . ' %</div>';
+    }
+    
+    $html = '<div style="display:none;" nid="' . $nid . '" id="fem-node-id"></div>
+             <div class="rounded-10x">
+                <div class="wrap-10x">
+                    <div class="top-10x">
+                        <div class="l-10x"></div>
+                        <div class="r-10x"></div>
+                    </div>
+                    <div class="left-10x">
+                        <div class="right-10x clear-block">
+                            <div class="content-rounded-10x">
+                                <div id="versus_results">
+                                    <section id="versus_results_wrapper">
+                                        <div class="a">
+                                            <h2 class="P30r5 bgg tacenter dblock">Resultados</h2>
+                                            <img title="versus" alt="grafica de versus" src="https://chart.googleapis.com/chart?cht=p&amp;chd=t:' . $percentTmp[0] . ',' . $percentTmp[1] . '&amp;chs=190x150&amp;chco=680234,999999">
+                                            <div id="versus_results_rows">
+                                                <div class="versus_results_vs P45i3">VS</div>
+                                                <div id="versus_results_r1">';
+                                                    $html .= $htmlResults;
+                                            $html.='<div class="clear"></div>
+                                                </div>
+                                                <div id="versus_results_r2">';
+                                                    foreach($newvotes['images'] as $key => $choice){
+                                                        $html .= '<div nid="1689" class="versus_percent res-imgs-vs right">
+                                                                      <img width="46" height="69" title="' . $newvotes['votes'][$key]->chtext . '" alt="' . $newvotes['votes'][$key]->chtext . '" src="' . image_style_url('tiny', $choice->uri) . '">
+                                                                  </div>';
+                                                    }
+                                             $html.='<div class="clear"></div>
+                                                </div> 
+                                            </div>
+                                            <span class="P20r0 dblock">Total de votos: ' . $total . '</span>
+                                        </div>
+                                        <div class="b">
+                                            <h2 class="P30r5 bgg tacenter dblock">Más Versus</h2>
+                                            <div id="versus_results_other">';
+                                                foreach($items['versus'] as $item){
+                                                    $html.='<div class="versus_other_item left">
+                                                                <a title="' . $item['title'] . '" href="' . $item['url'] . '">
+                                                                    <img width="81" height="120" title="' . $item['title'] . '" alt="' . $item['title'] . '" src="' . image_style_url('large_vertical', $item['choices'][0]['image']) . '">
+                                                                </a>
+                                                                <span class="P13r0 dblock">' . $item['title'] . '</span>
+                                                            </div>';
+                                                }
+                                    $html.='</div>
+                                            <div class="boton_gray P20r5 right">
+                                                <a class="P20r5" href="/mas-versus">Ver más</a>
+                                            </div>
+                                        </div>
+                                        <div class="clear"></div>
+                                    </section>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bottom-10x">
+                        <div class="l-10x"></div>
+                        <div class="r-10x"></div>
+                    </div>
+                </div>
+            </div>';
+    return html_entity_decode($html);
+}

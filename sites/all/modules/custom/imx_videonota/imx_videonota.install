@@ -1,0 +1,87 @@
+<?php
+
+/**
+ * Implements hook_install().
+ */
+function imx_videonota_install() {
+  variable_set('imx_videonota_type', 'video');
+  variable_set('imx_videonota_gallerie_dummy_logo', '/sites/local.dinero.com/themes/dinero/images/dinero_share.jpg');
+  variable_set('imx_videonota_gallerie_css', '');
+  variable_set('imx_videonota_player', 'youtube');
+  variable_set('imx_videonota_jwplayer_vast_flag', FALSE);
+  variable_set('imx_videonota_jwplayer_vastUrl_desktop', '');
+  variable_set('imx_videonota_jwplayer_vastUrl_mobile', '');
+  variable_set('imx_videonota_jwplayer_image', '');
+  variable_set('imx_videonota_jwplayer_title', '');
+	variable_set('imx_videonota_jwplayer_width', '');
+	variable_set('imx_videonota_jwplayer_height', '');
+  variable_set('imx_videonota_jwplayer_aspect_ratio', '');
+  variable_set('imx_videonota_jwplayer_autoplay', '');
+  variable_set('imx_videonota_jwplayer_logo_file', '');
+  variable_set('imx_videonota_jwplayer_logo_link', '');
+  variable_set('imx_videonota_jwplayer_share', '');
+  variable_set('imx_videonota_jwplayer_clip_ns_st_ci', '');
+  variable_set('imx_videonota_jwplayer_clip_ns_st_pr', '');
+  variable_set('imx_videonota_jwplayer_clip_ns_st_pl', '');
+  variable_set('imx_videonota_jwplayer_clip_ns_st_ep', '');
+  variable_set('imx_videonota_jwplayer_clip_ns_st_ge', '');
+  variable_set('imx_videonota_jwplayer_clip_ns_st_ty', '');
+  variable_set('imx_videonota_alias', 'videos');
+  variable_set('imx_videonota_field_image', 'field_image_default');
+  variable_set('imx_videonota_style_channel', 'thumbnail');
+  variable_set('imx_videonota_style_channel_first', 'thumbnail');
+  variable_set('imx_videonota_style_list', 'thumbnail');
+  variable_set('imx_videonota_ytchannel', '');
+  variable_set('imx_videonota_style_home_first', 'thumbnail');
+  variable_set('imx_videonota_style_home_list', 'thumbnail');
+  variable_set('imx_videonota_summary_max_length', 300);
+  variable_set('imx_videonota_cxense_widget_id', '');
+  variable_set('imx_videonota_field_collection_video', '');
+  variable_set('imx_videonota_field_collection_youtube', '');
+  variable_set('imx_videonota_field_collection_description', '');
+  variable_set('imx_videonota_nodequeue', '');
+  variable_set('imx_videonota_video_embed_field', '');
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function imx_videonota_uninstall() {
+  variable_del('imx_videonota_type');
+  variable_del('imx_videonota_gallerie_dummy_logo');
+  variable_del('imx_videonota_gallerie_css');
+  variable_del('imx_videonota_player');
+  variable_del('imx_videonota_jwplayer_vast_flag');
+  variable_del('imx_videonota_jwplayer_vastUrl_desktop');
+  variable_del('imx_videonota_jwplayer_vastUrl_mobile');
+  variable_del('imx_videonota_jwplayer_image');
+  variable_del('imx_videonota_jwplayer_title');
+	variable_del('imx_videonota_jwplayer_width');
+	variable_del('imx_videonota_jwplayer_height');
+	variable_del('imx_videonota_jwplayer_aspect_ratio');
+	variable_del('imx_videonota_jwplayer_autoplay');
+  variable_del('imx_videonota_jwplayer_logo_file');
+  variable_del('imx_videonota_jwplayer_logo_link');
+  variable_del('imx_videonota_jwplayer_share');
+  variable_del('imx_videonota_jwplayer_clip_ns_st_ci');
+  variable_del('imx_videonota_jwplayer_clip_ns_st_pr');
+  variable_del('imx_videonota_jwplayer_clip_ns_st_pl');
+  variable_del('imx_videonota_jwplayer_clip_ns_st_ep');
+  variable_del('imx_videonota_jwplayer_clip_ns_st_ge');
+  variable_del('imx_videonota_jwplayer_clip_ns_st_ty');
+  variable_del('imx_videonota_alias');
+  variable_del('imx_videonota_field_image');
+  variable_del('imx_videonota_style_channel');
+  variable_del('imx_videonota_style_channel_first');
+  variable_del('imx_videonota_style_list');
+  variable_del('imx_videonota_ytchannel');
+  variable_del('imx_videonota_style_home_first');
+  variable_del('imx_videonota_style_home_list');
+  variable_del('imx_videonota_summary_max_length');
+  variable_del('imx_videonota_cxense_widget_id');
+  variable_del('imx_videonota_field_collection_video');
+  variable_del('imx_videonota_field_collection_youtube');
+  variable_del('imx_videonota_field_collection_description');
+  variable_del('imx_videonota_nodequeue');
+  variable_del('imx_videonota_video_embed_field');
+}

@@ -1,0 +1,7 @@
+; $Id$
+name = "LaCapitalMX Mirador Page"
+description = "Muestra el bloque de últimas notas por usuario (Mirador)"
+package = "LCPMX"
+version = 7.x
+core = 7.x
+files[]="lcpmx_mirador_page.module"

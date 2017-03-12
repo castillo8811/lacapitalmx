@@ -1,0 +1,7 @@
+; $Id$
+name = "LaCapitalMX Ciudades"
+description = "Activacion de URLS para las Capitales"
+package = "LCPMX"
+version = 7.x
+core = 7.x
+files[]="lcpmx_ciudades.module"

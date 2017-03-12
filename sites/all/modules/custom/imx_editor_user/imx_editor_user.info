@@ -1,0 +1,5 @@
+name = "Firma de Editor"
+description = "Bloque que muestra la firma del editor."
+package = "InventMX"
+core = "7.x"
+files[] = imx_editor_user.module

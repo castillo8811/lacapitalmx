@@ -1,0 +1,12 @@
+name = IMX Mark
+description = Permite marcar contenido como favorito o para leer despúes.
+core = 7.x
+files[] = imx_mark.module
+
+; Information added by drupal.org packaging script on 2013-01-16
+version = "7.x-1.0"
+package= "InventMx"
+core = "7.x"
+project = "IMX Mark"
+datestamp = "1358339807"
+

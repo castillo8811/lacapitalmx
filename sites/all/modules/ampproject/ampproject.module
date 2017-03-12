@@ -1,0 +1,427 @@
+<?php
+/**
+ * @file
+ * The main module file.
+ */
+
+/*
+ * First URL segment.
+ */
+define('AMPPROJECT_URL_SEGMENT', variable_get('ampproject_url_segment', 'amp'));
+
+/*
+ * The string used for theme suggestions.
+ */
+define('AMPPROJECT_SUGGEST', 'ampproject');
+
+/**
+ * Implements hook_help().
+ */
+function ampproject_help($path) {
+  switch ($path) {
+    case 'admin/help#ampproject':
+      $output = '<p>' . t('The "Google AMP" module allows you to integrate Google Accelerated Mobile	Pages	Project onto your site.') . '</p>';
+      return $output;
+  }
+}
+
+/**
+ * Implements hook_menu().
+ */
+function ampproject_menu() {
+
+  // Administration page.
+  $items['admin/config/services/ampproject'] = [
+    'title' => 'Google AMP',
+    'description' => 'Configure Google AMP.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => ['ampproject_settings_form'],
+    'access arguments' => ['administer site configuration'],
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'ampproject.admin.inc',
+  ];
+
+  // Main AMP router.
+  if (!empty(AMPPROJECT_URL_SEGMENT)) {
+    $items[AMPPROJECT_URL_SEGMENT . '/%'] = [
+      'delivery callback' => '_ampproject_get_page',
+      'type' => MENU_CALLBACK,
+      'access arguments' => ['access content'],
+    ];
+  }
+
+  return $items;
+}
+
+function ampproject_theme() {
+  return [
+    'ampproject_html' => [
+      'variables' => [],
+      'template' => 'templates/ampproject-html',
+      'file' => 'ampproject.theme.inc',
+    ],
+    'ampproject_content' => [
+      'variables' => [],
+      'template' => 'templates/ampproject-content',
+      'file' => 'ampproject.theme.inc',
+    ],
+    'ampproject_image' => [
+      'variables' => [],
+      'template' => 'templates/components/ampproject-image',
+      'file' => 'ampproject.theme.inc',
+    ],
+    'ampproject_facebook' => [
+      'variables' => [],
+      'template' => 'templates/components/ampproject-facebook',
+      'file' => 'ampproject.theme.inc',
+    ],
+    'ampproject_twitter' => [
+      'variables' => [],
+      'template' => 'templates/components/ampproject-twitter',
+      'file' => 'ampproject.theme.inc',
+    ],
+    'ampproject_youtube' => [
+      'variables' => [],
+      'template' => 'templates/components/ampproject-youtube',
+      'file' => 'ampproject.theme.inc',
+    ],
+  ];
+}
+
+/**
+ * Page callback.
+ */
+function _ampproject_get_page() {
+  // Get the alias.
+  $alias = ltrim(str_replace(AMPPROJECT_URL_SEGMENT, '', current_path()), '/');
+  $internal_path = drupal_get_normal_path($alias);
+
+  $entity_data = _ampproject_detect_entity_type($internal_path);
+
+  // No amp page resolved, try to go to the normal page.
+  if (empty($entity_data)) {
+    drupal_goto($internal_path);
+  }
+
+  $entity = entity_load_single($entity_data['type'], $entity_data['id']);
+
+  // Check if this entity is supported.
+  if (!_ampproject_is_entity_ampproject($entity_data['type'], $entity)) {
+    drupal_goto($internal_path);
+  }
+
+  // Mark the entity as AMPPROJECT.
+  $entity->is_ampproject = TRUE;
+
+  // Populate with needed values.
+  $vars = [
+    'ampproject' => [
+        'title' => $entity->title . ' | ' . variable_get('site_name', ''),
+        'entity' => $entity,
+        'canonical' => url($internal_path, ['absolute' => TRUE]),
+        'style' => _ampproject_get_style(),
+      ] + $entity_data,
+  ];
+
+  print theme('ampproject_html', $vars);
+  drupal_page_footer();
+
+}
+
+/**
+ * Implements hook_preprocess().
+ *
+ * Add ampproject suggestions for specific entities.
+ */
+function ampproject_preprocess(&$vars, $hook) {
+  if (!empty($vars['is_ampproject'])) {
+    // Initial main suggestion.
+    $ampproject_suggestions = [
+      $hook . '__' . AMPPROJECT_SUGGEST
+    ];
+    // Duplicate existing suggestions by appending ampproject.
+    foreach ($vars['theme_hook_suggestions'] as $suggestion) {
+      $ampproject_suggestions[] = $suggestion . '__' . AMPPROJECT_SUGGEST;
+    }
+    $vars['theme_hook_suggestions'] = array_merge($vars['theme_hook_suggestions'], $ampproject_suggestions);
+  }
+}
+
+/**
+ * Implements hook_preprocess_field().
+ *
+ * Suggest specific templates for ampproject fields and add needed values for tpl's.
+ */
+function ampproject_preprocess_field(&$vars) {
+  $element = $vars['element'];
+
+  if (!empty($element['#object']->is_ampproject)) {
+    // Add AMPPROJECT suggestion.
+    $ampproject_suggestions = [
+      'field__' . $element['#entity_type'] . '__' . AMPPROJECT_SUGGEST
+    ];
+    foreach ($vars['theme_hook_suggestions'] as $suggestion) {
+      $ampproject_suggestions[] = $suggestion . '__' . AMPPROJECT_SUGGEST;
+    }
+    $vars['theme_hook_suggestions'] = array_merge($vars['theme_hook_suggestions'], $ampproject_suggestions);
+
+    // Remove all attributes(rdfa,..) as they are not supported.
+    foreach (element_children($element) as $delta) {
+      // Maybe we shouldn't delete all of them?
+      $vars['items'][$delta]['#options']['attributes'] = [];
+    }
+
+    // Populate field element with needed values in templates.
+    switch ($element['#field_type']) {
+      case 'image':
+        // Support for Drupal standard image field(not rendered file).
+        foreach (element_children($element) as $delta) {
+          if (!empty($vars['items'][$delta]['#item'])) {
+            $vars['items'][$delta]['#item']['src_url'] = file_create_url($vars['items'][$delta]['#item']['uri']);
+          }
+        }
+        break;
+
+      case 'text':
+      case 'text_with_summary':
+        // Pass the values of text fields through the ampproject_filter.
+        if (module_exists('ampproject_filter')) {
+          foreach (element_children($element) as $delta) {
+            // Process only the fields with format set.
+            if (!empty($vars['element']['#items'][$delta]['format'])) {
+              // This is already processed text by original format, so we'll
+              // pass it through our filter again to validate everything.
+              $content = check_markup($vars['element'][$delta]['#markup'], 'ampproject');
+              $vars['items'][$delta]['#markup'] = $content;
+            }
+          }
+        }
+
+        break;
+    }
+  }
+}
+
+/**
+ * Implements hook_entity_view().
+ *
+ * Add amphtml canonical link.
+ */
+function ampproject_entity_view($entity, $type, $view_mode) {
+  // Only add amphtml link to full nodes.
+  if ($view_mode !== 'full') {
+    return;
+  }
+
+  // Check if this entity is supported.
+  if (!_ampproject_is_entity_ampproject($type, $entity)) {
+    return;
+  }
+
+  global $base_url;
+
+  $element = [
+    '#tag' => 'link',
+    '#attributes' => [
+      'href' => $base_url . '/' . AMPPROJECT_URL_SEGMENT . '/' . drupal_get_path_alias(),
+      'rel' => 'amphtml',
+    ],
+  ];
+  drupal_add_html_head($element, 'amp_page');
+}
+
+/**
+ * Implements hook_theme_registry_alter().
+ *
+ * Make the module templates located in templates directory discoverable.
+ */
+function ampproject_theme_registry_alter(&$theme_registry) {
+  // Copying current registry.
+  $theme_registry_copy = $theme_registry;
+  $tpl_path = drupal_get_path('module', 'ampproject') . '/templates';
+  // Treat the module like a theme and trying to load templates.
+  _theme_process_registry($theme_registry_copy, 'phptemplate', 'theme_engine', 'module_as_a_theme', $tpl_path);
+  // Considering only new elements.
+  $theme_registry += array_diff_key($theme_registry_copy, $theme_registry);
+}
+
+/**
+ * Helper function.
+ *
+ * Split the internal path into entity type and entity ID.
+ *
+ * @param $internal_path
+ * @return array
+ */
+function _ampproject_detect_entity_type($internal_path) {
+  preg_match('~^(.*)/(\d+)$~', $internal_path, $match);
+
+  // Make sure the values are there as entity_load_single will swear about
+  // incorrect value.
+  if (count($match) == 3 && array_filter($match)) {
+    // Handling the taxonomy_term case.
+    $type = str_replace('/', '_', $match[1]);
+    if (entity_type_is_fieldable($type)) {
+      return [
+        'type' => $type,
+        'id' => $match[2],
+      ];
+    }
+  }
+
+  return [];
+}
+
+/**
+ * Validate given entity.
+ *
+ * Reason for static implementation?.
+ */
+function _ampproject_is_entity_ampproject($type, $entity) {
+  $is_ampproject = FALSE;
+
+  // Check first for the entity type.
+  if (in_array($type, variable_get('ampproject_entity_types', []), TRUE)) {
+    $is_ampproject = TRUE;
+  }
+
+  // Specific rules for specific entities.
+  if ($is_ampproject && $type == 'node') {
+    if (!in_array($entity->type, variable_get('ampproject_node_types', []), TRUE)) {
+      $is_ampproject = FALSE;
+    }
+  }
+
+  return $is_ampproject;
+}
+
+/**
+ * Mark current session as a AMPPROJECT page.
+ */
+function _ampproject_is_page_ampproject() {
+  static $ampproject = NULL;
+
+  if ($ampproject === NULL) {
+    $url = ltrim(current_path(), '/');
+    if (strpos($url, AMPPROJECT_URL_SEGMENT) !== FALSE) {
+      $ampproject = TRUE;
+    }
+    else {
+      $ampproject = FALSE;
+    }
+  }
+
+  return $ampproject;
+}
+
+/**
+ * Get the CSS files content.
+ */
+function _ampproject_get_style() {
+  $content = '';
+  $styles = variable_get('ampproject_styles', '');
+  if (!empty(trim($styles))) {
+    foreach (explode(PHP_EOL, $styles) as $path) {
+      if (!file_exists($path)) {
+        continue;
+      }
+
+      // Start output buffering.
+      ob_start();
+
+      // Include the css file.
+      include $path;
+
+      // End buffering and use its contents.
+      $content .= ob_get_clean();
+    }
+  }
+
+  return $content;
+}
+
+/**
+ * Build srcset string dor given file uri.
+ */
+function _ampproject_build_srcset($file) {
+  if (empty($file->uri)) {
+    return FALSE;
+  }
+  $set = [];
+  $srcsets = variable_get('ampproject_srcset', '');
+  if (!empty(trim($srcsets))) {
+    foreach (explode(PHP_EOL, $srcsets) as $srcset) {
+      if (empty($srcset)) {
+        continue;
+      }
+
+      $parts = explode('=>', $srcset);
+      if (count($parts) == 2) {
+        // Would be worth to check if the file exists physically.
+        $style_url = image_style_url(trim($parts[0]), $file->uri);
+        $set[] = $style_url . ' ' . trim($parts[1]);
+      }
+    }
+  }
+
+  return (!empty($set)) ? implode(', ', $set) : FALSE;
+}
+
+/**
+ * Register the scripts to be added.
+ *
+ * @param null $script
+ *   The ad tag.
+ *
+ * @return array
+ */
+function ampproject_scripts($script = NULL) {
+  $scripts = &drupal_static(__FUNCTION__, array());
+  if (!empty($script)) {
+    $scripts[$script] = $script;
+  }
+
+  return $scripts;
+}
+
+/**
+ * Helper function.
+ *
+ * Get specific script required for component rendering.
+ *
+ * @param $component
+ *    Component name.
+ * @return bool|string
+ *    FALSE | The script.
+ */
+function ampproject_get_component_script($component) {
+  $scripts = [
+    'facebook' => 'https://cdn.ampproject.org/v0/amp-facebook-0.1.js',
+    'twitter' => 'https://cdn.ampproject.org/v0/amp-twitter-0.1.js',
+    'youtube' => 'https://cdn.ampproject.org/v0/amp-youtube-0.1.js',
+  ];
+
+  if (empty($scripts[$component])) {
+    return FALSE;
+  }
+
+  return '<script async custom-element="amp-' . $component . '" src="' . $scripts[$component] . '"></script>';
+}
+
+/**
+ * Helper function.
+ *
+ * Get the last piece of splitted string.
+ *
+ * @param string $delimiter
+ *  The boundary string.
+ *
+ * @param string $string
+ *  The input string.
+ */
+function ampproject_get_last_string_piece($delimiter, $string) {
+  // Remove query string.
+  $string = reset((explode('?', $string)));
+  $src_str = strrchr($string, $delimiter);
+  return substr($src_str, 1, strlen($src_str));
+}

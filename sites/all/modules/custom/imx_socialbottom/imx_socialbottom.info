@@ -1,0 +1,7 @@
+; $Id$
+name = "Social Bottom"
+description = "Muestra botones de redes sociales en la parte de abajo del sitio"
+package = "FEM"
+version = 7.x
+core = 7.x
+files[]="imx_socialbottom.module"

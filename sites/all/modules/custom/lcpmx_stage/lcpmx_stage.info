@@ -1,0 +1,7 @@
+; $Id$
+name = "LaCapitalMX Stage"
+description = "Muestra el bloque Stage Home"
+package = "LCPMX"
+version = 7.x
+core = 7.x
+files[]="lcpmx_stage.module"

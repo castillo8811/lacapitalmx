@@ -1,0 +1,395 @@
+<?php
+
+module_load_include("inc", "garuyoCustomBlocks", "garuyo_functions_blocks");
+
+/**
+ * Implements hook_block_info
+ */
+function garuyoCustomBlocks_block_info() {
+    $blocks['custom_home_header'] = array(
+        'info' => t('Bloque para pintar el header en el home del sitio'),
+    );
+    $blocks['custom_channel_header'] = array(
+        'info' => t('Bloque para pintar el header en los canales del sitio'),
+    );
+    $blocks['custom_footer'] = array(
+        'info' => t('Bloque para pintar el footer del sitio'),
+    );
+    $blocks['menu'] = array(
+        'info' => t('Bloque para pintar los links del menu'),
+    );
+    $blocks['carrousel_colaborador'] = array(
+        'info' => t('Bloque para pintar los colaboradores'),
+    );
+    $blocks['addthis_notas_superior'] = array(
+        'info' => t('Bloque para pintar addthis en la parte superior de las notas'),
+    );
+    $blocks['addthis_notas_inferior'] = array(
+        'info' => t('Bloque para pintar addthis en la parte inferior de las notas'),
+    );
+    $blocks['garuyo_perfil_invent'] = array(
+        'info' => t('Bloque para pintar video en perfil invent play'),
+    );
+    $blocks['garuyo_menu_sesion'] = array(
+        'info' => t('Bloque menu de usuario con sesion'),
+    );
+    $blocks['invitacion_registro'] = array(
+        'info' => t('Bloque para pintar invitacion de registro evento o lugar en garuyo'),
+    );
+    $blocks['invitacion_registro_canales'] = array(
+        'info' => t('Bloque para pintar invitacion de registro evento o lugar en garuyo canales'),
+    );
+    $blocks['menu_favoritos'] = array(
+        'info' => t('Bloque para pintar menu favoritos'),
+    );
+    $blocks['menu_movil_combinado'] = array(
+        'info' => t('Bloque para pintar menu movil combinado'),
+    );
+    $blocks['relacionados_evento'] = array(
+        'info' => t('Bloque para mostrar los nodos relacionados a un evento'),
+    );
+    $blocks['register_form_widget'] = array(
+        'info' => t('Bloque para el registro + hybridauth'),
+    );
+    return $blocks;
+}
+
+/**
+ * Implements hook_block_view
+ */
+function garuyoCustomBlocks_block_view($delta = '') {
+    $block = array();
+    switch ($delta) {
+        case 'custom_home_header':
+            $block['subject'] = t('Garuyo Header Home');
+            $block['content'] = garuyocustomHomeHeaderLinks();
+            break;
+        case 'custom_channel_header':
+            $tid = (int) arg(2);
+            $term = taxonomy_term_load($tid);
+            $vid = $term->vid;
+            $block['subject'] = t('Garuyo Header Channel');
+            $block['content'] = array();
+            if ($vid != 12) {
+                $block['content'] = garuyocustomChannelHeaderLinks();
+            }
+            break;
+        case 'custom_footer':
+            $block['subject'] = t('Garuyo Footer');
+            $block['content'] = getFooterMenuLinksWithChildren();
+            break;
+        case 'menu':
+            $block['subject'] = t('Menu de Garuyo');
+            $block['content'] = garuyoMenu();
+            break;
+        case 'carrousel_colaborador':
+            $tid = (int) arg(2);
+            $term = taxonomy_term_load($tid);
+            $vid = $term->vid;
+            $block['subject'] = t('Carrousel Colaborador');
+            $block['content'] = array();
+            if ($vid != 12) {
+                $block['content'] = getCarrouselColaborador();
+            }
+            break;
+        case 'addthis_notas_superior':
+            $block['subject'] = t('Addthis Superior en notas');
+            $block['content'] = getGaruyoAddthisSuperior();
+            break;
+        case 'addthis_notas_inferior':
+            $block['subject'] = t('Addthis inferior en notas');
+            $block['content'] = getGaruyoAddthisInferior();
+            break;
+        case 'garuyo_perfil_invent':
+            $block['subject'] = t('Bloque para pintar video en perfil invent play');
+            $block['content'] = getGaruyoPerfilPlay();
+            break;
+        case 'garuyo_menu_sesion':
+            $block['subject'] = t('Bloque para pintar menu de usuario con sesion');
+            $block['content'] = getGaruyoMenuSesion();
+            break;
+        case 'invitacion_registro':
+            $block['subject'] = t('Bloque para pintar invitacion de registro o lugar en garuyo');
+            $block['content'] = getGaruyoInvitacionLugarEvento();
+            break;
+        case 'invitacion_registro_canales':
+            $block['subject'] = t('Bloque para pintar invitacion de registro o lugar en garuyo canales');
+            $block['content'] = getGaruyoInvitacionLugarEvento();
+            break;
+        case 'menu_favoritos':
+            $block['subject'] = t('Bloque para pintar menu favoritos');
+            $block['content'] = garuyo_menu_favoritos();
+            break;
+        case 'menu_movil_combinado':
+            $block['subject'] = t('Bloque para pintar menu movil combinado');
+            $block['content'] = garuyo_menu_movil_combinado();
+            break;
+        case 'relacionados_evento':
+            $block['subject'] = t('Bloque para nodos relacionados a un evento');
+            $block['content'] = garuyo_relacionados_a_evento();
+            break;
+        case 'register_form_widget':
+            $block['subject'] = t('Bloque para mostrar el registro + hybridauth');
+            $block['content'] = garuyo_register_form();
+            break;
+    }
+
+    return $block;
+}
+
+function garuyocustomHomeHeaderLinks() {
+    $ocio = taxonomy_get_tree(14, 0, 1);
+    $items = array();
+    $items["ocio"] = getVectorLinks($ocio);
+    $items["principales"] = getMenuLinks();
+//    $items["busqueda"] = module_invoke('search', 'block_view');
+    $items["busqueda"] = drupal_get_form('mygooglecse_form');
+    return theme('garuyocustomHomeHeader', array('items' => $items));
+}
+
+function garuyocustomChannelHeaderLinks() {
+    $items = array();
+    $tid = arg(2);
+//    print_r(arg());exit;
+    $category = taxonomy_term_load($tid);
+//    $true_category=$category;
+//    print_r($true_category);exit;
+    $items["category"] = array("title" => $category->name, "path" => "taxonomy/term/" . $tid, "tid" => $category->tid);
+    $items["parent"] = array("title" => $category->name, "path" => "taxonomy/term/" . $tid, "tid" => $category->tid);
+    $parent = getParentsOrRelated($category);
+//    print_r($parent);exit;
+    if(!is_numeric(arg(2))){
+    $taxonomy_p=drupal_get_normal_path(arg(2));
+    $tid_by_url=explode("/",$taxonomy_p);
+    $data_parent=taxonomy_term_load($tid_by_url[2]);  
+    $parent = (getParentsOrRelated($data_parent))? getParentsOrRelated($data_parent) : $data_parent->tid;
+    $items["category"] = array("title" => $data_parent->name, "path" => "taxonomy/term/" . $data_parent->tid, "tid" => $data_parent->tid);
+//    print_r($data_parent);exit;
+    }
+    if ($parent) {
+        $tid = $parent;
+        $data_parent=taxonomy_term_load($parent);
+        $items["parent"] = array("title" => $data_parent->name, "path" => "taxonomy/term/" . $tid, "tid" => $data_parent->tid);
+    }
+  
+//    print_r($tid);exit;
+//    $data_submenus = cache_get("garuyo_channel_submenus_tags_" . $tid);
+    if ($data_submenus) {
+        $items = $data_submenus->data;
+    } else {
+        $time_cache_submenu = mktime(date("H"), date("i") + 10, date("s"), date('m'), date('d'), date('Y'));
+//        $items["true_category"] = array("title" => $true_category->name, "path" => "taxonomy/term/" . $true_category->tid, "tid" => $true_category->tid);
+        $submenus = getSubCategoriesByTid($tid, 10);
+        $tags = getTagsRelatedByTid($tid, 15);
+        $items["submenus"] = array_merge(getVectorLinks($submenus), getVectorLinks($tags));
+        $items["submenus"] = array_chunk($items["submenus"], 5);
+        if (count($items["submenus"])) {
+//            cache_set("garuyo_channel_submenus_tags_" . $tid, $items, "cache", $time_cache_submenu);
+        }
+    }
+    return theme('garuyocustomChannelHeader', array('items' => $items));
+}
+
+function getFooterMenuLinksWithChildren() {
+    $items = array();
+    $parents_menu = getMenuLinks();
+    $data_menu = cache_get("garuyo_footer_submenus_tags");
+    if ($data_menu) {
+        $items = $data_menu->data;
+    } else {
+        $time_cache = mktime(date("H"), date("i") + 10, date("s"), date('m'), date('d'), date('Y'));
+        foreach ($parents_menu as $p) {
+            $items[$p["title"]]["category"] = array("tid" => $p["tid"], "title" => $p["title"], "path" => $p["path"]);
+            $tid = $p["tid"];
+            $submenus = getSubCategoriesByTid($tid, 3);
+//            $items[$p["title"]]["submenus"] = getVectorLinks($submenus);
+            $tags = getTagsRelatedByTid($tid, 3);
+//            $items[$p["title"]]["tags"] = $tags;
+//            $items[$p["title"]]["tags"] =getVectorLinks($tags);
+            $items[$p["title"]]["submenus"]=  array_merge(getVectorLinks($submenus),getVectorLinks($tags));
+        }
+        cache_set("garuyo_footer_submenus_tags", $items, "cache", $time_cache);
+    }
+
+    return theme('garuyocustomFooter', array('items' => $items));
+}
+
+function garuyoMenu() {
+    $items = array();
+    $items["principales"] = getMenuLinks();
+    $parent = "";
+    if (arg(0) == "node") {
+        $nodo_taxonomy = node_load(arg(1));
+        $taxonomy_node_data = $nodo_taxonomy->field_categoria;
+        if ($taxonomy_node_data["und"][0]["tid"]) {
+            $parent = getParentsOfTaxonomy($taxonomy_node_data["und"][0]["tid"]);
+        }
+    }
+    if (arg(0) == "taxonomy") {
+//        $parent = getParentsOfTaxonomy(arg(2));
+        $tid=  taxonomy_term_load(arg(2));
+        $data_parent=getParentsOrRelated($tid);
+        $parent=  ($data_parent)? $data_parent : arg(2);
+    }
+    if (arg(0) == "ocio" && !is_numeric(arg(2))) {
+        $normal_url= explode("/",drupal_get_normal_path(arg(2)));
+        $tid=  taxonomy_term_load($normal_url[2]);
+        $data_parent=getParentsOrRelated($tid);
+        $parent=  ($data_parent)? $data_parent :$tid->tid;
+    }
+    $items["zone_taxonomy"] = $parent;
+    return theme('garuyo_menu', array('items' => $items));
+}
+
+function getCarrouselColaborador() {
+    $items = array();
+    return theme('carrousel_colaborador', array('items' => $items));
+}
+
+function getGaruyoAddthisSuperior() {
+    drupal_add_js(drupal_get_path('theme', 'garuyod7') . '/js/jquery.scrollTo.min.js');
+    $items = array();
+    $nid = arg(0) == 'node' && is_numeric(arg(1)) && !arg(2) ? arg(1) : NULL;
+    $title = get_title_node($nid);
+    $items = array('nid' => $nid, 'title' => $title);
+    return theme('addthis_garuyo_superior', array('items' => $items));
+}
+
+function getGaruyoAddthisInferior() {
+    $items = array();
+    return theme('addthis_garuyo_inferior', array('items' => $items));
+}
+
+function getGaruyoPerfilPlay() {
+    $items = array();
+//    print_r(arg());exit;
+//    $termino=arg(2);
+    $items["video"] = getVideoEmbedInventPlay();
+//    print_r($items);exit;
+    return theme('garuyo_play', array('items' => $items));
+}
+
+function getGaruyoMenuSesion() {
+    $items = array();
+//    print_r(arg());exit;
+//    $termino=arg(2);
+//    $items["video"]= getVideoEmbedInventPlay();
+//    print_r($items);exit;
+    return theme('garuyo_menu_sesion', array('items' => $items));
+}
+
+function getGaruyoInvitacionLugarEvento() {
+    $items = array();
+    return theme('invitacion_registro', array('items' => $items));
+}
+
+function garuyo_menu_movil_combinado() {
+    $items = array();
+    $items["principales"] = getMenuLinks();
+    $parent = "";
+    if (arg(0) == "node") {
+        $nodo_taxonomy = node_load(arg(1));
+        $taxonomy_node_data = $nodo_taxonomy->field_categoria;
+        if ($taxonomy_node_data["und"][0]["tid"]) {
+            $parent = getParentsOfTaxonomy($taxonomy_node_data["und"][0]["tid"]);
+        }
+    }
+    if (arg(0) == "taxonomy") {
+        $tid=  taxonomy_term_load(arg(2));
+        $data_parent=getParentsOrRelated($tid);
+        $parent=  ($data_parent)? $data_parent : arg(2);
+    }
+    if (arg(0) == "ocio" && !is_numeric(arg(2))) {
+        $normal_url= explode("/",drupal_get_normal_path(arg(2)));
+        $tid=  taxonomy_term_load($normal_url[2]);
+        $data_parent=getParentsOrRelated($tid);
+        $parent=  ($data_parent)? $data_parent :$tid->tid;
+    }
+    $items["zone_taxonomy"] = $parent;
+    return theme('menu_combinado', array('items' => $items));
+}
+function garuyo_relacionados_a_evento() {
+    $items = array();
+    if (arg(0) == "node") {
+      $items["nodes"] = get_nodes_event(arg(1));        
+    }
+    return theme('nodes_event', array('items' => $items));
+}
+function garuyo_register_form() {
+  global $user;
+  $form=array();
+  if(!$user->uid){
+    $form = drupal_get_form('user_register_form');
+  }
+  return theme('register_form', array('form' => $form));
+}
+
+function garuyo_menu_favoritos() {
+    $items = array();
+    return theme('menu_favoritos', array('items' => $items));
+}
+
+function garuyoCustomBlocks_theme() {
+    $module_path = drupal_get_path('module', 'garuyoCustomBlocks');
+    $base = array(
+        'path' => "$module_path/theme",
+    );
+    return array(
+        'garuyocustomHomeHeader' => $base + array(
+    'template' => 'garuyoCustomHomeHeader',
+    'variables' => array('items' => NULL,),
+        ),
+        'garuyocustomChannelHeader' => $base + array(
+    'template' => 'garuyoCustomChannelHeader',
+    'variables' => array('items' => NULL,),
+        ),
+        'garuyocustomFooter' => $base + array(
+    'template' => 'garuyoCustomFooter',
+    'variables' => array('items' => NULL,),
+        ),
+        'garuyo_menu' => $base + array(
+    'template' => 'garuyo_menu',
+    'variables' => array('items' => NULL,),
+        ),
+        'carrousel_colaborador' => $base + array(
+    'template' => 'carrousel_colaborador',
+    'variables' => array('items' => NULL,),
+        ),
+        'addthis_garuyo_superior' => $base + array(
+    'template' => 'addthis_superior',
+    'variables' => array('items' => NULL,),
+        ),
+        'addthis_garuyo_inferior' => $base + array(
+    'template' => 'addthis_inferior',
+    'variables' => array('items' => NULL,),
+        ),
+        'garuyo_play' => $base + array(
+    'template' => 'garuyo_perfil_invent_play',
+    'variables' => array('items' => NULL,),
+        ),
+        'garuyo_menu_sesion' => $base + array(
+    'template' => 'garuyo_menu_sesion',
+    'variables' => array('items' => NULL,),
+        ),
+        'invitacion_registro' => $base + array(
+    'template' => 'garuyo_invitacion_registro',
+    'variables' => array('items' => NULL,),
+        ),
+        'menu_favoritos' => $base + array(
+    'template' => 'menu_favoritos',
+    'variables' => array('items' => NULL,),
+        ),
+        'menu_combinado' => $base + array(
+    'template' => 'menu_movil_combinado',
+    'variables' => array('items' => NULL,),
+        ),
+        'nodes_event' => $base + array(
+    'template' => 'nodes_event_display',
+    'variables' => array('items' => NULL,),
+        ),
+        'register_form' => $base + array(
+    'template' => 'register_garuyo',
+    'variables' => array('form' => NULL,),
+        ),
+    );
+}

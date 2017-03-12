@@ -1,0 +1,35 @@
+.masrelacionados-body {
+    width: 452px;
+    margin: 0 0 0 10px;
+}
+.mr-header {
+    border-bottom: 2px solid #555;
+    padding: 0 0 3px 0;
+}
+.mr-title {
+    margin: 10px 0;
+}
+.mr-header, .mr-title, .mr-body {
+    width: 452px;
+}
+.mr-comments {
+    background: #333;
+    height: 20px;
+    padding: 5px;
+    margin: 2px 0 0 0;
+}
+.masrelacionados-inner ul li {
+    margin: 0 0 15px 0;
+}
+.mr-comments div.addthis_toolbox {
+    float: right;
+    width: 92px;
+}
+.mr-comments div.addthis_toolbox a.addthis_counter {
+    width: 89px;
+    margin: 0;
+}
+.mr-comments div.addthis_toolbox a.addthis_counter a.addthis_button_compact, .mr-comments div.addthis_toolbox a.addthis_counter a.addthis_button_expanded {
+    float: left !important;
+    margin: 0;
+}

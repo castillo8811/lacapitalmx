@@ -1,0 +1,125 @@
+<?php
+
+function imx_shareslateral_help($path, $arg) {
+    if ($path == 'admin/help#imx_shareslateral') {
+        return t('Módulo que devuelve el pintado de los botones de redes sociales en las notas');
+    }
+}
+
+function imx_shareslateral_menu() {
+    $items = array();
+    $items['savenode/action'] = array(
+        'type' => MENU_CALLBACK,
+        'title' => 'Guardado de nodos por usuario',
+        'page callback' => 'savenode_action',
+        'access callback' => TRUE,
+        'access arguments' => array('access content'),
+    );
+    return $items;
+}
+
+
+function imx_shareslateral_block_info() {
+    $blocks['imx_shareslateral'] = array(
+        'info' => t('Shares lateral')
+    );
+    $blocks['imx_shareslateral_bottom'] = array(
+        'info' => t('Shares bottom')
+    );
+    return $blocks;
+}
+
+function imx_shareslateral_block_view($delta = '') {
+    $block = array(
+        'subject' => t(''),
+        'content' => '',
+    );
+    if ($delta == 'imx_shareslateral_bottom') {
+        $block['subject'] = t('Shares bottom');
+        $block['content'] = array(
+            '#theme' => 'imx_shareslateral_bottom'
+        );
+    }
+    else if ($delta == 'imx_shareslateral') {
+        $block['subject'] = t('Shares lateral');
+        $block['content'] = array(
+            '#theme' => 'imx_shareslateral'
+        );
+    }
+    return $block;
+}
+
+function shares_data() {
+    if (arg(0) == 'node') {
+        $query = db_query("SELECT n.status, n.nid, n.type, n.title
+                           FROM {node} n
+                           WHERE n.nid = " . arg(1))->fetchAll(); //trae el nid y el título del nodo actual
+    }
+    $contenido = array(
+        'nid' => $query[0]->nid,
+        'status' => $query[0]->status,
+        'type' => $query[0]->type,
+        'title' => $query[0]->title,
+        'url' => url(drupal_get_path_alias('node/' . $query[0]->nid), array('absolute' => true)),
+        'image' => _get_image($query[0]->nid, $query[0]->type)
+    );
+//    print_r($contenido);exit;
+    return $contenido;
+}
+
+function getSharesHTML($nid, $url, $status, $description, $image, $addthis = FALSE) {
+    if(!$addthis){
+        $shares = variable_get("admin_shares");
+        if(!is_array($shares) || !count($shares)){
+            $shares['like'] = 1;
+        }
+//        print_r($shares);exit;
+        $html = '<div class="tools-shares tools-container-vertical" nid="'.$nid.'">
+                    <!-- Shares Button BEGIN -->
+                    <div class="shares_toolbox">';
+                    if ($status == 1){
+                        if ($shares['share']){
+                            $html.='<div class="tools ohidden"><fb:share-button type="box_count" href="' . $url . '"></fb:share-button></div>';
+                        }
+                        if ($shares['like']){
+                            $html.='<div class="tools facebook fb-like" data-href="' . $url . '" data-send="false" data-layout="box_count" data-width="77" data-show-faces="true"></div>';
+                        }
+                        $html.='<div class="tools twitter">
+                                    <a href="http://twitter.com/share" class="item_shares_toolbox twitter-share-button" data-count="vertical" data-url="' . $url . '" data-text="' . ($description . ' @ActitudFEM') . '">Tweet</a>
+                                </div>
+                                <div class="tools plusone">
+                                    <g:plusone size="tall" href="' . $url . '" class="item_shares_toolbox_google"></g:plusone>
+                                </div>
+                                <div class="tools pinterest">   
+                                    <a href="http://pinterest.com/pin/create/button/?url=' . $url . '&media=' . $image . '&description=' . $description . '" class="pin-it-button" count-layout="vertical"><img border="0" src="//assets.pinterest.com/images/PinExt.png" title="Pin It" /></a>
+                                </div>';
+                    }
+//                $html.='<div class="tools guardar" nid="' . $nid . '" title="Guardar art&iacute;culo">
+//                            <div class="num-guardar datos-guardar">' . _get_count_saved($nid) . '</div>
+//                        </div>';
+                        if ($status == 1){   
+                            $html.='<div class="tools comments" title="Que opinas">
+                                        <a href="#comentarios-globo"><fb:comments-count href="' . $url . '"></fb:comments-count></a>
+                                    </div>';
+                        }
+                $html.='</div>
+                    <!-- Shares Button END -->
+                </div>';
+    }
+    return $html;
+}
+
+function imx_shareslateral_theme($existing, $type, $theme, $path) {
+    return array(
+        'imx_shareslateral' => array(
+            'variables' => array(
+                'imx_shareslateral' => NULL,
+            ),
+            'template' => 'imx_shareslateral',
+        ),
+    );
+}
+
+function template_preprocess_imx_shareslateral(&$variables) {
+    $variables['items_imx_shareslateral'] = shares_data();
+}

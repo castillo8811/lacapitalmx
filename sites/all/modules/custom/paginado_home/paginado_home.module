@@ -1,0 +1,73 @@
+<?php
+
+
+function paginado_home_help($path, $arg) {
+    if ($path == 'admin/help#paginado_home') {
+        return t('Pinta el paginado del bottom del sitio');
+    }
+}
+
+function paginado_home_block_info() {
+    $blocks['paginado_home'] = array(
+        'info' => t('Paginado bottom')
+    );
+    return $blocks;
+}
+
+function paginado_home_block_view($delta = '') {
+    $block = array(
+        'subject' => t(''),
+        'content' => '',
+    );
+    if ($delta == 'paginado_home') {
+        $path = drupal_get_path('module', 'paginado_home');
+        drupal_add_css($path . '/paginado_home.css');
+        $block['subject'] = t('Obsessions');
+        $block['content'] = get_paginado_home();
+    };
+    return $block;
+}
+
+/**
+ * Devuelve HTML del pager
+ */
+function get_paginado_home($mode = false) {
+    $num = get_num_paginado();
+    $pager_aux = intval($num / 10);
+    $pager = (($num / 10) > $pager_aux) ? $pager_aux + 1 : $pager_aux;
+    for($i=1;$i<=10;$i++){
+        if($i==1){
+            $pagerHTML .= '<li class="pag-current"><span class="current-page">' . $i . '</span></li>';
+        } else {
+            $pagerHTML .= '<li class="pager-item"><a title="Ir a la página ' . $i . '" href="/ver-mas?page=' . ($i - 1) . '">' . $i . '</a></li>';
+        }
+    }
+    $html = '<div id="pager" class="E3 right">
+                <ul>
+                    <li><span class="flash">1 de ' . $pager . '</span></li>
+                    '.$pagerHTML.'
+                    <li class="pager-next"><a title="Ir a la página siguiente" href="/ver-mas?page=1">siguiente ›</a></li>
+                </ul>
+             </div>';
+    return $html;
+}
+
+/**
+ * Devuelve numero de nodos del site
+ */
+function get_num_paginado() {
+    $result = variable_get('pager_num_nodes');
+    if(!$result){
+        $qry = db_select('node', 'n');
+        $qry->fields('n', array('nid'));
+        $qry->condition('n.status', 1, '=');
+        $qry->condition('n.type', array('gallerie','article','videos'), 'IN');
+        $result = $qry->execute()->rowCount();
+        variable_set('pager_num_nodes', $result);
+    }
+    return $result;
+}
+
+function paginado_home_cron(){
+    variable_del('pager_num_nodes');
+}

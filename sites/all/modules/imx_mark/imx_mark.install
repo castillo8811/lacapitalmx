@@ -1,0 +1,61 @@
+<?php
+
+/**
+ * @file
+ *  Install, update and uninstall functions for the imx_mark module.
+ */
+
+/**
+ * Implementats hook_schema().
+ */
+function imx_mark_schema() {
+  $schema = array();
+  $schema['imx_mark'] = array(
+    'description' => "Stores each user's favorite path.",
+    'fields' => array(
+      'fid' => array(
+        'description' => 'The unique ID of the favoite',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'uid' => array(
+        'description' => 'The user ID of the user who owns the mark.',
+        'type' => 'int',
+        'size' => 'normal',
+        'not null' => TRUE,
+      ),
+      'nid' => array(
+         'description' => "NID of the content",
+         'type' => 'int',
+         'size' => 'normal',
+         'not null' => TRUE,
+       ),
+       'type' => array(
+          'description' => "Type oh the mark  1) Favorite, 2) Read later",
+          'type' => 'int',
+          'size' => 'normal',
+          'not null' => TRUE,
+       ),
+       'status' => array(
+          'description' => "Status of the mark",
+          'type' => 'int',
+          'size' => 'normal',
+          'not null' => TRUE,
+       ),
+      'timestamp' => array(
+        'description' => "The time the mark was created",
+        'type' => 'int',
+        'size' => 'normal',
+        'not null' => TRUE,
+      ),
+    ),
+    'primary key' => array('fid'),
+    'indexes' => array(
+        'uid' => array('uid'),
+        'uid_type' => array('uid','type'),
+        'nid' => array('nid','type'),
+    ),
+  );
+  return $schema;
+}

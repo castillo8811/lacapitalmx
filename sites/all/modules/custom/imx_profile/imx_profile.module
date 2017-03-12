@@ -1,0 +1,415 @@
+<?php
+
+/**
+ * Implements hook_permission().
+ */
+function imx_profile_permission() {
+    return array(
+        'manage own imx_profile' => array(
+            'title' => t('Manage own imx_profile'),
+        ),
+    );
+}
+
+/**
+ * Implements hook_menu().
+ */
+function imx_profile_menu() {
+    $items['usuario/perfil'] = array(
+        'page callback' => 'imx_profile',
+        'page arguments' => array(2),
+        'access arguments' => array('manage own imx_profile'),
+        'title' => 'Mi perfil',
+        'type' => MENU_CALLBACK,
+        'access callback' => 'user_is_logged_in'
+    );
+
+    $items['usuario/favoritos'] = array(
+        'page callback' => 'imx_profile_favorites',
+        'access arguments' => array('manage own imx_profile'),
+        'title' => 'Mis favoritos',
+        'type' => MENU_CALLBACK,
+        'access callback' => 'user_is_logged_in',
+    );
+
+    $items['usuario/boletin'] = array(
+        'page callback' => 'imx_profile_boletin',
+        'access arguments' => array('manage own imx_profile'),
+        'title' => 'Mi boletín',
+        'type' => MENU_CALLBACK,
+        'access callback' => 'user_is_logged_in'
+    );
+
+    $items['usuario/alertas'] = array(
+        'page callback' => 'imx_profile_alerts',
+        'access arguments' => array('manage own imx_profile'),
+        'title' => 'Mis alertas',
+        'type' => MENU_CALLBACK,
+        'access callback' => TRUE,
+        'access callback' => 'user_is_logged_in'
+    );
+
+    $items['usuario/configuracion'] = array(
+        'page callback' => 'imx_profile_config',
+        'access arguments' => array('manage own imx_profile'),
+        'title' => 'Mi configuración',
+        'type' => MENU_CALLBACK,
+        'access callback' => 'user_is_logged_in'
+    );
+
+    $items['usuario/updateNewsletter'] = array(
+        'page callback' => 'imx_profile_update_newsletter_status',
+        'access arguments' => array('manage own imx_profile'),
+        'title' => 'Update Newsletter status',
+        'type' => MENU_CALLBACK,
+        'access callback' => TRUE,
+    );
+
+
+    return $items;
+}
+
+function imx_profile_init() {
+    
+}
+
+/*
+ * Todos los elementos funcionan como bloque para dar mayor flexibilidad en las regiones enlas cuales se requieren
+ *
+ */
+
+function imx_profile_block_info() {
+    $blocks['imx_profile'] = array(
+        'info' => t('IMX Profile Menu: Bloque principal del perfil de usuario'),
+        'status' => TRUE,
+        'region' => 'content_top',
+        'visibility' => BLOCK_VISIBILITY_LISTED,
+        'pages' => "usuario/perfil"
+    );
+
+    $blocks['imx_profile_favorites'] = array(
+        'info' => t('IMX Profile User Favorites: Bloque contenidos favoritos del usuario'),
+        'status' => TRUE,
+        'region' => 'content_top',
+        'visibility' => BLOCK_VISIBILITY_LISTED,
+        'pages' => "usuario/favoritos"
+    );
+
+    $blocks['imx_profile_boletin'] = array(
+        'info' => t('IMX Profile User Newsletter: Bloque de configuracion de newsletter'),
+        'status' => TRUE,
+        'region' => 'content_top',
+        'visibility' => BLOCK_VISIBILITY_LISTED,
+        'pages' => "usuario/boletin"
+    );
+
+    $blocks['imx_profile_config'] = array(
+        'info' => t('IMX Profile User Config: Bloque para configuración de datos del usuario'),
+        'status' => TRUE,
+        'region' => 'content_top',
+        'visibility' => BLOCK_VISIBILITY_LISTED,
+        'pages' => "usuario/configuracion"
+    );
+
+    return $blocks;
+}
+
+function imx_profile_block_view($delta = '') {
+    global $user;
+    $block = array(
+        'subject' => t(''),
+        'content' => '',
+    );
+
+    if ($delta == 'imx_profile') {
+        $block['subject'] = '';
+        $block['content'] = theme("imx_profile", array('user' => $user));
+    };
+
+
+    if ($delta == 'imx_profile_favorites') {
+        $nodes = get_user_favorites();
+        $has_favorites = true;
+        if (!$nodes) {
+            $nodes = get_most_visited_nodes_profile();
+            $has_favorites = false;
+        }
+        $block['subject'] = '';
+        $block['content'] = theme("imx_profile_favorites", array('user' => $user, 'data' => $nodes, 'has_favorites' => $has_favorites));
+    }
+
+    if ($delta == 'imx_profile_boletin') {
+        $account = user_load($user->uid);
+        $has_newsletter = $account->field_newsletter['und'][0]['value'];
+        $block['subject'] = '';
+        $block['content'] = theme("imx_profile_boletin", array('user' => $account, 'has_newsletter' => $has_newsletter));
+    }
+
+
+    if ($delta == 'imx_profile_config') {
+
+        module_load_include('inc', 'user', 'user.pages'); // Load core user module to be able to render the user account form
+        $account = user_load($user->uid); // Load a user object
+        $form = drupal_get_form('user_profile_form', $account);
+
+        //unset($form["account"]["roles"]);
+        unset($form["account"]["status"]);
+        unset($form["account"]["notify"]);
+        unset($form["field_preferences"]);
+        unset($form["field_newsletter"]);
+        unset($form["field_terminos_y_condiciones"]);
+        unset($form["field_user_location"]);
+        unset($form["redirect"]);
+        unset($form["timezone"]);
+        unset($form["locale"]);
+        unset($form["metatags"]);
+
+        $block['subject'] = '';
+        $block['content'] = theme("imx_profile_config", array('form' => $form));
+    };
+
+    return $block;
+}
+
+function imx_profile() {
+  load_imx_mark_settings();
+    return '';
+}
+
+function imx_profile_favorites() {
+    return '';
+}
+
+function imx_profile_boletin() {
+    drupal_add_js(drupal_get_path("module","imx_profile")."/"."imx_profile_boletin.js");
+    return '';
+}
+
+function imx_profile_alerts() {
+    return '';
+}
+
+function imx_profile_config() {
+    return '';
+}
+
+function imx_profile_theme() {
+    return array(
+        'imx_profile' => array(
+            'variables' => array(
+                'data' => NULL,
+            ),
+            'template' => 'templates/imx_profile',
+        ),
+        'imx_profile_favorites' => array(
+            'variables' => array(
+                'data' => NULL,
+            ),
+            'template' => 'templates/imx_profile_favorites',
+        ),
+        'imx_profile_boletin' => array(
+            'variables' => array(
+                'data' => NULL,
+            ),
+            'template' => 'templates/imx_profile_boletin',
+        ),
+        'imx_profile_alerts' => array(
+            'variables' => array(
+                'data' => NULL,
+            ),
+            'template' => 'templates/imx_profile_alerts',
+        ),
+        'imx_profile_config' => array(
+            'variables' => array(
+                'data' => NULL,
+            ),
+            'template' => 'templates/imx_profile_config',
+        ),
+        'imx_profile_firma' => array(
+            'variables' => array(
+                'data' => NULL,
+            ),
+            'template' => 'templates/imx_profile_firma',
+        ),
+        'imx_profile_image_upd' => array(
+            'render element' => 'element',
+        ),
+    );
+}
+
+function get_user_favorites() {
+    global $user;
+    $nodes = array();
+    $data_favorites = imx_mark_load_uid($user->uid, 1, true);
+
+    if ($data_favorites) {
+        foreach ($data_favorites as $f) {
+            $n = node_load($f->nid);
+            if (is_object($n)) {
+                $summary = $n->body['und'][0]['summary'];
+                $nodes[] = array(
+                    'nid' => $f->nid,
+                    'title' => $n->title,
+                    'summary' => $summary,
+                    'image_uri' => $n->field_image['und'][0]['uri'],
+                    'category' => get_sections_by_nid_profile($f->nid, 2),
+                    'category_second' => get_sections_by_nid_profile($f->nid, 3),
+                    'ocio' => get_sections_by_nid_profile($f->nid, 14),
+                );
+            }
+        }
+    }
+
+    return $nodes;
+}
+
+
+//function imx_profile_form_alter(&$form, &$form_state, $form_id) {
+//    //if (arg(0) == "usuario" && arg(1) == "configuracion") {
+//        if ($form_id == 'user_profile_form') {
+//            $form['picture']['picture_upload'] = array(
+//                '#type' => 'managed_file',
+//                '#title' => '',
+//                '#upload_location' => "public://",
+//                '#theme' => 'imx_profile_image_upd', //Function name to hook
+//            );
+//            if (isset($form['picture']['picture']['#value']->fid)) {
+//                $form['picture']['picture_upload']['#title'] = '';
+//                $form['picture']['picture_upload']['#default_value'] = $form['picture']['picture']['#value']->fid;
+//            }
+//        //}
+//    }
+//}
+
+function theme_imx_profile_image_upd($variables) {
+    global $user;
+    $element = $variables['element'];
+    $output = '';
+    $element['filename']["#markup"] = "";
+    $account = user_load($user->uid);
+    if($element['fid']['#value']) {
+        //save_image_ajax($account, $element['fid']['#value']);
+    }
+    if ($element['fid']['#value'] != 0) {
+        // if image is uploaded show its thumbnail to the output HTML
+        $output .= '<div class="image-preview">';
+        $output .= theme('image_style', array('style_name' => 'medium', 'path' => file_load($element['fid']['#value'])->uri, 'getsize' => TRUE));
+        $output .= drupal_render_children($element);
+        $output .= '</div>';
+    }
+    return $output;
+}
+
+function save_image_ajax($account, $fid) {
+    $edit = array();
+    $file = file_load($fid);
+    $file->status = FILE_STATUS_PERMANENT;
+    $file->uid = $account->uid;
+    file_save($file);
+    file_usage_add($file, 'user', 'user', $account->uid);
+    $edit['picture'] = $file;
+
+    $edit['picture_upload'] = $file;
+    user_save($account, $edit);
+}
+
+function get_most_visited_query_profile() {
+    $time = variable_get('imx_sidebar_visited_time', 7);
+    $created = variable_get('imx_sidebar_created_time', 15);
+    $week = mktime(0, 0, 0, date('m'), date('d') - $time, date('Y')); //most visited of week
+    $past = mktime(0, 0, 0, date('m'), date('d') - $created, date('Y')); //
+    $types = array('article');
+    $serialize = variable_get('imx_sidebar_types', NULL);
+    if ($serialize) {
+        $unserialize = unserialize($serialize);
+        unset($types);
+        foreach ($unserialize as $key => $value) {
+            $types[] = $value;
+        }
+    }
+    $qry = db_select('node', 'n');
+    $qry->innerJoin('node_counter', 'nc', 'nc.nid = n.nid');
+    $qry->fields('n', array('nid', 'title'));
+    $qry->fields('nc', array('totalcount'));
+    $qry->condition('n.status', 1, '=');
+    $qry->condition('n.type', array("article","gallerie","video"), 'IN');
+    //$qry->condition('nc.timestamp', $week, '>');
+    //$qry->condition('n.changed', $past, '>');
+    $qry->orderBy('nc.totalcount', 'DESC');
+    $qry->groupBy('nid');
+    $qry->range(0, 20);
+    $result = $qry->execute()->fetchAll();
+    return $result;
+}
+
+function get_most_visited_nodes_profile() {
+    $items = array();
+    if ($cache = cache_get('imx_most_visited_nodes')) {
+        $items = $cache->data;
+    } else {
+        $tomorrow = mktime(0, 0, 0, date('m'), date('d') + 1, date('Y'));
+        $result = get_most_visited_query_profile();
+        $style = variable_get('imx_sidebar_img_style', 'barra_lateral');
+        foreach ($result as $key => $value) {
+            $nid = $value->nid;
+            $node = node_load($nid);
+            $image = entity_metadata_wrapper('node', $node)->field_image->value();
+            if (is_array($image)) {
+                if (array_key_exists(0, $image)) {
+                    if (($image[0]) > 1) {
+                        $image = array_shift($image);
+                    }
+                }
+            } else {
+                if (count($image) > 1) {
+                    $image = array_shift($image);
+                }
+            }
+
+            $items[] = array(
+                'nid' => $node->nid,
+                'title' => $node->title,
+                'image' => image_style_url($style,($image['uri'])? $image["uri"] : ""),
+                'category' => get_sections_by_nid_profile($nid,2),
+                'category_second' => get_sections_by_nid_profile($nid,3),
+                'ocio' => get_sections_by_nid_profile($nid,14),
+                'summary' => $node->body['und'][0]['summary'],
+                'image_uri'=>$node->field_image['und'][0]['uri'],
+            );
+
+            unset($node, $image, $nid, $tid, $category);
+        }
+        cache_set('imx_most_visited_nodes', $items, 'cache', $tomorrow);
+    }
+    return $items;
+}
+
+function get_sections_by_nid_profile($nid, $vid = 2) {
+    if (!$nid)
+        return NULL;
+    $query = "SELECT ttd.tid, ttd.name
+              FROM {taxonomy_term_data} ttd
+              INNER JOIN {taxonomy_index} ti ON ti.tid=ttd.tid
+              WHERE ti.nid = $nid AND ttd.vid = $vid limit 3";
+    $result = db_query($query)->fetchAll();
+    foreach($result as $r){
+        $terms[]=array("name"=>$r->name,"tid"=>$r->tid);
+    }
+//    $terms = $name ? $result[0]->name : $result[0]->tid;
+    return $terms;
+}
+
+
+
+function imx_profile_update_newsletter_status(){
+    global $user;
+    $hybrit_newsletter_fields = variable_get("imx_newsletter_field", FALSE);
+    if ($hybrit_newsletter_fields) {
+        if (db_table_exists("field_data_".$hybrit_newsletter_fields)) {
+            $value_newsletter=$_POST["value_newsletter"];
+            $user_fields = user_load($user->uid);
+            $user_fields->{$hybrit_newsletter_fields}['und'][0]['value'] = $value_newsletter;
+            user_save($user_fields);
+        }
+    }
+}

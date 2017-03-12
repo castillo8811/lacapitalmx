@@ -1,0 +1,8 @@
+; $Id$
+name = "Feeds Clones JSON"
+description = "Feeds Clones"
+package = "Clones"
+version = 1.0
+core = 7.x
+files[]="imx_feeds_clones.module"
+files[]="imx_feeds_clones.inc"

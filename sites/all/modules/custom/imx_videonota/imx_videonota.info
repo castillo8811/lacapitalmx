@@ -1,0 +1,8 @@
+name = "Bloques de video nota"
+description = "Bloques de video nota"
+package = "InventMX"
+core = "7.x"
+version = "7.x"
+php="5.x"
+files[] = imx_videonota.module
+configure = admin/config/imx_videonota

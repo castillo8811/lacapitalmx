@@ -1,0 +1,42 @@
+<?php
+/**
+ * @file
+ * Módulo imx_api_queue para la administración de una cola beanstalk para el api de inventmx.
+ */
+
+
+function lcpmx_home_menu() {
+  $items['admin/config/lcpmx/home'] = array(
+    'title' => 'lcpmx_home',
+    'description' => 'Permite configurar el home de la capital.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('lcpmx_home_admin'),
+    'access arguments' => array('administer lcpmx_home'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  return $items;
+}
+
+function lcpmx_home_permission() {
+  return array(
+    'administer lcpmx_home' => array(
+      'title' => t('Administer lcpmx_home'),
+      'description' => t('Configure Module lcpmx_home.'),
+    ),
+  );
+} 
+
+function lcpmx_home_admin() {
+  $form = array();
+
+
+  $form['lcpmx_home_version'] = array(
+    '#type' => 'select',
+    '#title' => t('Version del home a mostrar:'),
+    '#required' => TRUE,
+    '#options' => array("home_v1"=>"Version 1","home_v2"=>"Version 2","home_v3"=>"Version 3"),
+    '#default_value' => variable_get('lcpmx_home_version'),
+  );
+
+  return system_settings_form($form);
+}

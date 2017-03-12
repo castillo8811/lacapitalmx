@@ -1,0 +1,230 @@
+<?php
+/**
+ * @file
+ * Módulo imx_api_queue para la administración de una cola beanstalk para el api de inventmx.
+ */
+
+
+function imx_api_queue_menu() {  
+
+  $items['admin/config/inventmx'] = array(
+    'title' => 'Modulos InventMx',
+    'description' => 'Configuración de Modulos InventMx.',
+    'access callback' => TRUE,
+    'page callback' => 'system_admin_menu_block_page',
+    'access arguments' => array('administer'),
+    'position' => 'right',
+    'file' => 'system.admin.inc',
+    'file path' => drupal_get_path('module', 'system'),
+  );
+
+  $items['admin/config/inventmx/imx_api_queue'] = array(
+    'title' => 'Imx API queue',
+    'description' => 'Permite configurar el módulo de queues del api.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('imx_api_queue_admin'),
+    'access arguments' => array('administer imx_api_queue'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  return $items;
+}
+
+function imx_api_queue_permission() {
+  return array(
+    'administer imx_api_queue' => array(
+      'title' => t('Administer imx_api_queue'),
+      'description' => t('Configure Module Imx API queue.'),
+    ),
+  );
+} 
+
+function imx_api_queue_node_insert($node){
+  _send_to_queue($node, 'new');
+}
+
+function imx_api_queue_node_update($node){
+  _send_to_queue($node, 'edit');
+}
+
+function imx_api_queue_node_delete($node){
+  _send_to_queue($node, 'delete');
+}
+
+/*
+* Configuración
+*/
+
+/**
+ * Page callback para la pantalla de administración
+ */
+function imx_api_queue_admin() {
+  $form = array();
+
+  // Estatus
+  $form['imx_api_queue_status'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Estatus del servicio'),
+    '#collapsible' => FALSE,
+    '#collapsed' => FALSE,
+  );
+
+  $form['imx_api_queue_status']['imx_api_queue_enabled'] = array(
+    '#type' => 'select',
+    '#title' => t('Estatus del servicio:'),
+    '#options' => array('Activo' => 'Activo', 'Inactivo' => 'Inactivo'),
+    '#description' => 'Activa y desactiva el envío de nodos a beanstalk.',
+    '#required' => TRUE,
+    '#default_value' => variable_get('imx_api_queue_enabled'),
+  );
+
+  // Server
+  $form['imx_api_queue_server'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Servidor'),
+    '#collapsible' => FALSE,
+    '#collapsed' => FALSE,
+  );
+
+  $form['imx_api_queue_server']['imx_api_queue_server'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Dirección IP / nombre del servidor beanstalk'),
+    '#size' => 15,
+    '#maxlength' => 15,
+    '#required' => TRUE,
+    '#default_value' => variable_get('imx_api_queue_server'),
+  );
+
+  $form['imx_api_queue_server']['imx_api_queue_server_port'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Puerto de conexión al servidor beanstalk'),
+    '#size' => 8,
+    '#maxlength' => 8,
+    '#required' => TRUE,
+    '#default_value' => variable_get('imx_api_queue_server_port'),
+  );
+
+  // Tube
+  $form['imx_api_queue_tube'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Queue'),
+    '#collapsible' => FALSE,
+    '#collapsed' => FALSE,
+  );
+
+  $form['imx_api_queue_tube']['imx_api_queue_name'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Nombre del tube'),
+    '#size' => 16,
+    '#maxlength' => 32,
+    '#required' => TRUE,
+    '#default_value' => variable_get('imx_api_queue_name'),
+  );
+
+  $form['imx_api_queue_tube']['imx_api_queue_allowed_cts'] = array(
+    '#type' => 'select',
+    '#title' => t('Content types permitidos'),
+    '#multiple' => TRUE,
+    '#required' => TRUE,
+    '#options' => drupal_map_assoc(array_keys(node_type_get_types())),
+    '#default_value' => variable_get('imx_api_queue_allowed_cts'),
+  );
+
+  $form['imx_api_queue_tube']['imx_api_queue_tid_exceptions'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Excepciones de tube por tid de workbench access'),
+    '#size' => 64,
+    '#maxlength' => 64,
+    '#description' => t("IMPORTANTE: Sólo compatible con workbench_access por el momento. Si se desea que los nodos de un tid se envíen a un tube distinto, especificarlo aquí en formato tid|nombre. Separar cada excepción con comas. Por ejemplo: 2|adrenalina360"),
+    '#required' => FALSE,
+    '#default_value' => variable_get('imx_api_queue_tid_exceptions'),
+  );
+
+  return system_settings_form($form);
+}
+
+/**
+ * Implements hook_validate().
+ */
+function imx_api_queue_admin_validate($form, &$form_state) {
+  $status_server = $form_state['values']['imx_api_queue_enabled'];
+
+  $queue_server = $form_state['values']['imx_api_queue_server'];
+  if (!preg_match('/[\d]{1,3}(\.[\d]{1,3}){3}/', $queue_server) && !preg_match('/[a-zA-Z0-9\-]{1,15}/', $queue_server)) {
+    form_set_error('imx_api_queue_server', t('La dirección o nombre del servidor debe estar en formato de cuatro octetos o estar conformado por números, letras y guiones.'));
+  }
+
+  $queue_server_port = $form_state['values']['imx_api_queue_server_port'];
+  if (!preg_match('/^[\d]{1,8}$/', $queue_server_port)) {
+    form_set_error('imx_api_queue_server_port', t('El puerto de conexión debe ser numérico.'));
+  }
+
+  $imx_api_queue_name = $form_state['values']['imx_api_queue_name'];
+  if (!preg_match('/^[a-zA-Z\d\-_]{2,32}$/', $imx_api_queue_name)) {
+    form_set_error('imx_api_queue_name', t('El nombre del tube sólo puede contener guiones, guiones bajos, números y letras (sin caracteres especiales).'));
+  }
+
+  $imx_api_queue_allowed_cts = $form_state['values']['imx_api_queue_allowed_cts'];
+  if (!is_array($imx_api_queue_allowed_cts) || empty($imx_api_queue_allowed_cts)) {
+    form_set_error('imx_api_queue_allowed_cts', t('Es necesario seleccionar tipos de contenido.'));
+  }
+
+  $imx_api_queue_tid_exceptions = $form_state['values']['imx_api_queue_tid_exceptions'];
+  if ($imx_api_queue_tid_exceptions !== "" && !preg_match('/^[\d]{1,8}\|[a-zA-Z\d\-_]{2,24}$/', $imx_api_queue_tid_exceptions)) {
+    form_set_error('imx_api_queue_tid_exceptions', t('Debe estar en formato tid|nombre. Separar cada excepción con comas.'));
+  }
+}
+
+function _get_queue_configuration() {
+  $imx_api_queue = new stdClass();
+  $imx_api_queue->server = variable_get('imx_api_queue_server');
+  $imx_api_queue->server_port = variable_get('imx_api_queue_server_port');
+  $imx_api_queue->name = variable_get('imx_api_queue_name');
+  $imx_api_queue->allowed_cts = variable_get('imx_api_queue_allowed_cts');
+  $imx_api_queue->tid_exceptions = variable_get('imx_api_queue_tid_exceptions');
+  if(empty($imx_api_queue->server) || empty($imx_api_queue->server_port) || empty($imx_api_queue->name) || empty($imx_api_queue->allowed_cts))
+    return false;
+  else
+    return $imx_api_queue;
+}
+
+function _send_to_queue($node, $hook) {
+  if(variable_get('imx_api_queue_enabled') == 'Activo'){
+    $imx_api_queue_config = _get_queue_configuration();
+    if($imx_api_queue_config){
+      if(in_array($node->type, $imx_api_queue_config->allowed_cts)){
+        //preparamos el envío
+        $tubes = array();
+        $tubes[] = $imx_api_queue_config->name;
+        
+        // checar si traemos excepciones
+        if(!empty($imx_api_queue_config->tid_exceptions)){
+          $tid_exceptions = explode(',', $imx_api_queue_config->tid_exceptions);
+          $tubes_exceptions = array();
+          foreach($tid_exceptions as $tid_exception){
+            $item_tid = array_shift(array_values(explode('|',$tid_exception)));
+            $item_tube = array_pop(array_values(explode('|',$tid_exception)));
+            $tubes_exceptions[$item_tid] = $item_tube;
+          }
+          $tid = array_shift(array_values($node->workbench_access));
+          if(!empty($tubes_exceptions[$tid]))
+            $tubes[] = $tubes_exceptions[$tid];
+        }
+
+        require_once('pheanstalk/pheanstalk_init.php');
+        $pheanstalk = new Pheanstalk_Pheanstalk($imx_api_queue_config->server, $imx_api_queue_config->server_port);
+        foreach($tubes as $tube){
+          if($pheanstalk->getConnection()->isServiceListening()){
+            $message = new stdClass();
+            $message->nid = (int)$node->nid;
+            $message->hook = $hook;
+            $message->put = time();
+            $pheanstalk
+              ->useTube($tube)
+              ->put(json_encode($message));
+            drupal_set_message('Enviado a tube ' . $tube, 'status');
+          }
+        } //si el servicio nos escucha
+      } //content type permitido
+    } //configuración
+  }
+}

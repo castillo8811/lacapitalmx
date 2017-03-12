@@ -1,0 +1,203 @@
+<?php
+
+function imx_pinned_block_info() {
+    $blocks = array();
+    $blocks['imx_pinned'] = array(
+        'info' => t('Pinned Sites'),
+    );
+    return $blocks;
+}
+
+function imx_pinned_menu() {
+    $items = array();
+    $items['admin/config/pinned'] = array(
+        'title' => 'Pinned Sites',
+        'description' => 'Configuración de etiquetas meta para Pinned Sites',
+        'page callback' => 'system_admin_menu_block_page',
+        'access arguments' => array('administer'),
+        'position' => 'right',
+        'file' => 'system.admin.inc',
+        'weight' => -100,
+        'file path' => drupal_get_path('module', 'system'),
+    );
+    $items['admin/config/pinned/default'] = array(
+        'title' => 'Vocabulario Pinned Sites',
+        'description' => 'Seleccione el vocabulario adecuado utilizado en el sitio',
+        'page callback' => 'drupal_get_form',
+        'access arguments' => array('administer users'),
+        'type' => MENU_NORMAL_ITEM,
+        'page arguments' => array('imx_pinned_admin_start_form'),
+        'file' => 'imx_pinned.admin.inc',
+        'module' => 'imx_pinned',
+        'weight' => -10,
+    );
+    $items['admin/config/pinned/settings'] = array(
+        'title' => 'Configuración Pinned Sites',
+        'description' => 'Configuración de las etiquetas meta para Pinned Sites (primero seleccione vocabulario)',
+        'page callback' => 'drupal_get_form',
+        'access arguments' => array('administer users'),
+        'type' => MENU_NORMAL_ITEM,
+        'page arguments' => array('imx_pinned_admin_settings_form'),
+        'file' => 'imx_pinned.admin.inc',
+        'module' => 'imx_pinned',
+    );
+    return $items;
+}
+
+function getCategories($vid) {
+    $items = array();
+    $tax = taxonomy_get_tree($vid);
+    foreach ($tax as $t) {
+        $items[$t->tid] = $t->name;
+    }
+    return $items;
+}
+
+function getVocabulary() {
+    $v = array();
+    $query = db_select("taxonomy_vocabulary", "tv");
+    $query->fields('tv', array("vid", "name"));
+    $result = $query->execute()->fetchAll();
+    foreach ($result as $item) {
+        $v[$item->vid] = $item->name;
+    }
+    return $v;
+}
+
+function imx_pinned_block_view($delta = '') {
+    $items = variable_get('imx_pinned_info');
+    $block = array(
+        'subject' => '',
+        'content' => '',
+    );
+    if ($delta == 'imx_pinned') {
+        $block['subject'] = t('Pinned Sites');
+        $file = file_load($items['home']['pinned_image']);
+        $pinned_name = array(
+            '#tag' => 'meta', // The #tag is the html tag - <meta />
+            '#attributes' => array(// Set up an array of attributes inside the tag
+                'name' => 'application-name',
+                'content' => $items['home']['pinned_info'],
+            ),
+        );
+        $pinned_color = array(
+            '#tag' => 'meta', // The #tag is the html tag - <,meta />
+            '#attributes' => array(// Set up an array of attributes inside the tag
+                'name' => 'msapplication-TileColor',
+                'content' => '#' . $items['home']['pinned_color'],
+            ),
+        );
+        $pinned_image = array(
+            '#tag' => 'meta', // The #tag is the html tag - <meta />
+            '#attributes' => array(// Set up an array of attributes inside the tag
+                'name' => 'msapplication-TileImage',
+                'content' => $file ? image_style_url('square_thumbnail', $file->uri) : '',
+            ),
+        );
+        $pinned_nav = array(
+            '#tag' => 'meta', // The #tag is the html tag - <meta />
+            '#attributes' => array(// Set up an array of attributes inside the tag
+                'name' => 'msapplication-navbutton-color',
+                'content' => '#' . $items['home']['pinned_color'],
+            ),
+        );
+        $pinned_description = array(
+            '#tag' => 'meta', // The #tag is the html tag - <meta />
+            '#attributes' => array(// Set up an array of attributes inside the tag
+                'name' => 'msapplication-tooltip',
+                'content' => $items['home']['pinned_description'],
+            ),
+        );
+        if (arg(0) == 'taxonomy' && arg(1) == "term" && arg(2) == $items[arg(2)]['pinned_tid']) {
+            if ($items[arg(2)]['pinned_color'] && $items[arg(2)]['pinned_image'] > 0) {
+                $file = file_load($items[arg(2)]['pinned_image']);
+                $pinned_name = array(
+                    '#tag' => 'meta', // The #tag is the html tag - <meta />
+                    '#attributes' => array(// Set up an array of attributes inside the tag
+                        'name' => 'application-name',
+                        'content' => $items[arg(2)]['pinned_info'],
+                    ),
+                );
+                $pinned_color = array(
+                    '#tag' => 'meta', // The #tag is the html tag - <,meta />
+                    '#attributes' => array(// Set up an array of attributes inside the tag
+                        'name' => 'msapplication-TileColor',
+                        'content' => '#' . $items[arg(2)]['pinned_color'],
+                    ),
+                );
+                $pinned_image = array(
+                    '#tag' => 'meta', // The #tag is the html tag - <meta />
+                    '#attributes' => array(// Set up an array of attributes inside the tag
+                        'name' => 'msapplication-TileImage',
+                        'content' => $file ? image_style_url('small', $file->uri) : '',
+                    ),
+                );
+                $pinned_nav = array(
+                    '#tag' => 'meta', // The #tag is the html tag - <meta />
+                    '#attributes' => array(// Set up an array of attributes inside the tag
+                        'name' => 'msapplication-navbutton-color',
+                        'content' => '#' . $items[arg(2)]['pinned_color'],
+                    ),
+                );
+                $pinned_description = array(
+                    '#tag' => 'meta', // The #tag is the html tag - <meta />
+                    '#attributes' => array(// Set up an array of attributes inside the tag
+                        'name' => 'msapplication-tooltip',
+                        'content' => $items[arg(2)]['pinned_description'],
+                    ),
+                );
+            }
+        } elseif (arg(0) == 'node' && !drupal_is_front_page()) {
+            $nodes = variable_get('imx_pinned_nodes');
+            foreach ($nodes as $item) {$n = $item;}
+            $node = node_load(arg(1));
+            foreach ($node->workbench_access as $tax) {$seccion = $tax;}
+            if ($items[$seccion]['pinned_color'] && $items[$seccion]['pinned_image'] > 0) {
+                if ($seccion == $items[$seccion]['pinned_tid'] && $n == 1) {
+                    $file = file_load($items[$seccion]['pinned_image']);
+                    $pinned_name = array(
+                        '#tag' => 'meta', // The #tag is the html tag - <meta />
+                        '#attributes' => array(// Set up an array of attributes inside the tag
+                            'name' => 'application-name',
+                            'content' => $node->title,
+                        ),
+                    );
+                    $pinned_color = array(
+                        '#tag' => 'meta', // The #tag is the html tag - <,meta />
+                        '#attributes' => array(// Set up an array of attributes inside the tag
+                            'name' => 'msapplication-TileColor',
+                            'content' => '#' . $items[$seccion]['pinned_color'],
+                        ),
+                    );
+                    $pinned_image = array(
+                        '#tag' => 'meta', // The #tag is the html tag - <meta />
+                        '#attributes' => array(// Set up an array of attributes inside the tag
+                            'name' => 'msapplication-TileImage',
+                            'content' => $file ? image_style_url('small', $file->uri) : '',
+                        ),
+                    );
+                    $pinned_nav = array(
+                        '#tag' => 'meta', // The #tag is the html tag - <meta />
+                        '#attributes' => array(// Set up an array of attributes inside the tag
+                            'name' => 'msapplication-navbutton-color',
+                            'content' => '#' . $items[$seccion]['pinned_color'],
+                        ),
+                    );
+                    $pinned_description = array(
+                        '#tag' => 'meta', // The #tag is the html tag - <meta />
+                        '#attributes' => array(// Set up an array of attributes inside the tag
+                            'name' => 'msapplication-tooltip',
+                            'content' => $items[$seccion]['pinned_description'],
+                        ),
+                    );
+                }
+            }
+        }
+        drupal_add_html_head($pinned_name, 'pinned_name');
+        drupal_add_html_head($pinned_color, 'pinned_color');
+        drupal_add_html_head($pinned_image, 'pinned_image');
+        drupal_add_html_head($pinned_nav, 'pinned_nav');
+        drupal_add_html_head($pinned_description, 'pinned_description');
+    }
+    return $block;
+}

@@ -1,0 +1,8 @@
+name = "Registrar Evento Lugar"
+description = "Modulo para el registro de eventos y lugares, por parte los usuarios del sitio"
+package = "InventMX"
+core = "7.x"
+version = "1.x"
+php = "5.x"
+
+

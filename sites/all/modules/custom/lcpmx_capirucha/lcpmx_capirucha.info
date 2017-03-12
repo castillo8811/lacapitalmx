@@ -1,0 +1,7 @@
+; $Id$
+name = "LaCapitalMX Capirucha"
+description = "Muestra el bloque de barra lateral notas de Capirucha Home"
+package = "LCPMX"
+version = 7.x
+core = 7.x
+files[]="lcpmx_capirucha.module"

@@ -1,0 +1,512 @@
+<?php
+
+  /**
+   * Implements hook_menu().
+   */
+  function register_place_event_menu() {
+    $items = array();
+    $items['registrar-evento-lugar'] = array(
+      'type' => MENU_CALLBACK,
+      'title' => 'Registro de eventos o lugares',
+      'page callback' => 'register_place_event_data',
+      'access callback' => TRUE,
+      'access arguments' => array('access content'),
+    );
+    $items['registrar-evento-lugar/register-ajax'] = array(
+      'type' => MENU_CALLBACK,
+      'title' => 'Registro de eventos o lugares',
+      'page callback' => 'register_place_event_data_ajax',
+      'access callback' => TRUE,
+      'access arguments' => array('access content'),
+    );
+    return $items;
+  }
+
+  function register_place_event_block_info() {
+    $blocks['register_event_place'] = array(
+      'info' => t('Bloque para el guardado de eventos y lugares por parte de los usuarios'),
+    );
+    return $blocks;
+  }
+
+  function register_place_event_block_view($delta = '') {
+    $block = array();
+    switch ($delta) {
+      case 'register_event_place':
+        $block['subject'] = t('Bloque para el guardado de eventos y lugares por parte de los usuarios');
+        $block['content'] = drupal_get_form("register_place_event_form");
+        break;
+    }
+
+    return $block;
+  }
+
+  /**
+   * Implements hook_form().
+   */
+  function register_place_event_data() {
+    return "";
+  }
+  function register_place_event_data_ajax() {
+//    print_r($_REQUEST);exit;
+      global $user;
+//      print_r($user);exit;
+    $data_title=$_REQUEST["title"];
+    $data_tipo=$_REQUEST["deseo_registrar"];
+    $data_soy=$_REQUEST["soy"];
+    $data_description=$_REQUEST["description"];
+    $data_estado=$_REQUEST["estado"];
+    $data_direccion=$_REQUEST["direccion"];
+    $data_phone=$_REQUEST["phone"];
+    $data_pagina_web=$_REQUEST["pagina-web"];
+    $data_category=$_REQUEST["category"];
+    $data_publico=$_REQUEST["publico"];
+    $data_caracteristicas=$_REQUEST["caracteristicas"];
+    $data_forma_pago=$_REQUEST["forma_pago"];
+    $data_rangos_precio=$_REQUEST["rangos_precio"];
+    
+    if (!check_plain($data_title) && $data_title) {
+      $data_error[]=t('El titulo es incorrecto');
+    }
+    if (!check_plain($data_tipo) && $data_tipo) {
+      $data_error[]='Opcion deseo registrar es invalida';
+    }
+    if (!check_plain($data_description) && $data_description) {
+      $data_error[]='Campo describelo es incorrecto';
+    }
+    if (!valid_user_data(10,$data_estado) && $data_estado) {
+      $data_error[]='Campo estado es incorrecto';
+    }
+    if (!check_plain($data_direccion) && $data_direccion) {
+      $data_error[]="Campo direccion es incorrecto";
+    }
+    if (!check_plain($data_phone) && $data_phone) {
+      $data_error[]='Campo telefono es incorrecto';
+    }
+    if (!valid_url($data_pagina_web) && $data_pagina_web) {
+      $data_error[]='Campo pagina web es incorrecto: ejemplo "www.garuyo.com"';
+    }
+    if (!valid_user_data(2, $data_category) && $data_category) {
+      $data_error[]='Campo categoria es incorrecto';
+    }
+    if (!valid_user_data(9, $data_publico) && $data_publico) {
+      $data_error[]='Campo publico es incorrecto';
+    }
+    if (!valid_user_data(3, $data_caracteristicas) && $data_caracteristicas) {
+      $data_error[]='Campo caracteristicas es incorrecto';
+    }
+    if (!valid_user_data(5, $data_forma_pago) && $data_forma_pago) {
+      $data_error[]='Campo formas de pago es incorrecto';
+    }
+    if (!valid_user_data(4,$data_rangos_precio) && $data_rangos_precio) {
+      $data_error[]='Campo rangos de precio es incorrecto';
+    }
+    if(!count($data_error) && $user->uid){
+        
+     switch ($data_tipo) {
+      case "Lugar":
+        $type = "place";
+        break;
+      case "Evento":
+        $type = "event";
+        break;
+    }
+    $title = $data_title;
+    $estado["und"][0] = array("tid" => $data_estado);
+    $calle["und"][0] = array("name" => $data_direccion,
+      "street" => $data_direccion,
+      "additional" => "",
+      "city" => "City",
+      "province" => "",
+      "postal_code" => "",
+      "country" => "mx",
+      "latitude" => 0.000000,
+      "longitude" => 0.000000,
+      "source" => 1,
+      "is_primary" => 0,
+      "locpick" => array("user_latitude" => 0.000000, "user_longitude" => 0.000000),
+      "province_name" => "",
+      "country_name" => "México"
+    );
+    $publico["und"][0] = array("tid" => $data_publico);
+    $body["und"][0] = array("value" => ($data_description)?$data_description : "",
+      "summary" => "",
+      "format" => "filtered_html",
+      "safe_value" => ($data_description)?$data_description : "",
+      "safe_summary" => ""
+    );
+    $telefono["und"][0] = array("value" => $data_phone,
+      "format" => "",
+      "safe_value" => $data_phone,
+    );
+    $pagina_web["und"][0] = array("value" => $data_pagina_web,
+      "format" => "",
+      "safe_value" => $data_pagina_web,
+    );
+    $user_node["und"][0] = array("value" => 1,
+      "format" => "",
+      "safe_value" => 1,
+    );
+    $categoria["und"][0] = array("tid" => $data_category);
+    $ocio["und"][0] = array("tid" => 305787);
+    $array_caracteristicas = $data_caracteristicas;
+    $caracteristicas = array();
+    foreach ($array_caracteristicas as $c) {
+      if ($c > 0) {
+        $caracteristicas["und"][] = array("tid" => $c);
+      }
+    }
+    $array_formas_pago = $data_forma_pago;
+    $formas_pago = array();
+    foreach ($array_formas_pago as $p) {
+      if ($c > 0) {
+        $formas_pago["und"][] = array("tid" => $p);
+      }
+    }
+    $precio["und"][0] = array("tid" => $data_rangos_precio);
+        
+        
+    $node_new = new stdClass();
+    $node_new->uid = $user->uid;
+    $node_new->type = $type;
+    $node_new->title = $title;
+    $node_new->body = $body;
+    $node_new->field_ubicacion_filtros = $estado;
+    $node_new->field_ubicacion = $calle;
+    $node_new->field_telefono = $telefono;
+    $node_new->field_pagina_web = $pagina_web;
+    $node_new->field_categoria = $categoria;
+    $node_new->field_ocio = $ocio;
+    $node_new->field_publico = $publico;
+    $node_new->field_image = "";
+    $node_new->field_caracteristicas_lugar = $caracteristicas;
+    $node_new->field_formas_de_pago = $formas_pago;
+    $node_new->field_precio = $precio;
+    $node_new->field_user_node = $user_node;
+    $node_new->status = 0;
+    $node = node_submit($node_new); // Prepare node for saving
+//    print_r($node);exit;
+    node_save($node);
+    $noda_saved=node_load($node->nid);
+    if($noda_saved->nid){
+    print_r("true");
+    }else{
+    print_r("false");        
+    }
+    
+    }else{
+        print_r($error);
+    }
+ 
+  }
+
+  function register_place_event_form($form, &$form_state) {
+    //*se llenan las categorias con parent 0 y su respectivo vid*//
+    $categorias_padres = fillOptionsWithTaxonomy(2, 0);
+    $estados = fillOptionsWithTaxonomy(10, 0);
+    $publico = fillOptionsWithTaxonomy(9, 0);
+    $caracteristicas = fillOptionsWithTaxonomy(3, 0);
+    $formas_pago = fillOptionsWithTaxonomy(5, 0);
+    $rangos_precio = fillOptionsWithTaxonomy(4, 0);
+
+    $form['deseo_registrar'] = array(
+      '#type' => 'radios',
+      '#options' => drupal_map_assoc(array(t('Lugar'), t('Evento'))),
+      '#title' => t('Deseo registrar'),
+      '#required' => true,
+    );
+    $form['soy'] = array(
+      '#type' => 'radios',
+      '#options' => drupal_map_assoc(array(t('Usuario'), t('Dueño'))),
+      '#title' => t('Soy'),
+      '#required' => true,
+    );
+    $form['title'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Nombre del lugar/evento'),
+      '#size' => 60,
+      '#maxlength' => 128,
+      '#required' => true,
+      '#attributes' => array('placeholder' => t('Ingresa el nombre')),
+    );
+
+    $form['description'] = array(
+      '#title' => t('Descríbelo'),
+      '#type' => 'textarea',
+      '#attributes' => array('placeholder' => t('Ingresa la descripción (máximo 500 caractéres)')),
+      '#resizable' => false
+    );
+    $form['estado'] = array(
+      '#type' => 'select',
+      '#options' => $estados,
+      '#title' => t('Selecciona el estado'),
+    );
+    $form['direccion'] = array(
+      '#title' => t('Dirección'),
+      '#type' => 'textarea',
+      '#attributes' => array('placeholder' => t('Ingresa la dirección (máximo 500 caractéres)')),
+      '#resizable' => false
+    );
+    $form['phone'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Teléfono'),
+      '#size' => 60,
+      '#maxlength' => 128,
+      '#attributes' => array('placeholder' => t('Ingresa el número')),
+    );
+    $form['pagina-web'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Página web (opcional)'),
+      '#size' => 60,
+      '#maxlength' => 128,
+      '#attributes' => array('placeholder' => t('Ingresa la dirección (www.url.com)')),
+    );
+    $form['category'] = array(
+      '#type' => 'radios',
+      '#options' => $categorias_padres,
+      '#title' => t('Selecciona una categoría'),
+      '#requiered' => true,
+    );
+    $form['publico'] = array(
+      '#type' => 'radios',
+      '#options' => $publico,
+      '#title' => t('Tipo de público al que sugieres el lugar'),
+    );
+    $form['caracteristicas'] = array(
+      '#type' => 'checkboxes',
+      '#options' => $caracteristicas,
+      '#title' => t('Características'),
+    );
+    $form['forma_pago'] = array(
+      '#type' => 'checkboxes',
+      '#options' => $formas_pago,
+      '#title' => t('Formas de pago'),
+      '#required' => true,
+    );
+    $form['rangos_precio'] = array(
+      '#type' => 'radios',
+      '#options' => $rangos_precio,
+      '#title' => t('Rango de precios'),
+      '#required' => true,
+    );
+    $form['email'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Tus datos'),
+      '#size' => 60,
+      '#maxlength' => 128,
+      '#attributes' => array('placeholder' => t('Correo electrónico')),
+    );
+    $form['submit'] = array(
+      '#type' => 'submit',
+      '#value' => 'REGISTRAR',
+    );
+    return $form;
+  }
+
+  function fillOptionsWithTaxonomy($vid = 2, $parent = 0) {
+    $qry = db_select('taxonomy_term_hierarchy', 'th');
+    $qry->innerJoin('taxonomy_term_data', 'td', 'th.tid=td.tid');
+    $qry->fields('td', array('tid', 'name'));
+    $qry->condition('td.vid', $vid, '=');
+    $qry->condition('th.parent', $parent, '=');
+    $result = $qry->execute()->fetchAllKeyed();
+    return $result;
+  }
+
+  function register_place_event_form_validate($form, &$form_state) {
+    
+    if (!check_plain($form_state['values']['title']) && $form_state["values"]['title']) {
+      form_set_error('title', t('El titulo es incorrecto'));
+    }
+    if (!check_plain($form_state['values']['deseo_registrar']) && $form_state["values"]['deseo_registrar']) {
+      form_set_error('deseo_registrar', t('Opcion deseo registrar es invalida'));
+    }
+    if (!check_plain($form_state['values']['description']) && $form_state["values"]['description']) {
+      form_set_error('description', t('Campo describelo es incorrecto'));
+    }
+    if (!valid_user_data(10, $form_state['values']['estado']) && $form_state["values"]['estado']) {
+      form_set_error('estado', t('Campo estado es incorrecto'));
+    }
+    if (!check_plain($form_state['values']['direccion']) && $form_state["values"]['direccion']) {
+      form_set_error('direccion', t('Campo direccion es incorrecto'));
+    }
+    if (!check_plain($form_state['values']['phone']) && $form_state["values"]['phone']) {
+      form_set_error('phone', t('Campo telefono es incorrecto'));
+    }
+    if (!valid_url($form_state['values']['pagina-web']) && $form_state["values"]['pagina-web']) {
+      form_set_error('pagina-web', t('Campo pagina web es incorrecto: ejemplo "www.garuyo.com"'));
+    }
+    if (!valid_user_data(2, $form_state['values']['category']) && $form_state["values"]['category']) {
+      form_set_error('category', t('Campo categoria es incorrecto'));
+    }
+    if (!valid_user_data(9, $form_state['values']['publico']) && $form_state["values"]['publico']) {
+      form_set_error('publico', t('Campo publico es incorrecto'));
+    }
+    if (!valid_user_data(3, $form_state['values']['caracteristicas']) && $form_state["values"]['caracteristicas']) {
+      form_set_error('caracteristicas', t('Campo caracteristicas es incorrecto'));
+    }
+    if (!valid_user_data(5, $form_state['values']['forma_pago']) && $form_state["values"]['forma_pago']) {
+      form_set_error('forma_pago', t('Campo formas de pago es incorrecto'));
+    }
+    if (!valid_user_data(4, $form_state['values']['rangos_precio']) && $form_state["values"]['rangos_precio']) {
+      form_set_error('rangos_precio', t('Campo rangos de precio es incorrecto'));
+    }
+    if ($form_state['values']['email']) {
+      if (!valid_email_address($form_state['values']['email']) && $form_state["values"]['email']) {
+        form_set_error('email', t('Campo correo electronico es incorrecto'));
+      }
+    }
+  }
+
+  function valid_user_data($vid, $value_data) {
+    $valid_category = fillOptionsWithTaxonomy($vid, 0);
+    $flag = false;
+    if (is_numeric($value_data)) {
+      if (array_key_exists($value_data, $valid_category)) {
+        $flag = true;
+      }
+    }
+    if (is_array($value_data)) {
+      foreach ($value_data as $v) {
+        if (array_key_exists($v, $valid_category)) {
+          $flag = true;
+        }
+      }
+    }
+    return $flag;
+  }
+  
+  function register_place_event_form_submit($form, &$form_state) {
+//    print_r($form_state);exit;
+//    drupal_set_message(t('The form has been submitted '));
+    global $user;
+    if ($user->uid != 0) {
+      $uid = $user->uid;
+    }
+    else {
+      $uid = 1;
+    }
+    /*
+     * Si el email ya esta registrado, se busca su id y se asigna la variable uid.
+     * En caso de que el id no este registrado se crea un nuevo usuario y se asigna la variable uid.
+     * 
+     */
+//    if($form_state["values"]["email"]){
+//        $email_user=$form_state["values"]["email"];
+//        $user_validated_for_email=user_load_by_mail($email_user);
+//        if($user_validated_for_email!=0){
+//         $uid=$user_validated_for_email->uid;   
+//        }else{
+//        
+//        }
+//    }
+    $register_user = ($uid) ? $uid : 1;
+    switch ($form_state["values"]["deseo_registrar"]) {
+      case "Lugar":
+        $type = "place";
+        break;
+      case "Evento":
+        $type = "event";
+        break;
+    }
+    $tus_datos = $form_state["values"]["email"];
+    $title = $form_state["values"]["title"];
+    $estado["und"][0] = array("tid" => $form_state["values"]["estado"]);
+    $calle["und"][0] = array("name" => $form_state["values"]["title"],
+      "street" => $form_state["values"]["direccion"],
+      "additional" => "",
+      "city" => "City",
+      "province" => "",
+      "postal_code" => "",
+      "country" => "mx",
+      "latitude" => 0.000000,
+      "longitude" => 0.000000,
+      "source" => 1,
+      "is_primary" => 0,
+      "locpick" => array("user_latitude" => 0.000000, "user_longitude" => 0.000000),
+      "province_name" => "",
+      "country_name" => "México"
+    );
+    $publico["und"][0] = array("tid" => $form_state["values"]["publico"]);
+    $body["und"][0] = array("value" => $form_state["values"]["description"],
+      "summary" => "",
+      "format" => "filtered_html",
+      "safe_value" => $form_state["values"]["description"],
+      "safe_summary" => ""
+    );
+    $telefono["und"][0] = array("value" => $form_state["values"]["phone"],
+      "format" => "",
+      "safe_value" => $form_state["values"]["phone"],
+    );
+    $pagina_web["und"][0] = array("value" => $form_state["values"]["pagina-web"],
+      "format" => "",
+      "safe_value" => $form_state["values"]["pagina-web"],
+    );
+    $user_node["und"][0] = array("value" => 1,
+      "format" => "",
+      "safe_value" => 1,
+    );
+    $categoria["und"][0] = array("tid" => $form_state["values"]["category"]);
+    $ocio["und"][0] = array("tid" => 305787);
+    $array_caracteristicas = $form_state["values"]["caracteristicas"];
+    $caracteristicas = array();
+    foreach ($array_caracteristicas as $c) {
+      if ($c > 0) {
+        $caracteristicas["und"][] = array("tid" => $c);
+      }
+    }
+    $array_formas_pago = $form_state["values"]["forma_pago"];
+    $formas_pago = array();
+    foreach ($array_formas_pago as $p) {
+      if ($c > 0) {
+        $formas_pago["und"][] = array("tid" => $p);
+      }
+    }
+    $precio["und"][0] = array("tid" => $form_state["values"]["rangos_precio"]);
+    
+    $node_new = new stdClass();
+    $node_new->uid = $register_user;
+    $node_new->type = $type;
+    $node_new->title = $title;
+    $node_new->body = $body;
+    $node_new->field_ubicacion_filtros = $estado;
+    $node_new->field_ubicacion = $calle;
+    $node_new->field_telefono = $telefono;
+    $node_new->field_pagina_web = $pagina_web;
+    $node_new->field_categoria = $categoria;
+    $node_new->field_ocio = $ocio;
+    $node_new->field_publico = $publico;
+    $node_new->field_image = "";
+    $node_new->field_caracteristicas_lugar = $caracteristicas;
+    $node_new->field_formas_de_pago = $formas_pago;
+    $node_new->field_precio = $precio;
+    $node_new->field_user_node = $user_node;
+    $node_new->status = 0;
+    $node = node_submit($node_new); // Prepare node for saving
+//    print_r($node);exit;
+    node_save($node);
+
+//$new_node=node_load(135787);
+    $form_state['redirect'] = "/ultimos-lugares-o-eventos-registrados";
+//print_r(node_load($node->nid));exit;
+  }
+  
+  function save_place(){
+    
+  }
+
+  function register_place_event_form_alter(&$form, &$form_state, $form_id) {
+    if ($form_id == 'register_place_event_form') {
+      $form['#theme'] = array('register_place_event_form');
+    }
+  }
+
+  function register_place_event_theme() {
+    return array('register_place_event_form' => array(
+        'render element' => 'form',
+        'path' => drupal_get_path('module', 'register_place_event'),
+        'template' => 'place-event-form',
+      ),
+    );
+  }
+  

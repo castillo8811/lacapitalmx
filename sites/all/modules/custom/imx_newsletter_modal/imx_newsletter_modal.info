@@ -1,0 +1,6 @@
+name = "IMX Newsletter Modal"
+description = "Ventana modal para registro a boletin MC"
+package = "InventMX"
+core = "7.x"
+version = "7.x"
+php="5.x"

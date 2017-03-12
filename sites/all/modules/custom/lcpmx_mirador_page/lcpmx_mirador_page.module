@@ -1,0 +1,168 @@
+<?php
+
+function lcpmx_mirador_page_help($path, $arg) {
+    if ($path == 'admin/help#lcpmx_mirador_page') {
+        return t('Muestra el bloque de últimas notas por usuario (Mirador)');
+    }
+}
+
+function lcpmx_mirador_page_menu() {
+    $items['mirador'] = array(
+        'type' => MENU_CALLBACK,
+        'title' => 'Mirador',
+        'page callback' => 'lcpmx_helper_mirador',
+        'access callback' => TRUE,
+        'access arguments' => array('access content'),
+    );
+
+    $items['queretaro/mirador'] = array(
+        'type' => MENU_CALLBACK,
+        'title' => 'Mirador',
+        'page callback' => 'lcpmx_helper_mirador',
+        'access callback' => TRUE,
+        'access arguments' => array('access content'),
+    );
+
+    $items['mirador/widget'] = array(
+        'type' => MENU_CALLBACK,
+        'title' => 'Mirador Widget',
+        'page callback' => 'lcpmx_mirador_frame',
+        'access callback' => TRUE,
+        'access arguments' => array('access content'),
+    );
+
+    return $items;
+}
+
+function lcpmx_mirador_page_block_info() {
+    $blocks['lcpmx_mirador_page'] = array(
+        'info' => t('LaCapitalMX Mirador Page')
+    );
+
+    $blocks['lcpmx_mirador_widget'] = array(
+        'info' => t('LaCapitalMX Mirador Widget')
+    );
+    return $blocks;
+}
+
+function lcpmx_mirador_page_block_view($delta = '') {
+    $block = array(
+        'subject' => t(''),
+        'content' => '',
+    );
+
+    if ($delta == 'lcpmx_mirador_page') {
+        $block['content'] = array(
+            '#theme' => 'lcpmx_mirador_page'
+        );
+    };
+
+    if ($delta == 'lcpmx_mirador_widget') {
+        $block['content'] = array(
+            '#theme' => 'lcpmx_mirador_widget'
+        );
+    };
+    return $block;
+}
+
+function lcpmx_mirador_page_theme($existing, $type, $theme, $path) {
+    return array(
+        'lcpmx_mirador_page' => array(
+            'variables' => array(
+                'items_lcpmx_mirador_page' => NULL,
+            ),
+            'template' => 'lcpmx_mirador_page',
+        ),
+        'lcpmx_mirador_widget' => array(
+            'variables' => array(
+                'items_lcpmx_mirador_widget' => NULL,
+            ),
+            'template' => 'lcpmx_mirador_widget',
+        ),
+    );
+}
+
+function template_preprocess_lcpmx_mirador_page(&$variables) {
+    $items = get_users_queue(1);
+    $variables['items_lcpmx_mirador_page'] = $items;
+}
+
+function template_preprocess_lcpmx_mirador_widget(&$variables) {
+    $data = file_get_contents('http://local.lacapitalmx.com/mirador/widget');
+    $items_capital=json_decode($data,true);
+
+    $items_local = get_users_queue(1);
+
+    $items=array_merge($items_capital,$items_local);
+
+    $variables['items_lcpmx_mirador_page'] = $items;
+    }
+
+function get_users_queue($uqid){
+    if(!$uqid || !is_numeric($uqid))
+        return NULL;
+    $qry = db_select('userqueue_user', 'uq');
+    $qry->fields('uq', array('uid'));
+    $qry->condition('uq.uqid', $uqid, '=');
+    $qry->orderBy('uq.position');
+    $result = $qry->execute()->fetchAll();
+    foreach ($result as $row) {
+        $user = user_load($row->uid);
+        $lastNode = get_user_last_node($row->uid);
+        if($lastNode) {
+            $img = get_node_image($lastNode['nid'], $lastNode['type']);
+        }else{
+            $img=array();
+            $img["uri"]="";
+        }
+        $items[] = array(
+            'user_name' => $user->name,
+            'blog' => $user->field_blog_name["und"][0]["value"],
+            'twitter'=>strip_tags($user->field_tw_account['und'][0]['value']),
+            'user_uid' => $row->uid,
+            'user_url' => drupal_get_path_alias('user/'.$row->uid),
+            'user_picture' => $user->picture->uri,
+            'node_nid' => $lastNode['nid'],
+            'node_title' => $lastNode['title'],
+            'node_url' => $lastNode['url'],
+            'node_img' =>$img["uri"],
+        );
+    }
+    unset($qry, $result, $user, $row);
+    return $items;
+}
+
+function get_user_last_node($uid){
+    if(!$uid)
+        return NULL;
+    
+    $qry = db_select('field_data_field_colaborador', 'fc');
+    $qry->join('node', 'n', 'n.nid=fc.entity_id');
+    $qry->fields('n', array('nid','title','type'));
+    $qry->condition('fc.field_colaborador_uid', $uid, '=');
+    $qry->condition('n.status',1, '=');
+    $qry->range(0,1);
+    $qry->orderBy('n.nid', 'DESC');
+    $nodes = $qry->execute()->fetchAll();
+    if(count($nodes)){
+        foreach ($nodes as $row) {
+            $items = array(
+                'nid' => $row->nid,
+                'title' => $row->title,
+                'type' => $row->type,
+                'url' => drupal_get_path_alias('node/'.$row->nid),
+            );
+        }
+    }
+    unset($qry, $nodes, $row);
+    return $items;
+}
+
+function lcpmx_helper_mirador(){
+    return array();
+}
+
+function lcpmx_mirador_frame(){
+    $items = get_users_queue(1);
+    print drupal_json_encode($items);
+}

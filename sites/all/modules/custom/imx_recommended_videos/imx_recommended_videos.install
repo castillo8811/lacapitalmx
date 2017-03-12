@@ -1,0 +1,15 @@
+<?php
+
+/**
+ * Implements hook_install().
+ */
+function imx_recommended_videos_install() {
+    variable_set('imx_recommended_videos_modo', 0);
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function imx_recommended_videos_uninstall() {
+    variable_del('imx_recommended_videos_modo');
+}

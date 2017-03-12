@@ -1,0 +1,7 @@
+name = "Bloques de usuarios"
+description = "Bloques de usuarios"
+package = "InventMX"
+core = "7.x"
+version = "7.x"
+php="5.x"
+files[] = imx_users.module

@@ -1,0 +1,7 @@
+; $Id$ 
+name = "Menú de Subcanal"
+description = "Muestra en menu principal de los canales"
+package = "FEM"
+version = 1.0
+core = 7.x
+files[]="imx_menusubcanal.module"

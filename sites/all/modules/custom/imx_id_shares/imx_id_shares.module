@@ -1,0 +1,203 @@
+<?php
+
+/**
+ * Devuelve el pintado de los botones de redes sociales
+ */
+function imx_id_shares_help($path, $arg) {
+    if ($path == 'admin/help#imx_id_shares_addthis') {
+        return t('Módulo que almacena el id de los shares de Addthis');
+    }
+}
+
+function imx_id_shares_permission() {
+    return array(
+        'administer id shares Addthis' => array(
+            'title' => t('Administer id shares from Addthis'),
+            'description' => t('Almacenamiento del id de los shares de Addthis'),
+        ),
+    );
+}
+
+function imx_id_shares_menu() {
+
+    $items['admin/config/services/imx_id_shares_addthis'] = array(
+        'title' => 'Id de los shares de Addthis en notas InventMx',
+        'description' => 'Almacenamiento de id shares de Addthis',
+        'page callback' => 'drupal_get_form',
+        'access arguments' => array('administer id shares Addthis'),
+        'type' => MENU_NORMAL_ITEM,
+        'page arguments' => array('imx_id_shares_form'),
+    );
+    $items['savenode/action'] = array(
+        'type' => MENU_CALLBACK,
+        'title' => 'Guardado de nodos por usuario',
+        'page callback' => 'savenode_action',
+        'access callback' => TRUE,
+        'access arguments' => array('access content'),
+    );
+    return $items;
+}
+
+function imx_id_shares_form($form, &$form_state) {
+    
+    $conf = variable_get('id_shares');
+    //print_r($conf);
+    $form = array();
+    $form['#tree'] = FALSE;
+    $form['id_shares'] = array(
+        '#title' => t('ID Shares de Addthis'),
+        '#type' => 'fieldset',
+        '#description' => t(''),
+    );
+    $form['id_shares']['id_shares_num'] = array(
+        '#type' => 'textfield',
+        '#title' => t('¿Cuál es el ID de los shares de Addthis de tu sitio?'),
+        '#description' => t('Introduce el id de los shares Ej: ra-530b917634f035d3'),
+        '#default_value' => variable_get('id_shares', ''),
+    );
+    $form['submit'] = array(
+        '#type' => 'submit',
+        '#value' => t('Guardar'),
+    );
+    return $form;
+}
+
+function imx_id_shares_form_submit($form, &$form_state) {
+    //print_r($form_state['values']);
+    //exit;
+    //variable_del('id_shares'); //primero se borra, por si existe
+    $id_share = $form_state['values']['id_shares_num'];
+    variable_set('id_shares', $id_share); //se recrea
+    drupal_set_message("Guardado correctamente $id_share");
+}
+
+
+function getAddthisObsesiones($url, $title, $description) {
+    $addthis = '<!-- AddThis Button BEGIN -->
+                <div class="addthis_toolbox addthis_default_style" addthis:url="' . $url . '" addthis:title="' . $title . '" addthis:description="' . $description . '">
+                <a class="addthis_button_facebook_like" fb:like:layout="button_count"></a>
+                <a class="addthis_button_tweet"></a>
+                <a class="addthis_button_google_plusone" g:plusone:size="medium"></a>
+                <a class="addthis_counter addthis_pill_style"></a>
+                </div>
+                <div class="clear"></div>
+                <!-- AddThis Button END -->';
+    return $addthis;
+}
+
+function getAddthis($id, $url, $title, $description, $share = TRUE, $like = TRUE) {
+    drupal_add_js(drupal_get_path('module', 'imx_id_shares') . '/imx_shareslateral.js');
+    $addthis = '<!-- AddThis Button BEGIN -->
+                <div class="addthis_toolbox addthis_default_style" addthis:url="' . $url . '" addthis:title="' . $title . '" addthis:description="' . $description . '">';
+                if($share){
+                    $addthis.='<a class="addthis_button_facebook_share" fb:share:layout="button_count"></a>';
+                }
+                if($like){
+                    $addthis.='<a class="addthis_button_facebook_like" fb:like:layout="button_count"></a>';
+                }
+    $addthis.= '<a class="addthis_button_tweet"></a>
+                <a class="addthis_button_google_plusone" g:plusone:size="medium"></a>
+                <a class="addthis_counter addthis_pill_style"></a>
+                <div class="addthis-comments prelative tools comments">
+                    <a href="#comentarios-globo"><fb:comments-count href="' . $url . '"></fb:comments-count></a>
+                </div>
+                <div class="addthissave-reduced tools guardar" nid="' . $id . '" title="Guardar art&iacute;culo">
+                    <div class="num-guardar datos-guardar">' . _get_count_saved($id) . '</div>
+                </div>
+                </div>
+                <div class="clear"></div>
+                <!-- AddThis Button END -->';
+    return $addthis;
+}
+
+function getAddthisVertical($id, $url, $title, $description, $image) {
+    $addthis = '<!-- AddThis Button BEGIN -->
+                <div class="addthis_toolbox addthis_counter_style" addthis:url="' . $url . '" addthis:title="' . $title . '" addthis:description="' . $description . '">
+                <a class="addthis_button_facebook_share"></a>
+                <a class="addthis_button_facebook_like" fb:like:layout="box_count"></a>
+                <a class="addthis_button_tweet" tw:count="vertical"></a>
+                <a class="addthis_button_google_plusone" g:plusone:size="tall"></a>
+                <a class="addthis_button_pinterest_pinit" pi:pinit:layout="vertical" pi:pinit:url="' . $url . '" pi:pinit:media="' . $image . '"></a>           
+                <div class="addthissave-full tools guardar" nid="' . $id . '" title="Guardar art&iacute;culo">
+                    <div class="num-guardar datos-guardar">' . _get_count_saved($id) . '</div>
+                </div>
+                </div>
+                <!-- AddThis Button END -->';
+    return $addthis;
+}
+
+/**
+ * Numero de elementos del usuario
+ * @method _get_count_sabed()
+ * @return array
+ */
+function _get_count_saved($nid) {
+    if (!$nid)
+        return $nid;
+    
+    $qry = db_select('users_node_saved', 'ns');
+    $qry->fields('ns', array('uid'));
+    $qry->condition('ns.nid', $nid, '=');
+    $qry->condition('ns.status', 1, '=');
+    $result = $qry->execute()->rowCount();
+    
+    return $result;
+
+}
+
+function savenode_action(){
+    if ($_SERVER["HTTP_X_REQUESTED_WITH"] === "XMLHttpRequest") {
+        global $user;
+        $nid = $_POST['nid'];
+        $uid = $user->uid;
+        unset($user);
+        $total = (int) $_POST['total'];
+//        $total = _get_count_saved($nid);
+        $items=array(
+            'status' => 300,
+            'data' => $total,
+            'message' => 'Esta nota ya existe en tus favoritos'
+        );
+        // trato de ver si el nodo no existe ya dentro de los favoritos del usuario y está activo
+        $qry = db_select('users_node_saved', 'ns');
+        $qry->fields('ns', array('nid','status'));
+        $qry->condition('ns.uid', $uid, '=');
+        $qry->condition('ns.nid', $nid, '=');
+        $exists = $qry->execute()->fetchAssoc();
+        // si no se encontró (no estaba guardado por el usuario)
+        if(!$exists){
+            db_insert('users_node_saved')->fields(
+                    array(
+                        'uid' => $uid,
+                        'nid' => $nid,
+                        'status' => 1,
+                        'created' => time(),
+                        'deleted' => 0)
+            )->execute();
+            $items = array(
+                'status' => 200,
+                'data' => $total + 1,
+                'message' => 'Nota guardada en tus favoritos'
+            );
+        } else {
+            // si sí estaba valido si está desactivo o activo
+            if($exists['status'] == 0){
+                db_update('users_node_saved')
+                        ->fields(array(
+                            'status' => 1
+                        ))
+                        ->condition('uid', $uid, '=')
+                        ->condition('nid', $nid, '=')
+                        ->execute();
+                $items = array(
+                    'status' => 200,
+                    'data' => $total + 1,
+                    'message' => 'Nota reagregada a tus favoritos',
+                );
+            }
+        }
+        echo json_encode($items);
+        exit;
+    }
+    exit;
+}

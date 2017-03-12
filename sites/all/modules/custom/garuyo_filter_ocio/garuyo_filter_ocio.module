@@ -1,0 +1,193 @@
+<?php
+
+function garuyo_filter_ocio_menu() {
+    $items['ocio/para-la-calle/%'] = array(
+        'title' => 'Filtro ocio',
+        'page callback' => 'ocio_get_info',
+        'access callback' => TRUE,
+        'access arguments' => array('access content'),
+    );
+    $items['ocio/para-el-sillon/%'] = array(
+        'title' => 'Filtro ocio',
+        'page callback' => 'ocio_get_info',
+        'access callback' => TRUE,
+        'access arguments' => array('access content'),
+    );
+    $items['ocio/para-la-calle/%/%'] = array(
+        'title' => 'Filtro ocio',
+        'page callback' => 'calle_get_info',
+        'access callback' => TRUE,
+        'access arguments' => array('access content'),
+    );
+    $items['ocio/para-el-sillon/%/%'] = array(
+        'title' => 'Filtro ocio',
+        'page callback' => 'sillon_get_info',
+        'access callback' => TRUE,
+        'access arguments' => array('access content'),
+    );
+    return $items;
+}
+
+function ocio_get_info() {
+    return "";
+}
+
+function calle_get_info() {
+    $slug = arg(2);
+    $offset = arg(3);
+    $source = (is_numeric($slug))? $slug : drupal_get_normal_path($slug);
+    $data = garuyo_find_by_slug(305787, $source,$offset, 8);
+    $data["ajax"]=true;
+    print theme("garuyo_filter_ocio",array("items"=>$data));
+}
+
+function sillon_get_info() {
+    $slug = arg(2);
+    $offset = arg(3);
+    $source = (is_numeric($slug))? $slug : drupal_get_normal_path($slug);
+    $data = garuyo_find_by_slug(305788, $source,$offset, 8);
+    $data["ajax"]=true;
+    print theme("garuyo_filter_ocio",array("items"=>$data));
+}
+
+function clean_taxonomy($object_taxonomy) {
+    $data_taxonomy = array();
+    if ($object_taxonomy) {
+        $data_taxonomy = array("name" => $object_taxonomy->name, "tid" => $object_taxonomy->tid, "path" => url("taxonomy/term/" . $data_taxonomy->tid));
+    }
+    return $data_taxonomy;
+}
+
+/**
+ * Implements hook_block_info
+ */
+function garuyo_filter_ocio_block_info() {
+    $blocks['filter_ocio_calle'] = array(
+        'info' => t('Bloque filtrar contenido por subcategoria en canal ocio/para-la-calle'),
+    );
+    $blocks['filter_ocio_sillon'] = array(
+        'info' => t('Bloque filtrar contenido por subcategoria en canal ocio/para-el-sillon'),
+    );
+    return $blocks;
+}
+
+/**
+ * Implements hook_block_view
+ */
+function garuyo_filter_ocio_block_view($delta = '') {
+    $block = array();
+    switch ($delta) {
+        case 'filter_ocio_calle':
+            $slug = arg(2);
+            $source = drupal_get_normal_path($slug);
+            $block['subject'] = t('Bloque filtrar contenido por subcategoria en canal ocio/para-la-calle');
+            $data_nodes=garuyo_find_by_slug(305787, $source, 0, 8);
+            if($data_nodes["nodes"]){
+                $content = array(
+                        '#items' => $data_nodes,
+                        '#theme' => 'garuyo_filter_ocio',
+                    );
+            $block['content'] = $content;
+            }
+            else{
+                drupal_goto("/404");
+            }
+            
+//            return theme('garuyo_filter_ocio', array('items' => $block["content"]));
+            break;
+        case 'filter_ocio_sillon':
+            $slug = arg(2);
+//            print_r($slug);exit;
+            $source = drupal_get_normal_path($slug);
+            $block['subject'] = t('Bloque filtrar contenido por subcategoria en canal ocio/para-el-sillon');
+            $data_nodes = garuyo_find_by_slug(305788, $source, 0, 8);
+            if($data_nodes["nodes"]){
+                $content = array(
+                        '#items' => $data_nodes,
+                        '#theme' => 'garuyo_filter_ocio',
+                    );
+            $block['content'] = $content;
+            }
+            else{
+                drupal_goto("/404");
+            }
+            
+            break;
+    }
+
+    return $block;
+}
+
+function garuyo_find_by_slug($ocio, $source, $offset = 0, $limit = 8) {
+    $items = array();
+    $tid=100;
+    if(is_numeric($source)){
+     $tid=$source;   
+    }else{
+        $tid = explode("/", $source);
+    $tid=$tid[2];
+    }
+    
+    $items["ocio"] = $ocio;
+    $nids = get_node_by_slug_ocio($ocio, $tid, $offset, $limit);
+    if (count($nids)) {
+        $items["nodes"] = get_nodes_by_nids($nids);
+        $items["tid"] = $tid;
+    }
+//    return theme('garuyo_filter_ocio', array('items' => $items));
+    return $items;
+}
+
+//305788 sillon ,305787 calle
+function get_node_by_slug_ocio($ocio = 305788, $tid = 100, $offset = 0, $limit = 8) {
+    $entities = db_select("taxonomy_index", "ti1");
+    $entities->extend('PagerDefault');
+    $entities->innerJoin("taxonomy_index", "ti2", "ti1.nid=ti2.nid");
+    $entities->innerJoin("node", "n", "n.nid=ti1.nid");
+    $entities->fields("ti1", array("nid"));
+    $entities->condition("ti1.tid", $ocio, "=");
+    $entities->condition("ti2.tid", $tid, "=");
+    $entities->condition("n.status", 1, "=");
+    $entities->orderBy("n.changed", "DESC");
+    $entities->range($offset, $limit);
+    return $entities->execute()->fetchAll();
+}
+
+function get_nodes_by_nids($nids) {
+    $data_template = array();
+    foreach ($nids as $f) {
+        $data_node = node_load($f->nid);
+        $title = ($data_node->title) ? $data_node->title : "";
+        $imagen = ($data_node->field_image["und"][0]["uri"]) ? $data_node->field_image["und"][0]["uri"] : "";
+        $votos = ($data_node->field_votos["und"][0]["rating"]) ? $data_node->field_votos["und"][0]["rating"] / 20 : "";
+        $categoria = (taxonomy_term_load($data_node->field_categoria["und"][0]["tid"])) ? taxonomy_term_load($data_node->field_categoria["und"][0]["tid"]) : "";
+        $categoria_secundaria = (taxonomy_term_load($data_node->field_categoria_secundaria["und"][0]["tid"])) ? taxonomy_term_load($data_node->field_categoria_secundaria["und"][0]["tid"]) : "";
+        $categoria_secundaria2 = (taxonomy_term_load($data_node->field_categoria_secundaria["und"][1]["tid"])) ? taxonomy_term_load($data_node->field_categoria_secundaria["und"][1]["tid"]) : "";
+        $body = ($data_node->body["und"][0]["summary"]) ? $data_node->body["und"][0]["summary"] : substr(strip_tags($data_node->body["und"][0]["value"]), 0, 150) . "...";
+        $ocio = ($data_node->field_ocio["und"][0]["tid"]) ? $data_node->field_ocio["und"][0]["tid"] : "";
+        $data_template[] = array(
+            "title" => $title,
+            "nid" => $f->nid,
+            "imagen" => image_style_url('home_y_canales', $imagen),
+            "votos" => ceil((($votos) / 2) / 10),
+            "body" => $body,
+            "categoria" => array(clean_taxonomy($categoria)),
+            "categoria_secundaria" => array(clean_taxonomy($categoria_secundaria), clean_taxonomy($categoria_secundaria2)),
+            "ocio" => $ocio,
+        );
+    }
+    return $data_template;
+}
+
+function garuyo_filter_ocio_theme() {
+    $module_path = drupal_get_path('module', 'garuyo_filter_ocio');
+    $base = array(
+        'path' => "$module_path/theme",
+    );
+    return array(
+        'garuyo_filter_ocio' => $base + array(
+    'template' => 'garuyo_filter_ocio',
+    'variables' => array('items' => NULL,),
+        ),
+    );
+}

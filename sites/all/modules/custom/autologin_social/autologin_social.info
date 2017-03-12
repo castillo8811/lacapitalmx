@@ -1,0 +1,8 @@
+name = "Autologin facebook"
+description = "Captura la session de facebook activa"
+package = "InventMX"
+core = "7.x"
+version = "7.x"
+php = "5.x"
+
+

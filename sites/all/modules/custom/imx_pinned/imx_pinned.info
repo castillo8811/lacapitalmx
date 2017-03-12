@@ -1,0 +1,7 @@
+name = "Pinned Sites Windows 8"
+description = "Inserta etiquetas meta dinámicamente personalizadas para implementación de Pinned Sites W8"
+package = "Clones"
+core = "7.x"
+version = "7.x"
+php="5.x"
+files[] = imx_pinned.module

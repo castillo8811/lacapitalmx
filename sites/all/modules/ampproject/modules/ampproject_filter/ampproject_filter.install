@@ -1,0 +1,92 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions.
+ */
+
+/**
+ * Implements hook_install().
+ */
+function ampproject_filter_install() {
+  // Add our specific text format in order to validate text markup for AMP.
+  $format_exists = (bool) db_query_range('SELECT 1 FROM {filter_format} WHERE name = :name', 0, 1, array(':name' => 'Google AMP'))->fetchField();
+
+  if (!$format_exists) {
+    // Define allowed tags.
+    // @see: https://github.com/ampproject/amphtml/blob/master/spec/amp-tag-addendum.md + https://github.com/ampproject/amphtml/blob/master/spec/amp-html-format.md
+    // todo: To be completed with extended components.
+    $allowed_tags = [
+      'grouping' => '<p> <hr> <pre> <blockquote> <ol> <ul> <li> <dl> <dt> <dd> <figure> <figcaption> <div> <main>',
+      'text_level' => '<h1> <h2> <h3> <h4> <h5> <h6> <a> <em> <strong> <small> <s> <cite> <q> <dfn> <abbr> <data> <time> <code> <var> <samp> <kbd > <sub> <sup> <i> <b> <u> <mark> <ruby> <rb> <rt> <rtc> <rp> <bdi> <bdo> <span> <br> <wbr>',
+      'edits' => '<ins> <del>',
+      'svg' => '<svg> <g> <path> <glyph> <glyphref> <marker> <view> <circle> <line> <polygon> <polyline> <rect> <text> <textpath> <tref> <tspan> <clippath> <filter> <lineargradient> <radialgradient> <mask> <pattern> <vkern> <hkern> <defs> <use> <symbol> <desc> <title>',
+      'tabular' => '<table> <caption> <colgroup> <col> <tbody> <thead> <tfoot> <tr> <td> <th>',
+      'forms' => '<button>',
+      'amp' => '<amp-img> <amp-video> <amp-ad> <amp-fit-text> <amp-font> <amp-carousel> <amp-anim> <amp-youtube> <amp-twitter> <amp-vine> <amp-instagram> <amp-iframe> <amp-pixel> <amp-audio> <amp-lightbox> <amp-image-lightbox> <amp-facebook>',
+      'others' => '<source>',
+    ];
+
+    $ampproject_format = [
+      'format' => 'ampproject',
+      'name' => 'Google AMP',
+
+      // Use a higher weight here to ensure that this format will not
+      // be the default format for anyone.
+      'weight' => 15,
+      'filters' => [
+        'ampproject_img_filter' => [
+          'status' => 1,
+          'weight' => 1,
+        ],
+        'ampproject_embed_filter' => [
+          'status' => 1,
+          'weight' => 2,
+        ],
+        'ampproject_attr_filter' => [
+          'status' => 1,
+          'weight' => 3,
+        ],
+
+        // Allowed HTML tags.
+        'filter_html' => [
+          'status' => 1,
+          'weight' => 4,
+          'settings' => [
+            'allowed_html' => implode(' ', $allowed_tags),
+            'filter_html_help' => 0,
+            'filter_html_nofollow' => 0,
+          ],
+        ],
+      ],
+    ];
+
+    // Prepare and save the text format.
+    $ampproject_format = (object) $ampproject_format;
+    filter_format_save($ampproject_format);
+    drupal_set_message(t('A <a href="@ampproject">Google AMP</a> text format has been created.', array('@ampproject' => url('admin/config/content/formats/' . $ampproject_format->format))));
+  }
+
+  // Grant access to 'administrator'. Hope to be enough for using programmatically.
+  $roles = array('administrator');
+  foreach ($roles as $role_name) {
+    $role = user_role_load_by_name($role_name);
+    if ($role) {
+      user_role_grant_permissions($role->rid, ['use text format ampproject']);
+    }
+  }
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function ampproject_filter_uninstall() {
+  // Delete ampproject text filter.
+  $filter = filter_format_load('ampproject');
+  filter_format_disable($filter);
+
+  // Delete all the DB records.
+  foreach (['filter', 'filter_format'] as $table) {
+    db_delete($table)->condition('format', 'ampproject')->execute();
+  }
+}

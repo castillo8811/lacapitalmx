@@ -1,0 +1,155 @@
+<?php
+
+function autologin_social_block_info() {
+
+    $blocks['autologin'] = array(
+        'info' => t('Captura la sesion de facebook'),
+    );
+    return $blocks;
+}
+
+function autologin_social_menu() {
+    $items = array();
+    $items['admin/config/autologin'] = array(
+        'title' => t('custom ajax'),
+        'type' => MENU_CALLBACK,
+        'page callback' => 'my_custom_ajax_callback',
+        'access arguments' => array('access content'),
+    );
+    
+    
+$items['admin/config/people/autologin/configuraciones']= array(
+        'title' => 'Configurar comportamiento de autologin',
+        'description' => 'Configurar comportamiento de Autologin.', 
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('autologin_social_configuraciones_form'),
+        'access arguments' => array('Administrador google admin'),
+        'weight' => -10,
+        'type' => MENU_NORMAL_ITEM,
+        'file'=>'inc/autologin_social_forms.admin.inc'
+);
+    $items['social_logout'] = array(
+        'title' => t('Se ha cerrado  session '),
+        'type' => MENU_CALLBACK,
+        'page callback' => 'autologin_out',
+        'access arguments' => array('access content'),
+    );
+    return $items;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function autologin_social_block_view($block_name = '') {  
+$app_facebook = variable_get('fboauth_id', NULL);
+  drupal_add_js(array('id' => $app_facebook), 'setting');
+    $block['content'] = array(
+        '#theme' => 'autologinx',
+        '#data' => array('data' => NULL,),);
+    return $block;
+}
+
+function autologin_out() {
+$app_facebook = variable_get('fboauth_id', NULL);
+drupal_add_js(array('id' => $app_facebook), 'setting');
+user_logout_pirata();
+
+ $notas = tree_carrusel_home_login(3);
+    return array(
+        '#theme' => 'logout',
+        '#data' => array('notas'=>$notas));
+}
+
+
+function tree_carrusel_home_login($items) {
+    $data = array();
+    $items = array();
+    $domain = domain_get_domain();
+    $data['sitename'] = $domain['sitename'];
+    $queue = get_site_queue_name($domain['sitename'], 'main'); 
+    $nq = nodequeue_load_queue_by_name($queue); 
+    if (!empty($nq)) {
+        $sq = nodequeue_load_subqueues_by_queue($nq->qid);  
+        $sqobject = array_shift($sq);
+        $result = nodequeue_load_nodes($sqobject->sqid, FALSE, 0,3, TRUE); 
+        // print_r($result); exit();
+       
+        foreach ($result as $key => $value) {
+            $type = node_get_icon($value);//          
+            $uri =  $value->field_image['und'][0]['uri'];
+            $body = strip_tags($value->body['und'][0]['safe_value']);
+            $category = $value->field_categorias['und']['0']['tid'] ;
+            $items[] = array(
+                'title' => $value->title,
+                'url' => url('node/' . $value->nid),
+                'image' => image_style_url('wide', $uri),
+                'body' => trunc($body, 20),
+                'type' => $type,
+                'category' =>name_categoria_out($category),
+            );
+            unset($uri, $body);
+            
+            
+        }
+    }
+
+    return $items;
+}
+
+/**
+ * Implement of Hook theme
+ * @return type
+ */
+function autologin_social_theme() {
+    return array(
+        'autologinx' => array(
+            'template' => 'autologin',
+            'variables' => array('data' => NULL,),
+        ),
+        'logout' => array(
+            'template' => 'out',
+            'variables' => array('data' => NULL,),
+        ),
+    );
+}
+
+function my_custom_ajax_callback() {
+    $resultado_final = false;
+    if (!empty($_POST['token'])) {
+        $access_token = $_POST['token'];
+        $uid = fboauth_uid_load($access_token);
+        $form_state['uid'] = $uid;
+        if (!empty($uid)) {
+            $resultado_final = true;   
+            user_login_submit(array(), $form_state);
+            $_SESSION['autologin_social'] = TRUE;
+            $_SESSION['Type_login'] = array('Auto_social'=> true);
+        }
+        drupal_json_output($resultado_final);
+    } else {
+        drupal_json_output("fail");
+    }
+}
+
+function autologin_social_user_logout() {
+    if (!empty($_SESSION['autologin_social'])) {
+        drupal_goto('social_logout');
+    }
+}
+
+function user_logout_pirata() {
+    global $user;
+    unset($_SESSION['autologin_social']);
+    watchdog('user', 'Session closed for %name.', array('%name' => $user->name));
+    module_invoke_all('user_logout', $user);
+    session_destroy();
+    //drupal_goto();
+}
+function name_categoria_out($tid){
+  $query = "select name from taxonomy_term_data where tid = $tid";
+  $resultado = db_query($query)->fetchAll();
+  return $resultado[0]->name;
+  
+  
+    
+}

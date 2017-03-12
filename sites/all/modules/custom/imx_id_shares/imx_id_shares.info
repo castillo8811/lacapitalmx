@@ -1,0 +1,7 @@
+; $Id$
+name = "Id Shares from Addthis"
+description = "Módulo para almacenar el id de los shares de Addthis"
+package = "InventMX"
+version = 1.0
+core = 7.x
+files[]="imx_id_shares.module"

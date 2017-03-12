@@ -1,0 +1,432 @@
+<?php
+
+//$Id: userfem.module,v 1.1.2.1 2009/06/07 18:39:03 compujohnny Exp $
+/*
+ * @file
+ * This module provides a block with 2 links (Login, Register) for the anonymous user
+ * When the user clicks on Login or register the requested form appears in a nice ajax popup
+ * The login and register forms can validate using ajax and not redirect on error
+ * On success the module redirects to the user page
+ * When user is logged in, the block provides a Welcome !username message and a link to the user page
+ * and a logout link.
+ */
+/**
+ * Paquetes modificados: todo el modulo de userfem y actitudfem-fresh.css actitudfem.js
+ */
+/*
+ * Implementing hook_block
+ */
+function userfem_block($op = 'list', $delta = 0, $edit = array()) {
+    if ($op == 'list') {
+        $blocks[0] = array(
+            'info' => t('Iniciar sesión | Regístrate Fem'),
+        );
+        return $blocks;
+    }
+    if ($op == 'view') {
+        if ($delta == 0) {
+            $block['subject'] = t('Iniciar sesión | Regístrate Fem');
+            $block['content'] = ajax_get_login_block_content();
+            return $block;
+        }
+    }
+}
+
+function ajax_get_login_block_content() {
+    global $user;
+    //Load JS&CSS
+	if($user->uid<=0)
+		drupal_add_js(drupal_get_path('module', 'userfem') . "/userfem.js");
+	
+    drupal_add_css(drupal_get_path('module', 'userfem') . "/userfem.css");
+    $user_uri = theme('my_account_link', array());
+    $login_uri = theme('user_login_link', array(), array());
+    $register_uri = theme('user_register_link', array(), array());
+    $logout_uri = theme('user_logout_link', array());
+    if (user_is_anonymous()) {
+        $block_content = '<div id="userfem_block_anonymous"><p><span class="userfem_login">'.$login_uri.'</span>&nbsp;|&nbsp;<span class="userfem_register">'.$register_uri.'</span></p></div>';
+        return $block_content;
+    } else {
+        $block_content = '<div id="userfem_block_authenticated"><p>'.t("Bienvenid@: ").'<span class="userfem_user_name">'.theme('username', $user).'</span>&nbsp;|&nbsp;<span class="userfem_logout">'.$logout_uri.'</span></p></div>';
+        return $block_content;
+    }
+}
+
+/*
+ * Implementing hook_menu
+ */
+
+function userfem_menu() {
+    $items = array();
+    $items['userfem/login'] = array(
+        'title' => t('Iniciar sesión | Regístrate Fem'),
+        'page callback' => 'userfem_get_ajax_login_form',
+        'access arguments' => array('access content'),
+        'type' => MENU_CALLBACK,
+    );
+    $items['userfem/register'] = array(
+        'title' => t('Regístrate Fem'),
+        'page callback' => 'userfem_get_userfem_form',
+        'access arguments' => array('access content'),
+        'type' => MENU_CALLBACK,
+    );
+	$items['userfem/news/preferences'] = array(
+        'title' => t('Registro de preferencias'),
+        'page callback' => 'userfem_news_preferences',
+        'access arguments' => array('access content'),
+        'type' => MENU_CALLBACK,
+    );
+	$items['userfem/news/name_exists'] = array(
+        'title' => t('Existencia de nombre de usuario'),
+        'page callback' => 'userfem_news_name_exists',
+        'access arguments' => array('access content'),
+        'type' => MENU_CALLBACK,
+    );
+	$items['userfem/news/mail_exists'] = array(
+        'title' => t('Existencia de email'),
+        'page callback' => 'userfem_news_mail_exists',
+        'access arguments' => array('access content'),
+        'type' => MENU_CALLBACK,
+    );
+    $items['userfem/message'] = array(
+        'title' => t('Message'),                                            
+        'page callback' => 'userfem_register_sucess',
+        'access arguments' => array('access content'),
+        'type' => MENU_CALLBACK,
+    );
+       
+    return $items;
+                    }                                                       
+
+function userfem_news_name_exists(){
+	if($_SERVER["HTTP_X_REQUESTED_WITH"]==="XMLHttpRequest"){
+		$status=array(
+			'status' => false,
+		);
+
+        //Buscamos el email en la base de datos
+		if(!empty($_POST['fdata'])){                                                                                                                                                                                                   
+
+			$name_user=trim($_POST['fdata']);
+            $name_user=strtolower($name_user);
+			$query="select uid from {users} where lower(name)='%s'";
+			$result=db_query($query,$name_user);
+            $uid=0;
+            while($row=db_fetch_object($result)){
+                $uid=(int)$row->uid;
+            }       
+			if($uid>0){
+				$status=array(
+					'message' => '* Este nombre de usuario ya se encuentra registrado en FEM',
+					'status' => true,
+				);
+			}else{
+				$status=array(
+					'message' => '¡Éxito!',
+					'status' => false,
+				);
+			}
+		}		
+		echo json_encode($status);
+		exit;
+	}else{
+		drupal_goto();
+	}
+}
+
+function userfem_news_mail_exists(){
+	if($_SERVER["HTTP_X_REQUESTED_WITH"]==="XMLHttpRequest"){
+		$status=array(
+			'status' => false,
+		);
+		//Buscamos el email en la base de datos
+		if(!empty($_POST['fdata'])){
+
+			$email_user=check_plain($_POST['fdata']);
+			$query="select uid from {users} where mail='%s'";
+			$result=db_query($query,$email_user);
+            $uid=0;
+            while($row=db_fetch_object($result)){
+                $uid=(int)$row->uid;
+            }
+			if($uid>0){
+				$status=array(
+					'message' => '* Este email ya se encuentra registrado en FEM',
+					'status' => true
+				);
+			}else{
+				$status=array(
+					'message' => '¡Éxito!',
+					'status' => false
+				);
+			}
+		}		
+		echo json_encode($status);
+		exit;
+	}else{
+		drupal_goto();
+	}
+}
+
+function userfem_news_preferences(){
+	if($_SERVER["HTTP_X_REQUESTED_WITH"]==="XMLHttpRequest"){
+		//Recuperamos los datos del usuario
+		global $user;
+		
+		$status=array(
+			'status' => false,
+		);
+		
+		//Recuperamos sus preferencias
+		if(!empty($_POST['tid'])){
+			$created=time();
+			$tid=explode(',',$_POST['tid']);
+			
+			//Primero validamos si el usuario selecciono el tema primario y por tanto todos los canales
+			$busca_todos=array_search('all', $tid, true);
+
+			if($busca_todos===false || $busca_todos===null){
+				$tids=array();
+				foreach($tid as $item){
+					$tids[]=(int)$item;
+				}
+				$tid=$tids;
+			}else{
+				$tid=array();
+				$query="select tid from {term_data} where vid=2 order by weight;";
+				$result=db_query($query);
+				while($row=db_fetch_object($result)){
+					$tid[]=$row->tid;
+				}
+			}
+			
+			$query="insert into {users_alert_saved} (uid,tid,created) values ";
+			foreach($tid as $item){
+				$options[]="({$user->uid},{$item},{$created})";
+			}
+			$query.=implode(',',$options);
+
+			$result=db_query($query);
+
+			if(db_affected_rows($result)>0){
+				$status=array(
+					'message' => 'Datos registrados',
+					'status' => true
+				);
+			}else{
+				$status=array(
+					'message' => 'Error registrando temas',
+					'status' => false
+				);
+			}
+
+		}		
+		echo json_encode($status);
+		exit;
+	}else{
+		drupal_goto();
+	}
+}
+
+function userfem_get_news_form(){
+    
+    $form ='';
+    $form.='<div id="newsfem-container">';
+    $form.='<div class="news-container b1 center">Selecciona por lo menos una</div>';
+    $form.=userfem_get_news_items();
+	$form.='<div class="news-container no-border flota-derecho margen-tb-5 alto-20"><div class="n1 box-wrapper-gray"><input type="checkbox" id="politicas-uso" class="chk-politics"><a id="ver-politicas" class="n1 si-decoration">Acepto Términos y condiciones</a></div><div id="message-politicas-uso"></div></div>';
+    $form.='</div>';
+
+    $title='<div id="news-title" class="h center">¿Qué secciones te interesan?</div>';
+	
+	$script='';
+    
+    return '<div id="news-options">'.$title.$form.'</div>'.$script;
+}
+
+
+function userfem_register_sucess(){
+    $message ='<div id="message-sucess"><p class="d">Actitud FEM te da la bienvenida, tu cuenta ha sido registrada exitosamente.</p></div>';
+	$message.='<div id="message-form" class="flota-derecho">';
+	$message.='<div id="div-btn-terminar"><input type="submit" name="terminar" id="btn-terminar" value="terminar" class="f1 no-border"></div>';
+	$message.='<div id="div-btn-mis-favoritos"><input type="submit" name="mis-favoritos" id="btn-mis-favoritos" value="Ir a mi perfil" class="f1 no-border"></div>';
+	$message.='</div>';
+    
+    $search_campaing=searchmarketing_users_userfem();
+    
+    print $message.$search_campaing;
+}
+
+/*
+ * Implementing hook_form_alter
+ */
+
+function userfem_form_alter(&$form, &$form_state, $form_id) {
+    global $user;
+    //Load JS&CSS
+	if($user->uid<=0)
+		drupal_add_js(drupal_get_path('module', 'userfem') . "/userfem.js");
+    drupal_add_css(drupal_get_path('module', 'userfem') . "/userfem.css");
+
+    if ($form_id === 'user_login') {
+        //Set form to work with ajax
+        $form['#ajax'] = array(
+            'enabled' => TRUE
+        );
+
+		//Blank descriptions
+		$form['name']['#description'] = "El email es incorrecto, rectifica por favor";
+		$form['mail']['#description'] = "El email es incorrecto, rectifica por favor";
+		$form['pass']['#description'] = "La contraseña es incorrecta, rectifica por favor";
+
+		//Change mail title
+		$form['name']['#title'] = "E-mail";
+		$form['mail']['#title'] = "E-mail";
+
+		//Change object size
+		$form['name']['#size'] = null;
+		$form['mail']['#size'] = null;
+		$form['pass']['#size'] = null;
+
+    } else if ($form_id === 'user_register') {
+        //Set form to work with ajax
+        $form['#ajax'] = array(
+            'enabled' => TRUE
+        );
+		//Blank descriptions
+		$form['name']['#description'] = "El nombre es obligatorio";
+		$form['mail']['#description'] = "El email es obligatorio";
+		$form['pass']['#description'] = "La contraseña es obligatoria";
+
+		//Change mail title
+		$form['name']['#title'] = "Nombre de usuario";
+		$form['mail']['#title'] = "e-mail";
+
+		//Change object size
+		$form['name']['#size'] = null;
+		$form['mail']['#size'] = null;
+		$form['pass']['#size'] = null;
+		$form['pass1']['#size'] = null;
+		$form['pass2']['#size'] = null;
+
+		//Add field for topics (canales)
+        $form['topics'] = array(
+            '#type' => 'hidden',
+            '#default_value' => isset($form_state['clicked_button']['#post']['topics']) ? $form_state['clicked_button']['#post']['topics'] : 'all',
+        );
+
+        //Add fields for birthday
+        $form['group-birthday'] = array(
+            '#type' => 'fieldset',
+            '#title' => 'Fecha de nacimiento:',
+            '#attributes' => array('class' => "userfem-birthday"),
+        );
+        $form['group-birthday']['day'] = array(
+            '#type' => "select",
+            '#default_value' => isset($form_state['clicked_button']['#post']['day']) ? $form_state['clicked_button']['#post']['day'] : 0,
+            '#options' => _get_userfem_days(),
+            '#attributes' => array('class' => "userfem-birthday-day"),
+        );
+        $form['group-birthday']['month'] = array(
+            '#type' => "select",
+            '#default_value' => isset($form_state['clicked_button']['#post']['month']) ? $form_state['clicked_button']['#post']['month'] : 0,
+            '#options' => _get_userfem_months(),
+            '#attributes' => array('class' => "userfem-birthday-month"),
+        );
+        $form['group-birthday']['year'] = array(
+            '#type' => "select",
+            '#default_value' => isset($form_state['clicked_button']['#post']['year']) ? $form_state['clicked_button']['#post']['year'] : 0,
+            '#options' => _get_userfem_years(),
+            '#attributes' => array('class' => "userfem-birthday-year"),
+        );
+        $form['birthday'] = array(
+            '#type' => "hidden",
+            '#default_value' => NULL,
+        );
+		
+		$form['submit']['#value'] = "Siguiente";
+
+    } else if ($form_id === 'user_pass') {
+        //Set form to work with ajax
+        $form['#ajax'] = array(
+            'enabled' => TRUE
+        );
+        //Change mail title
+		$form['name']['#title'] = "E-mail";
+		$form['mail']['#title'] = "E-mail";
+
+		//Change object size
+		$form['name']['#size'] = null;
+		$form['mail']['#size'] = null;
+		
+		//Change value submit
+		$form['submit']['#value'] = "Enviar";
+
+    }
+}
+
+function userfem_get_ajax_login_form() {
+    //prints the html of the form to the ajax url request
+    module_load_include('inc', 'user', 'user.pages');
+    $login = drupal_get_form('user_login');
+    $pass = drupal_get_form('user_pass');
+    $forgot_title = t('Recuperar contraseña');
+    $forgot_title_pleca=set_html_componente_titulo(array('title' => 'Recuperar contrase&ntilde;a'));
+    $title=set_html_componente_titulo(array('title' => 'Iniciar sesi&oacute;n'));
+	$error_messages='<div id="container-error-messages"></div>';
+
+    print '<div class="registrate_login"><span class="a1">&#191;A&uacute;n no eres miembro?</span><span class="n">Reg&iacute;strate</span></div><div id="login-title">'.$title.'</div>'. $login .'<div><h3>' . $forgot_title . '</h3><div class="forgot-password-content"><div class="forgot-title-password-pleca">'.$forgot_title_pleca.'</div>' . $pass . '</div></div>'.$error_messages;
+}
+
+function userfem_get_userfem_form() {
+    //prints the html of the form to the ajax url request
+	$title='<div id="title-pink" class="o1"><p>Adapta la experiencia ActitudFEM a tu gusto<br>y recibe alertas en tu correo electr&oacute;nico</p></div>';
+	$news=userfem_get_news_form();
+	$error_messages='<div id="container-error-messages"></div>';
+    print '<div class="registrate_login"><span class="a1">&#191;Ya eres miembro?</span><span class="n register">Inicia sesi&oacute;n</span></div><div id="title-paso-1-2">'.$title.'</div><div id="campos-obligatorios" class="g1"><span class="form-required">*</span> Campos obligatorios</div>'. drupal_get_form('user_register').$news.$error_messages;
+}
+
+function userfem_theme($existing, $type, $theme, $path) {
+    return array(
+        'user_login_link' => array(
+            '	arguments' => array('attributes' => array(), 'query' => array()),
+        ),
+        'user_register_link' => array(
+            'arguments' => array('attributes' => array(), 'query' => array()),
+        ),
+        'user_logout_link' => array(
+            'arguments' => array('attributes' => array()),
+        ),
+        'my_account_link' => array(
+            'arguments' => array('attributes' => array()),
+        ),
+    );
+}
+
+/* * *
+ * Themes functions
+ */
+
+function theme_user_login_link($attributes, $query) {
+    $attributes['class'] = $attributes['class'] . 'ulogin thickbox';
+    $login_uri = l(t('Iniciar sesión'), 'userfem/login', array('attributes' => $attributes, 'query' => $query));
+    return $login_uri;
+}
+
+function theme_user_register_link($attributes, $query) {
+    $attributes['class'] = $attributes['class'] . 'uregister thickbox';
+    $register_uri = user_register_access() ? l(t('Regístrate'), 'userfem/register', array('attributes' => $attributes, 'query' => $query)) : '';
+    return $register_uri;
+    //return t('Regístrate');
+}
+
+function theme_user_logout_link($attributes) {
+    $logout_uri = l(t('Cerrar sesión'), 'logout', array('attributes' => $attributes));
+    return $logout_uri;
+}
+
+function theme_my_account_link($attributes) {
+    global $user;
+    $user_uri = l(t('Mis favoritos'), 'mis-favoritos', array('attributes' => $attributes));
+    return $user_uri;
+}

@@ -1,0 +1,11 @@
+name = Google AMP Filter
+description = Provides a AMPPROJECT filters for markup converting and validation.
+core = 7.x
+php = 5.4
+
+; Information added by Drupal.org packaging script on 2016-02-25
+version = "7.x-1.x-dev"
+core = "7.x"
+project = "ampproject"
+datestamp = "1456399440"
+

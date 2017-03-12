@@ -1,0 +1,173 @@
+<?php
+
+define('VIDEOS_DEFAULT_FILE_PATH', DRUPAL_ROOT . '/cache/');
+
+/**
+ * 
+ * Implement of Hook menu
+ * @return mixed 
+ */
+function imx_recommended_videos_menu() {
+    $items = array();
+    $items['admin/config/videos_recommended'] = array(
+        'title' => 'Configuracion de videos recomendados',
+        'description' => 'Configuracion de videos recomendados',
+        'page callback' => 'system_admin_menu_block_page',
+        'access arguments' => array('administer videos recommended config'),
+        'position' => 'left',
+        'file' => 'system.admin.inc',
+        'file path' => drupal_get_path('module', 'system'),
+    );
+
+    $items['admin/config/videos_recommended/videos-configurate-block'] = array(
+        'title' => 'Configurar los videos recomendados',
+        'description' => 'Configuracion de los videos recomendados.',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('videos_recomendados_admind_config_form'),
+        'access arguments' => array('administer videos recommended config'),
+        'file' => 'inc/imx_recommended_videos.admin.inc',
+        'weight' => 0,
+        'type' => MENU_NORMAL_ITEM,
+    );
+
+    return $items;
+}
+
+/**
+ * Implement of hook permission
+ * @return type
+ */
+function imx_recommended_videos_permission() {
+    return array(
+        'administer videos recommended config' => array(
+            'title' => t('Administer videos recomendados settings'),
+            'description' => t('Configure settings recomemended videos.'),
+        ),
+    );
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function imx_recommended_videos_block_info() {
+    $blocks = array();
+    $blocks['videos_recomendados_block'] = array(
+        'info' => t('Bloque de videos recomendados'),
+        'cache' => DRUPAL_NO_CACHE,
+    );
+    return $blocks;
+}
+
+/**
+ *  Implement of hook_block_view
+ * @param string $delta
+ * @return mixed
+ */
+function imx_recommended_videos_block_view($delta = '') {
+    $block = array();
+    switch ($delta) {
+        case 'videos_recomendados_block' :
+            $show = (int) variable_get('imx_recommended_videos_modo', 0);
+            if ($show == 1) {
+                drupal_add_css(drupal_get_path('module', 'imx_recommended_videos') . '/css/imx_recommended_videos.css');
+                $items = get_items_recommended_videos();
+                if (!empty($items)) {
+                    $html = theme('recommended_videos_bloque', array('items' => $items));
+                    $block['content'] = $html;
+                }
+            }
+            break;
+    }
+    return $block;
+}
+
+/**
+ * Implement of hook theme
+ * @return array
+ */
+function imx_recommended_videos_theme() {
+    return array(
+        'recommended_videos_bloque' => array(
+            'variables' => array(
+                'items' => NULL
+            ),
+            'template' => 'imx_recommended_videos'
+        ),
+    );
+}
+
+/**
+ * Implement of hook_template_preprocess
+ * @param array $variables
+ */
+function template_preprocess_recommended_videos_bloque(&$variables) {
+    $variables['items'] = $variables['items'];
+}
+
+/**
+ * Obtiene todos los videos del json videos_recomendados
+ * * Ordenados bajo la estructura que solicita el pluggin, ejemplo:
+ * <code>
+ *  array(
+ *   0 => array(
+ *       'image' => 'url imagen principla',
+ *       'thumbnail' => 'url thumbanil',
+ *       'description' => 'descripcion de la imagen'
+ *   ),
+ *);
+ *</code>
+ * Les anexo el link del plugin donde se explica la estructura de datos
+ * http://galleria.io/docs/references/data/
+ * @return array
+ */
+function get_items_recommended_videos() {
+    $filename = VIDEOS_DEFAULT_FILE_PATH . 'videos_recomendados.json';
+    $videos_array = array();
+    $videos = FALSE;
+    if (file_exists($filename)) {
+        $file = file_get_contents($filename);
+        if ($file) {
+            $videos = json_decode(file_get_contents($filename));
+        }
+    }
+    if (!empty($videos)) {
+        foreach ($videos as $key => $value) {
+            $video_url = $value->url;
+            $id_youtube = get_recommended_videos_youtube_id($video_url);
+            if ($id_youtube) {
+                $list = '';
+                $list_id = imx_get_list_youtube_url($video_url);
+                if ($list_id) {
+                    $list = '&list=' . $list_id;
+                }
+                $iframe = 'http://www.youtube.com/embed/' . $id_youtube . '?wmode=transparent' . $list;
+                $thumbnail = 'http://i1.ytimg.com/vi/' . $id_youtube . '/mqdefault.jpg';
+                $videos_array[] = array(
+                    'description' => $value->titulo,
+                    'thumbnail' => $thumbnail,
+                    'iframe' => $iframe,
+                );
+            }
+            unset($id_youtube, $iframe, $thumbnail);
+        }
+    }
+
+    return $videos_array;
+}
+
+/**
+ * Obtiene el youtube id del video de youtube
+ * @param string $url
+ * @return string
+ */
+function get_recommended_videos_youtube_id($url = NULL) {
+    $id = NULL;
+    if ($url) {
+        preg_match("#(?<=v=)[a-zA-Z0-9-]+(?=&)|(?<=v\/)[^&\n]+|(?<=v=)[^&\n]+|(?<=youtu.be/)[^&\n]+#", $url, $matches);
+        if (!empty($matches)) {
+            $id = (string) @$matches[0];
+            $id = check_plain($id);
+        }
+    }
+    return $id;
+}
