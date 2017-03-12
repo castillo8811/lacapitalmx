@@ -238,8 +238,7 @@ function getSites(){
     $sites=array(
         'ElQueretanoMx'=>'www.elqueretano.mx',
         'LaCapitalMx'=>'www.lacapitalmx.com',
-        'ElMexiquense'=>'www.elmexiquense.com.mxm
-        '
+        'ElMexiquense'=>'www.elmexiquense.com.mx'
     );
 
     return $sites;
