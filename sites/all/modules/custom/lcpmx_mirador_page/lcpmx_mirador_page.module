@@ -92,7 +92,10 @@ function template_preprocess_lcpmx_mirador_widget(&$variables) {
     $items_capital=json_decode($data,true);
 
     $items_local = get_users_queue(1);
-
+    if(!count($items_local)){
+        $items_local=array();
+    }
+    
     $items=array_merge($items_capital,$items_local);
 
     $variables['items_lcpmx_mirador_page'] = $items;
