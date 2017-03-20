@@ -88,7 +88,7 @@ function template_preprocess_lcpmx_mirador_page(&$variables) {
 }
 
 function template_preprocess_lcpmx_mirador_widget(&$variables) {
-    $data = file_get_contents('http://local.lacapitalmx.com/mirador/widget');
+    $data = file_get_contents('http://www.lacapitalmx.com/mirador/widget');
     $items_capital=json_decode($data,true);
 
     $items_local = get_users_queue(1);

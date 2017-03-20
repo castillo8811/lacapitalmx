@@ -672,7 +672,7 @@ function imx_gcms_ciudad()
             $rows[] = array(
                 l($node["title"], $node["url"], array("attributes" => array("target" => "_blank"))),
                 $node["tipo"],
-                date("h:i:s d-m-y", $node["created"]),
+                $node["created"],
                 $node["category"],
                 l("Importar", "admin/config/imx_gcms/prepare/add/{$site}/{$node['id']}"),
             );
