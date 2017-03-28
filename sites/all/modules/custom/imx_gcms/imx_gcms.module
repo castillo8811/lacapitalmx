@@ -185,9 +185,11 @@ function prepareNode($node_api, $site, $id, $repo)
     $node_api["body"]=str_replace('file file-image file-image-jpeg','',$node_api["body"]);
     $node_api["body"]=str_replace('content','',$node_api["body"]);
     $node_api["body"]=str_replace('file-','',$node_api["body"]);
+    $node_api["body"]=str_replace('media-element default','',$node_api["body"]);
 
 
-    $node->body[$node->language][0]['value'] = trim(strip_tags($node_api["body"], '<blockquote><iframe><h1><h3><h6><ul><ol><li><p><br><strong><b><span><img>'));
+
+    $node->body[$node->language][0]['value'] = trim(strip_tags($node_api["body"], '<blockquote><iframe><h1><h2><h3><h6><ul><ol><li><p><br><strong><b><span><img><div>'));
     $node->body[$node->language][0]['format'] = "filtered_html";
 
 
