@@ -191,9 +191,9 @@ function getGCMSRssRelateds($node_object, $limit)
 
 function getFeedContents($site, $search)
 {
+    $search=urlencode($search);
 
     $feed_url="http://{$site}/json-feed/{$search}";
-    print_r($feed_url);
     $contents = file_get_contents($feed_url);
     $contents = json_decode($contents, true);
 
