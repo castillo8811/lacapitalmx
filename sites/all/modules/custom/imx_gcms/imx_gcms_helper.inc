@@ -189,11 +189,13 @@ function getGCMSRssRelateds($node_object, $limit)
 }
 
 
-function getFeedContents($site)
+function getFeedContents($site, $search)
 {
-    $contents = file_get_contents("http://{$site}/json-feed");
+
+    $feed_url="http://{$site}/json-feed/{$search}";
+    $contents = file_get_contents($feed_url);
     $contents = json_decode($contents, true);
-    $nodes = array();
+
     if (count($contents["nodes"])) {
         foreach ($contents["nodes"] as $node) {
             if (true) {

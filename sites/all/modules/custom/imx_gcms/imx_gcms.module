@@ -62,6 +62,7 @@ function imx_gcms_menu()
                 'page callback' => 'imx_gcms_ciudad',
                 'access arguments' => array('administer imx gcms'),
                 'type' => MENU_LOCAL_TASK,
+                'file' => 'imx_gcms.filter.inc',
             );
         }
     }
@@ -671,8 +672,12 @@ function imx_gcms_ciudad()
     $head_links[] = "<div class='header-links '>" . l("Contenidos importados", "admin/config/imx_gcms/recs/imports", array("attributes" => array("target" => "_blank", "style" => "float: left;margin: 0 20px 20px 0;"))) . "</div>";
     $head_links[] = "</div>";
 
+    $form=drupal_get_form('imx_gcms_filter_form');
+
     $site=getSite(arg(2));
-    $data = getFeedContents($site);
+    $search=($_SESSION["imx_gcms"]["search"])? $_SESSION["imx_gcms"]["search"] : '';
+
+    $data = getFeedContents($site,$search);
 
     $rows = array();
     foreach ($data as $node) {
@@ -698,6 +703,6 @@ function imx_gcms_ciudad()
         'sticky' => FALSE,
         "attributes" => array("class" => "gcms-table"),
     );
-    return implode($head_links, "") . theme('table', $table, array('class' => 'no-sticky'));
+    return drupal_render($form). theme('table', $table, array('class' => 'no-sticky'));
 }
 
