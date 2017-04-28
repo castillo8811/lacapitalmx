@@ -64,15 +64,7 @@ function imx_gcms_filter_form_submit($form, &$form_state)
     $site= arg(2);
 
     $search = $form_state["values"]["gmc_search"];
-
-    if ($search) {
-        $filters["search"] = $search;
-    }
-
-    if (count($filters)) {
-        $_SESSION["imx_gcms"]["search"] = $search;
-    }
+    $_SESSION["imx_gcms"]["search"] = $search;
 
     drupal_goto("/admin/content/{$site}");
-
 }
